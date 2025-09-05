@@ -1,11 +1,5 @@
 import React, { useState } from 'react';
-import {
-  Plus,
-  Edit2,
-  Trash2,
-  User as UserIcon,
-  DollarSign,
-} from 'lucide-react';
+import { Edit2, User as UserIcon, DollarSign, Trash2 } from 'lucide-react';
 import {
   PieChart,
   Pie,
@@ -24,39 +18,17 @@ import {
 
 interface UserManagementProps {
   users: User[];
-  onAddUser: (name: string, income: number, municipalTaxRate?: number) => void;
   onUpdateUser: (userId: string, updates: Partial<User>) => void;
-  onDeleteUser: (userId: string) => void;
+  onDeleteUser?: (userId: string) => Promise<void>;
 }
 
 export function UserManagement({
   users,
-  onAddUser,
   onUpdateUser,
   onDeleteUser,
 }: UserManagementProps) {
-  const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [newUserName, setNewUserName] = useState('');
-  const [newUserIncome, setNewUserIncome] = useState('');
-  const [newUserTaxRate, setNewUserTaxRate] = useState(
-    (getDefaultMunicipalTaxRate() * 100).toString()
-  );
-
-  const handleAddUser = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newUserName.trim() && newUserIncome.trim()) {
-      onAddUser(
-        newUserName.trim(),
-        parseFloat(newUserIncome),
-        parseFloat(newUserTaxRate) / 100
-      );
-      setNewUserName('');
-      setNewUserIncome('');
-      setNewUserTaxRate((getDefaultMunicipalTaxRate() * 100).toString());
-      setIsAdding(false);
-    }
-  };
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleUpdateUser = (
     userId: string,
@@ -74,20 +46,37 @@ export function UserManagement({
     }
   };
 
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    if (!onDeleteUser) return;
+
+    if (
+      !confirm(
+        `Are you sure you want to remove ${userName} from the household? This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setDeletingId(userId);
+    try {
+      await onDeleteUser(userId);
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      alert('Failed to remove user. Please try again.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-          <UserIcon className="w-5 h-5" />
-          Users & Income
-        </h2>
-        <button
-          onClick={() => setIsAdding(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Add User
-        </button>
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+            <UserIcon className="w-5 h-5" />
+            Household Members & Income
+          </h2>
+        </div>
       </div>
 
       {/* Household Income Summary */}
@@ -110,7 +99,10 @@ export function UserManagement({
           const chartData = users.map((user) => ({
             name: user.name,
             value: user.monthlyIncome,
-            percentage: ((user.monthlyIncome / totalIncome) * 100).toFixed(1),
+            percentage:
+              totalIncome > 0
+                ? ((user.monthlyIncome / totalIncome) * 100).toFixed(1)
+                : '0',
             color: user.color,
           }));
 
@@ -150,10 +142,13 @@ export function UserManagement({
                     </div>
                     <div className="space-y-2">
                       {users.map((user) => {
-                        const percentage = (
-                          (user.monthlyIncome / totalIncome) *
-                          100
-                        ).toFixed(1);
+                        const percentage =
+                          totalIncome > 0
+                            ? (
+                                (user.monthlyIncome / totalIncome) *
+                                100
+                              ).toFixed(1)
+                            : '0';
                         return (
                           <div
                             key={user.id}
@@ -231,12 +226,34 @@ export function UserManagement({
             ) : (
               <>
                 <div className="flex items-center gap-4">
-                  <div
-                    className="w-4 h-4 rounded-full"
-                    style={{ backgroundColor: user.color }}
-                  />
+                  <div className="flex items-center gap-2">
+                    {user.photoURL ? (
+                      <img
+                        src={user.photoURL}
+                        alt={user.name}
+                        className="w-8 h-8 rounded-full"
+                      />
+                    ) : (
+                      <div
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium"
+                        style={{ backgroundColor: user.color }}
+                      >
+                        {user.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
                   <div>
-                    <h3 className="font-medium text-gray-900">{user.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium text-gray-900">{user.name}</h3>
+                      {user.role === 'owner' && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                          Owner
+                        </span>
+                      )}
+                    </div>
+                    {user.email && (
+                      <p className="text-xs text-gray-400">{user.email}</p>
+                    )}
                     <p className="text-sm text-gray-500">
                       Monthly Income: {formatMoney(user.monthlyIncome)} kr
                     </p>
@@ -260,13 +277,16 @@ export function UserManagement({
                   <button
                     onClick={() => setEditingId(user.id)}
                     className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                    title="Edit income and tax rate"
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
-                  {users.length > 1 && (
+                  {user.role !== 'owner' && onDeleteUser && (
                     <button
-                      onClick={() => onDeleteUser(user.id)}
-                      className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                      onClick={() => handleDeleteUser(user.id, user.name)}
+                      disabled={deletingId === user.id}
+                      className="p-2 text-gray-400 hover:text-red-600 transition-colors disabled:opacity-50"
+                      title="Remove from household"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -276,82 +296,6 @@ export function UserManagement({
             )}
           </div>
         ))}
-
-        {isAdding && (
-          <form
-            onSubmit={handleAddUser}
-            className="p-4 border border-gray-200 rounded-lg bg-gray-50"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Name
-                </label>
-                <input
-                  type="text"
-                  value={newUserName}
-                  onChange={(e) => setNewUserName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter user name"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Monthly Income (kr)
-                </label>
-                <input
-                  type="number"
-                  value={newUserIncome}
-                  onChange={(e) => setNewUserIncome(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter monthly income"
-                  required
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Municipal Tax Rate (%)
-                </label>
-                <input
-                  type="number"
-                  value={newUserTaxRate}
-                  onChange={(e) => setNewUserTaxRate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="32.0"
-                  required
-                  min="0"
-                  max="60"
-                  step="0.1"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2 mt-4">
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-              >
-                Add User
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsAdding(false);
-                  setNewUserName('');
-                  setNewUserIncome('');
-                  setNewUserTaxRate(
-                    (getDefaultMunicipalTaxRate() * 100).toString()
-                  );
-                }}
-                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        )}
       </div>
     </div>
   );

@@ -1,5 +1,18 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  serverTimestamp,
+  Timestamp,
+  collection,
+  onSnapshot,
+} from 'firebase/firestore';
+import { db } from '../config/firebase';
+import { useAuth } from '../contexts/AuthContext';
 import type {
   User,
   Expense,
@@ -13,173 +26,70 @@ import type {
   PersonalExpenseBreakdown,
   AppState,
 } from '../types';
-import { saveState, loadState } from '../utils/statePersistence';
 import { getMonthlyAmount } from '../utils/expenseCalculations';
 import {
   calculateMonthlyAfterTaxIncome,
   getDefaultMunicipalTaxRate,
 } from '../utils/swedishTaxCalculation';
 
-const initialUsers: User[] = [
-  {
-    id: '1',
-    name: 'Alex',
-    monthlyIncome: 50000,
-    color: '#3B82F6',
-    municipalTaxRate: getDefaultMunicipalTaxRate(),
-  },
-];
+interface FirestoreBudgetData extends AppState {
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}
 
-// Initialize with basic structure - will be updated when users change
-const getInitialCategories = (users: User[]): ExpenseCategory[] => [
-  // Single Shared Expense Category
-  {
-    id: 'shared',
-    name: 'Household Expenses',
-    collapsed: false,
-    expenses: [
-      {
-        id: '1',
-        name: 'Rent',
-        amount: 8000,
-        isShared: true,
-        splitType: 'percentage',
-        splitData: { '1': 1.0 }, // Income-based: 50k/(50k+45k) and 45k/(50k+45k)
-        paidBy: '1',
-      },
-    ],
-  },
-  ...users.map((user) => ({
-    id: `personal-${user.id}`,
-    name: `Personal - ${user.name}`,
-    collapsed: false,
-    expenses: [
-      {
-        id: '3',
-        name: 'Spotify',
-        amount: 119,
-        userId: user.id,
-        isShared: false,
-        splitType: 'fixed' as const,
-        paidBy: user.id,
-        personalCategoryId: 'streaming',
-      },
-      {
-        id: '4',
-        name: 'Netflix',
-        amount: 199,
-        userId: user.id,
-        isShared: false,
-        splitType: 'fixed' as const,
-        paidBy: user.id,
-        personalCategoryId: 'streaming',
-      },
-      {
-        id: '8',
-        name: 'Coffee Subscription',
-        amount: 299,
-        userId: user.id,
-        isShared: false,
-        splitType: 'fixed' as const,
-        paidBy: user.id,
-        // No personalCategoryId - this makes it uncategorized
-      },
-      {
-        id: '9',
-        name: 'Gym Membership',
-        amount: 450,
-        userId: user.id,
-        isShared: false,
-        splitType: 'fixed' as const,
-        paidBy: user.id,
-        personalCategoryId: 'hobbies',
-      },
-    ],
-  })),
-];
+interface HouseholdMember {
+  role: 'owner' | 'member';
+  addedAt: Timestamp;
+  displayName?: string;
+  email?: string;
+  photoURL?: string;
+  // Financial fields (previously from User interface)
+  monthlyIncome: number;
+  municipalTaxRate: number;
+  color: string;
+}
 
-const initialLoans: Loan[] = [
-  {
-    id: '1',
-    name: 'Mortgage Part 1',
-    originalAmount: 1500000,
-    currentAmount: 1300000,
-    interestRate: 0.028,
-    monthlyPayment: 8500,
-    paidBy: '1', // User 1 pays
+// Helper function to convert HouseholdMember to User for component compatibility
+const memberToUser = (member: HouseholdMember, memberId: string): User => ({
+  id: memberId,
+  name: member.displayName || member.email?.split('@')[0] || 'User',
+  monthlyIncome: member.monthlyIncome,
+  color: member.color,
+  municipalTaxRate: member.municipalTaxRate,
+  firebaseUid: memberId,
+  email: member.email,
+  photoURL: member.photoURL,
+  role: member.role,
+});
 
-    // Interest splitting by income percentage
-    isInterestShared: true,
-    interestSplitType: 'percentage',
-    interestSplitData: { '1': 1.0 },
+// No sample data - everything starts empty
 
-    // Mortgage principal split equally
-    isMortgageShared: true,
-    mortgageSplitType: 'equal',
-    mortgageSplitData: { '1': 1.0 },
-  },
-  {
-    id: '2',
-    name: 'Mortgage Part 2',
-    originalAmount: 800000,
-    currentAmount: 700000,
-    interestRate: 0.028,
-    monthlyPayment: 4200,
-    paidBy: '2', // User 2 pays
+const getInitialState = (): AppState => {
+  return {
+    users: [], // Users are now managed via Firebase members collection
+    categories: [], // Start completely empty - no sample data
+    personalCategories: [],
+    personalCategoriesSectionCollapsed: false,
+    loans: [],
+    assets: [],
+    version: '1.0.0',
+    lastUpdated: new Date().toISOString(),
+  };
+};
 
-    // Interest splitting by income percentage
-    isInterestShared: true,
-    interestSplitType: 'percentage',
-    interestSplitData: { '1': 1.0 },
+export function useManualFirebaseBudgetData(householdId: string) {
+  const { user, loading: authLoading } = useAuth();
+  // Firebase state - for real-time sync feedback
+  const [isLoading, setIsLoading] = useState(true); // Start as loading
+  const [error, setError] = useState<string | null>(null);
 
-    // Mortgage principal split equally
-    isMortgageShared: true,
-    mortgageSplitType: 'equal',
-    mortgageSplitData: { '1': 1.0 },
-  },
-];
+  // Document reference moved to individual functions where needed
 
-const initialAssets: Asset[] = [
-  {
-    id: '1',
-    name: 'Car',
-    fixedCosts: [
-      {
-        id: '5',
-        name: 'Insurance',
-        amount: 450,
-        isShared: true,
-        splitType: 'percentage',
-        splitData: { '1': 1.0 }, // Income-based: 50k/(50k+45k) and 45k/(50k+45k)
-        paidBy: '1',
-      },
-      {
-        id: '6',
-        name: 'Registration',
-        amount: 150,
-        isShared: true,
-        splitType: 'equal',
-        paidBy: '1',
-      },
-    ],
-    variableCosts: [
-      {
-        id: '7',
-        name: 'Fuel',
-        amount: 800,
-        isShared: true,
-        splitType: 'equal',
-        isVariable: true,
-        paidBy: '1',
-      },
-    ],
-  },
-];
-
-export function useBudgetData() {
-  // Load initial state from localStorage or use defaults
+  // Load initial state - NO AUTOMATIC SAVING ANYWHERE
   const [isLoaded, setIsLoaded] = useState(false);
-  const [users, setUsers] = useState<User[]>([]);
+  const [members, setMembers] = useState<{
+    [memberId: string]: HouseholdMember;
+  }>({});
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [personalCategories, setPersonalCategories] = useState<
     PersonalExpenseCategory[]
@@ -191,185 +101,440 @@ export function useBudgetData() {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
 
-  // Load state from localStorage on mount
+  // Load state from Firebase - wait for auth to complete first
   useEffect(() => {
-    const savedState = loadState();
-    if (savedState) {
-      setUsers(savedState.users);
-      setCategories(savedState.categories);
-      setPersonalCategories(savedState.personalCategories);
-      setPersonalCategoriesSectionCollapsed(
-        savedState.personalCategoriesSectionCollapsed || false
-      );
-      setLoans(savedState.loans);
-      setAssets(savedState.assets);
-    } else {
-      // Use initial data if no saved state
-      setUsers(initialUsers);
-      setCategories(getInitialCategories(initialUsers));
-      setPersonalCategories([
-        { id: 'uncategorized', name: 'Uncategorized', collapsed: false },
-        { id: 'streaming', name: 'Streaming', collapsed: false },
-        { id: 'charity', name: 'Charity', collapsed: false },
-        { id: 'hobbies', name: 'Hobbies', collapsed: false },
-        { id: 'dining', name: 'Dining Out', collapsed: false },
-      ]);
-      setLoans(initialLoans);
-      setAssets(initialAssets);
+    // Don't load data until authentication is resolved
+    if (authLoading) {
+      return;
     }
-    setIsLoaded(true);
-  }, []);
 
-  // Save state to localStorage whenever data changes
-  useEffect(() => {
-    if (!isLoaded) return; // Don't save during initial load
+    const loadData = async () => {
+      console.log(
+        `🔄 Loading data for household: ${householdId}, user: ${user?.uid || 'anonymous'}`
+      );
+      setIsLoading(true);
 
-    const currentState: AppState = {
-      users,
-      categories,
-      personalCategories,
-      personalCategoriesSectionCollapsed,
-      loans,
-      assets,
-      version: '1.0.0',
-      lastUpdated: new Date().toISOString(),
+      try {
+        const householdDocRef = doc(db, 'households', householdId);
+        const docSnap = await getDoc(householdDocRef);
+
+        if (docSnap.exists()) {
+          const firebaseState = docSnap.data() as FirestoreBudgetData;
+          console.log(
+            `✅ Loaded existing data from Firebase for household: ${householdId}`
+          );
+
+          const appState = {
+            users: firebaseState.users || [],
+            categories: firebaseState.categories || [],
+            personalCategories: firebaseState.personalCategories || [],
+            personalCategoriesSectionCollapsed:
+              firebaseState.personalCategoriesSectionCollapsed || false,
+            loans: firebaseState.loans || [],
+            assets: firebaseState.assets || [],
+            version: firebaseState.version || '1.0.0',
+            lastUpdated: firebaseState.lastUpdated || new Date().toISOString(),
+          };
+
+          // Load existing data (users will be loaded by the members listener)
+          setCategories(appState.categories);
+          setPersonalCategories(appState.personalCategories);
+          setPersonalCategoriesSectionCollapsed(
+            appState.personalCategoriesSectionCollapsed || false
+          );
+          setLoans(appState.loans);
+          setAssets(appState.assets);
+        } else {
+          console.log(
+            `🆕 No data found for household ${householdId}, creating initial data and adding creator as owner`
+          );
+
+          // Create the household creator as owner member
+          if (user) {
+            try {
+              const memberDocRef = doc(
+                db,
+                'households',
+                householdId,
+                'members',
+                user.uid
+              );
+              const memberData: HouseholdMember = {
+                role: 'owner',
+                addedAt: serverTimestamp() as Timestamp,
+                displayName: user.displayName || undefined,
+                email: user.email || undefined,
+                photoURL: user.photoURL || undefined,
+                // Financial defaults
+                monthlyIncome: 0,
+                municipalTaxRate: getDefaultMunicipalTaxRate(),
+                color: '#3B82F6',
+              };
+              await setDoc(memberDocRef, memberData);
+              console.log(
+                `✅ Added household creator ${user.displayName || user.email} as owner`
+              );
+            } catch (memberError) {
+              console.error(
+                'Error creating household owner member:',
+                memberError
+              );
+            }
+          }
+
+          const defaultState = getInitialState();
+          // Users will be created by the members listener, just set other data
+          setCategories(defaultState.categories);
+          setPersonalCategories(defaultState.personalCategories);
+          setPersonalCategoriesSectionCollapsed(
+            defaultState.personalCategoriesSectionCollapsed || false
+          );
+          setLoans(defaultState.loans);
+          setAssets(defaultState.assets);
+        }
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : 'Unknown error';
+        setError(`Failed to load: ${errorMessage}`);
+        console.error(
+          `❌ Error loading data for household ${householdId}:`,
+          err
+        );
+
+        // Fall back to initial data on error
+        const defaultState = getInitialState();
+        // Users will be created by the members listener, just set other data
+        setCategories(defaultState.categories);
+        setPersonalCategories(defaultState.personalCategories);
+        setPersonalCategoriesSectionCollapsed(
+          defaultState.personalCategoriesSectionCollapsed || false
+        );
+        setLoans(defaultState.loans);
+        setAssets(defaultState.assets);
+      } finally {
+        setIsLoading(false);
+        setIsLoaded(true);
+      }
     };
 
-    saveState(currentState);
+    loadData();
+  }, [householdId, user, authLoading]); // Include user and authLoading in dependencies
+
+  // Listen to household members and sync them with budget users
+  // Real-time listener for household document (budget data)
+  useEffect(() => {
+    if (!householdId) return;
+
+    console.log(
+      `🔗 Setting up household document listener for: ${householdId}`
+    );
+    const householdDocRef = doc(db, 'households', householdId);
+
+    const unsubscribe = onSnapshot(
+      householdDocRef,
+      (doc) => {
+        if (doc.exists()) {
+          const data = doc.data();
+          console.log(`📥 Received household data from Firebase`);
+
+          // Update state from Firebase (only if data exists to avoid wiping local changes)
+          if (data.categories) {
+            console.log(
+              `📝 Updating categories from Firebase:`,
+              data.categories.length
+            );
+            setCategories(data.categories);
+          }
+          if (data.personalCategories) {
+            setPersonalCategories(data.personalCategories);
+          }
+          if (data.personalCategoriesSectionCollapsed !== undefined) {
+            setPersonalCategoriesSectionCollapsed(
+              data.personalCategoriesSectionCollapsed
+            );
+          }
+          if (data.loans) {
+            setLoans(data.loans);
+          }
+          if (data.assets) {
+            setAssets(data.assets);
+          }
+
+          setIsLoading(false);
+          console.log(`✅ Updated local state from Firebase`);
+        } else {
+          console.log(
+            `📄 Household document doesn't exist yet: ${householdId}`
+          );
+          setIsLoading(false);
+        }
+      },
+      (error) => {
+        console.error('Error listening to household document:', error);
+        setError(`Failed to sync: ${error.message}`);
+        setIsLoading(false);
+      }
+    );
+
+    return unsubscribe;
+  }, [householdId]);
+
+  useEffect(() => {
+    if (authLoading || !user) {
+      return;
+    }
+
+    const membersCollectionRef = collection(
+      db,
+      'households',
+      householdId,
+      'members'
+    );
+
+    console.log(`🔗 Setting up household members listener for: ${householdId}`);
+
+    const unsubscribe = onSnapshot(
+      membersCollectionRef,
+      (snapshot) => {
+        console.log(`👥 Household members changed, syncing to budget users...`);
+
+        const colors = [
+          '#3B82F6',
+          '#10B981',
+          '#F59E0B',
+          '#8B5CF6',
+          '#EC4899',
+          '#06B6D4',
+        ];
+        const membersData: { [memberId: string]: HouseholdMember } = {};
+
+        snapshot.forEach((doc) => {
+          const memberData = doc.data() as HouseholdMember;
+          const memberId = doc.id;
+
+          // If this member doesn't have financial fields yet (old data), add defaults
+          const completeMemberData: HouseholdMember = {
+            ...memberData,
+            monthlyIncome: memberData.monthlyIncome ?? 0,
+            municipalTaxRate:
+              memberData.municipalTaxRate ?? getDefaultMunicipalTaxRate(),
+            color:
+              memberData.color ??
+              colors[Object.keys(membersData).length % colors.length],
+          };
+
+          membersData[memberId] = completeMemberData;
+        });
+
+        // Update members state
+        setMembers(membersData);
+
+        // Convert to users for compatibility with existing components
+        const usersFromMembers = Object.entries(membersData).map(
+          ([memberId, member]) => memberToUser(member, memberId)
+        );
+
+        // Ensure basic category structure exists for all users
+        setCategories((prevCategories) => {
+          const newCategories = [...prevCategories];
+
+          // Ensure shared category exists
+          if (!newCategories.find((cat) => cat.id === 'shared')) {
+            newCategories.push({
+              id: 'shared',
+              name: 'Household Expenses',
+              collapsed: false,
+              expenses: [],
+            });
+          }
+
+          // Ensure personal category exists for each user and update names
+          usersFromMembers.forEach((user) => {
+            const personalCategoryId = `personal-${user.id}`;
+            const existingCategoryIndex = newCategories.findIndex(
+              (cat) => cat.id === personalCategoryId
+            );
+
+            if (existingCategoryIndex >= 0) {
+              // Update existing category name in case user name changed
+              newCategories[existingCategoryIndex] = {
+                ...newCategories[existingCategoryIndex],
+                name: `Personal - ${user.name}`,
+              };
+            } else {
+              // Create new category if it doesn't exist
+              newCategories.push({
+                id: personalCategoryId,
+                name: `Personal - ${user.name}`,
+                collapsed: false,
+                expenses: [],
+              });
+            }
+          });
+
+          return newCategories;
+        });
+
+        console.log(
+          `✅ Updated household members: ${Object.keys(membersData).length} members`
+        );
+      },
+      (error) => {
+        console.error('Error listening to household members:', error);
+      }
+    );
+
+    return unsubscribe;
+  }, [householdId, user, authLoading]);
+
+  // Helper function to clean data by removing undefined values
+  const cleanData = useCallback((obj: any): any => {
+    if (obj === null || obj === undefined) {
+      return null;
+    }
+
+    if (Array.isArray(obj)) {
+      return obj.map((item) => cleanData(item));
+    }
+
+    if (typeof obj === 'object') {
+      const cleaned: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        if (value !== undefined) {
+          cleaned[key] = cleanData(value);
+        }
+      }
+      return cleaned;
+    }
+
+    return obj;
+  }, []);
+
+  // Auto-sync budget data to Firebase when state changes
+  const [isAutoSyncing, setIsAutoSyncing] = useState(false);
+
+  useEffect(() => {
+    if (!householdId || isLoading) return; // Don't sync during initial load
+
+    const autoSyncToFirebase = async () => {
+      console.log(`🔄 Auto-syncing budget data to Firebase...`);
+      setIsAutoSyncing(true);
+
+      try {
+        const householdDocRef = doc(db, 'households', householdId);
+        const budgetData = {
+          categories,
+          personalCategories,
+          personalCategoriesSectionCollapsed,
+          loans,
+          assets,
+          version: '1.0.0',
+        };
+
+        // Clean the data to remove undefined values
+        const cleanedData = cleanData(budgetData);
+
+        // Use merge to only update budget data, not overwrite members
+        await setDoc(householdDocRef, cleanedData, { merge: true });
+        console.log(`✅ Auto-synced budget data to Firebase`);
+      } catch (error) {
+        console.error('❌ Error auto-syncing to Firebase:', error);
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
+        setError(`Sync failed: ${errorMessage}`);
+      } finally {
+        setIsAutoSyncing(false);
+      }
+    };
+
+    // Debounce rapid changes (avoid spam)
+    const timeoutId = setTimeout(autoSyncToFirebase, 500);
+
+    return () => clearTimeout(timeoutId);
   }, [
-    users,
+    householdId,
     categories,
     personalCategories,
     personalCategoriesSectionCollapsed,
     loans,
     assets,
-    isLoaded,
+    isLoading,
+    cleanData,
   ]);
 
-  const addUser = useCallback(
-    (name: string, income: number, municipalTaxRate?: number) => {
-      const colors = ['#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4'];
-      const newUser: User = {
-        id: uuidv4(),
-        name,
-        monthlyIncome: income,
-        color: colors[users.length % colors.length],
-        municipalTaxRate: municipalTaxRate || getDefaultMunicipalTaxRate(),
-      };
+  // Compute users from members for backward compatibility
+  const users = useMemo(() => {
+    return Object.entries(members).map(([memberId, member]) =>
+      memberToUser(member, memberId)
+    );
+  }, [members]);
 
-      setUsers((prev) => {
-        const newUsers = [...prev, newUser];
-        // Update categories to include the new user
-        setCategories(getInitialCategories(newUsers));
-        return newUsers;
-      });
+  // cleanData function moved earlier to fix dependency order
+
+  // Manual save function removed - now using real-time auto-sync
+
+  const updateUser = useCallback(
+    async (userId: string, updates: Partial<User>) => {
+      try {
+        console.log(`🔄 Updating member ${userId} in Firebase...`);
+
+        // Convert User updates to HouseholdMember updates
+        const memberUpdates: Partial<HouseholdMember> = {};
+
+        if (updates.name !== undefined)
+          memberUpdates.displayName = updates.name;
+        if (updates.monthlyIncome !== undefined)
+          memberUpdates.monthlyIncome = updates.monthlyIncome;
+        if (updates.municipalTaxRate !== undefined)
+          memberUpdates.municipalTaxRate = updates.municipalTaxRate;
+        if (updates.color !== undefined) memberUpdates.color = updates.color;
+
+        // Update the Firebase member document
+        const memberDocRef = doc(
+          db,
+          'households',
+          householdId,
+          'members',
+          userId
+        );
+        await updateDoc(memberDocRef, memberUpdates);
+
+        console.log(`✅ Updated member ${userId} in Firebase`);
+
+        // The real-time listener will automatically update the local state
+      } catch (error) {
+        console.error(`❌ Failed to update member ${userId}:`, error);
+        throw error;
+      }
     },
-    [users.length]
+    [householdId]
   );
 
-  const updateUser = useCallback((userId: string, updates: Partial<User>) => {
-    setUsers((prev) => {
-      const newUsers = prev.map((user) =>
-        user.id === userId ? { ...user, ...updates } : user
-      );
+  const deleteUser = useCallback(
+    async (userId: string) => {
+      try {
+        console.log(`🗑️ Removing member ${userId} from household...`);
 
-      // Update category names to reflect the new user names
-      setCategories((prevCategories) =>
-        prevCategories.map((cat) => {
-          if (cat.id === `personal-${userId}`) {
-            const updatedUser = newUsers.find((u) => u.id === userId);
-            return {
-              ...cat,
-              name: `Personal - ${updatedUser?.name || cat.name.split(' - ')[1]}`,
-            };
-          }
-          return cat;
-        })
-      );
-
-      // Update asset percentage splits if income changed
-      if (updates.monthlyIncome !== undefined) {
-        const totalIncome = newUsers.reduce(
-          (sum, user) => sum + user.monthlyIncome,
-          0
+        // Delete the Firebase member document
+        const memberDocRef = doc(
+          db,
+          'households',
+          householdId,
+          'members',
+          userId
         );
-        const newIncomeBasedSplit: { [userId: string]: number } = {};
-        newUsers.forEach((user) => {
-          newIncomeBasedSplit[user.id] =
-            totalIncome > 0
-              ? user.monthlyIncome / totalIncome
-              : 1 / newUsers.length;
-        });
+        await deleteDoc(memberDocRef);
 
-        setAssets((prevAssets) =>
-          prevAssets.map((asset) => ({
-            ...asset,
-            fixedCosts: asset.fixedCosts.map((cost) => {
-              if (cost.splitType === 'percentage') {
-                return {
-                  ...cost,
-                  splitData: newIncomeBasedSplit,
-                };
-              }
-              return cost;
-            }),
-          }))
-        );
+        console.log(`✅ Removed member ${userId} from household`);
 
-        // Also update shared expense percentage splits in categories
-        setCategories((prevCategories) =>
-          prevCategories.map((cat) => ({
-            ...cat,
-            expenses: cat.expenses.map((expense) => {
-              if (expense.isShared && expense.splitType === 'percentage') {
-                return {
-                  ...expense,
-                  splitData: newIncomeBasedSplit,
-                };
-              }
-              return expense;
-            }),
-          }))
-        );
-
-        // Update loan percentage splits for both interest and mortgage
-        setLoans((prevLoans) =>
-          prevLoans.map((loan) => {
-            const updatedLoan = { ...loan };
-
-            // Update interest split if it's percentage-based
-            if (
-              loan.isInterestShared &&
-              loan.interestSplitType === 'percentage'
-            ) {
-              updatedLoan.interestSplitData = newIncomeBasedSplit;
-            }
-
-            // Update mortgage split if it's percentage-based
-            if (
-              loan.isMortgageShared &&
-              loan.mortgageSplitType === 'percentage'
-            ) {
-              updatedLoan.mortgageSplitData = newIncomeBasedSplit;
-            }
-
-            return updatedLoan;
-          })
-        );
+        // The real-time listener will automatically update the local state
+      } catch (error) {
+        console.error(`❌ Failed to remove member ${userId}:`, error);
+        throw error;
       }
-
-      return newUsers;
-    });
-  }, []);
-
-  const deleteUser = useCallback((userId: string) => {
-    setUsers((prev) => {
-      const newUsers = prev.filter((user) => user.id !== userId);
-      // Update categories to reflect the remaining users
-      setCategories(getInitialCategories(newUsers));
-      return newUsers;
-    });
-  }, []);
+    },
+    [householdId]
+  );
 
   const addExpense = useCallback(
     (categoryId: string, expense: Omit<Expense, 'id'>) => {
@@ -378,13 +543,29 @@ export function useBudgetData() {
         id: uuidv4(),
       };
 
-      setCategories((prev) =>
-        prev.map((cat) =>
-          cat.id === categoryId
-            ? { ...cat, expenses: [...cat.expenses, newExpense] }
-            : cat
-        )
-      );
+      setCategories((prev) => {
+        // Check if category exists
+        const existingCategory = prev.find((cat) => cat.id === categoryId);
+
+        if (existingCategory) {
+          // Add expense to existing category
+          return prev.map((cat) =>
+            cat.id === categoryId
+              ? { ...cat, expenses: [...cat.expenses, newExpense] }
+              : cat
+          );
+        } else {
+          // Auto-create the category and add the expense
+          const newCategory: ExpenseCategory = {
+            id: categoryId,
+            name:
+              categoryId === 'shared' ? 'Household Expenses' : 'New Category',
+            collapsed: false,
+            expenses: [newExpense],
+          };
+          return [...prev, newCategory];
+        }
+      });
     },
     []
   );
@@ -411,8 +592,6 @@ export function useBudgetData() {
       }))
     );
   }, []);
-
-  // Remove addCategory - categories are now fixed
 
   const toggleCategoryCollapse = useCallback((categoryId: string) => {
     setCategories((prev) =>
@@ -917,7 +1096,8 @@ export function useBudgetData() {
     const afterHouseholdExpenses = afterTaxIncome - totalHouseholdExpenses;
     const afterPersonalExpenses =
       afterHouseholdExpenses - totalPersonalExpenses;
-    const percentageRemaining = (afterPersonalExpenses / afterTaxIncome) * 100;
+    const percentageRemaining =
+      afterTaxIncome > 0 ? (afterPersonalExpenses / afterTaxIncome) * 100 : 0;
 
     return {
       totalIncome,
@@ -952,12 +1132,24 @@ export function useBudgetData() {
       allSharedExpenses.forEach((expense) => {
         if (expense.splitType === 'equal') {
           sharedExpensesOwed += getMonthlyAmount(expense) / users.length;
-        } else if (
-          expense.splitType === 'percentage' &&
-          expense.splitData?.[user.id]
-        ) {
-          sharedExpensesOwed +=
-            getMonthlyAmount(expense) * expense.splitData[user.id];
+        } else if (expense.splitType === 'percentage') {
+          // Handle percentage split with fallback for missing splitData
+          if (expense.splitData?.[user.id] !== undefined) {
+            // Use existing splitData
+            sharedExpensesOwed +=
+              getMonthlyAmount(expense) * expense.splitData[user.id];
+          } else {
+            // Fallback: calculate income-based percentage on the fly
+            const totalIncome = users.reduce(
+              (sum, u) => sum + u.monthlyIncome,
+              0
+            );
+            const userPercentage =
+              totalIncome > 0
+                ? user.monthlyIncome / totalIncome
+                : 1 / users.length;
+            sharedExpensesOwed += getMonthlyAmount(expense) * userPercentage;
+          }
         }
       });
 
@@ -989,11 +1181,23 @@ export function useBudgetData() {
         if (isInterestShared) {
           if (interestSplitType === 'equal') {
             sharedExpensesOwed += monthlyInterest / users.length;
-          } else if (
-            interestSplitType === 'percentage' &&
-            interestSplitData?.[user.id]
-          ) {
-            sharedExpensesOwed += monthlyInterest * interestSplitData[user.id];
+          } else if (interestSplitType === 'percentage') {
+            if (interestSplitData?.[user.id] !== undefined) {
+              // Use existing splitData
+              sharedExpensesOwed +=
+                monthlyInterest * interestSplitData[user.id];
+            } else {
+              // Fallback: calculate income-based percentage on the fly
+              const totalIncome = users.reduce(
+                (sum, u) => sum + u.monthlyIncome,
+                0
+              );
+              const userPercentage =
+                totalIncome > 0
+                  ? user.monthlyIncome / totalIncome
+                  : 1 / users.length;
+              sharedExpensesOwed += monthlyInterest * userPercentage;
+            }
           }
         }
 
@@ -1001,11 +1205,23 @@ export function useBudgetData() {
         if (isMortgageShared) {
           if (mortgageSplitType === 'equal') {
             sharedExpensesOwed += monthlyPrincipal / users.length;
-          } else if (
-            mortgageSplitType === 'percentage' &&
-            mortgageSplitData?.[user.id]
-          ) {
-            sharedExpensesOwed += monthlyPrincipal * mortgageSplitData[user.id];
+          } else if (mortgageSplitType === 'percentage') {
+            if (mortgageSplitData?.[user.id] !== undefined) {
+              // Use existing splitData
+              sharedExpensesOwed +=
+                monthlyPrincipal * mortgageSplitData[user.id];
+            } else {
+              // Fallback: calculate income-based percentage on the fly
+              const totalIncome = users.reduce(
+                (sum, u) => sum + u.monthlyIncome,
+                0
+              );
+              const userPercentage =
+                totalIncome > 0
+                  ? user.monthlyIncome / totalIncome
+                  : 1 / users.length;
+              sharedExpensesOwed += monthlyPrincipal * userPercentage;
+            }
           }
         }
       });
@@ -1088,7 +1304,7 @@ export function useBudgetData() {
       loans,
       assets,
       version: '1.0.0',
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: '2024-01-01T00:00:00.000Z',
     };
   }, [
     users,
@@ -1100,7 +1316,7 @@ export function useBudgetData() {
   ]);
 
   const importAppState = useCallback((state: AppState) => {
-    setUsers(state.users);
+    // Legacy import - users data will be ignored, members should be managed through Firebase
     setCategories(state.categories);
     setPersonalCategories(state.personalCategories);
     setPersonalCategoriesSectionCollapsed(
@@ -1117,7 +1333,6 @@ export function useBudgetData() {
     personalCategoriesSectionCollapsed,
     loans,
     assets,
-    addUser,
     updateUser,
     deleteUser,
     addExpense,
@@ -1143,5 +1358,9 @@ export function useBudgetData() {
     getCurrentState,
     importAppState,
     isLoaded,
+    // Real-time Firebase sync status
+    isLoading,
+    isSaving: isAutoSyncing, // Now represents auto-sync status
+    error,
   };
 }

@@ -121,7 +121,9 @@ export function BudgetBreakdownSummary({
   ];
 
   const percentageLeft =
-    (breakdown.remainingAfterExpenses / breakdown.income) * 100;
+    breakdown.income > 0
+      ? (breakdown.remainingAfterExpenses / breakdown.income) * 100
+      : 0;
   const isPositive = breakdown.remainingAfterExpenses > 0;
 
   // Calculate household income percentage
@@ -129,10 +131,10 @@ export function BudgetBreakdownSummary({
     (sum, u) => sum + u.monthlyIncome,
     0
   );
-  const householdIncomePercentage = (
-    (user.monthlyIncome / totalHouseholdIncome) *
-    100
-  ).toFixed(1);
+  const householdIncomePercentage =
+    totalHouseholdIncome > 0
+      ? ((user.monthlyIncome / totalHouseholdIncome) * 100).toFixed(1)
+      : '0';
 
   if (compact) {
     return (

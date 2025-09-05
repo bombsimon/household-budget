@@ -30,7 +30,8 @@ A comprehensive household budget management application built with React, TypeSc
 
 ### 💡 Smart Features
 - **Swedish Tax Integration**: Accurate after-tax income calculations
-- **Data Persistence**: Automatic saving to browser storage
+- **Cloud Persistence**: Automatic syncing across devices with Firebase Firestore
+- **Multi-Tenant Support**: Share household budgets with family members via unique URLs
 - **Export/Import**: Backup and restore your financial data
 - **Responsive Design**: Works seamlessly on desktop and mobile
 
@@ -39,8 +40,9 @@ A comprehensive household budget management application built with React, TypeSc
 ### Prerequisites
 - Node.js (version 20.19+ recommended)
 - npm or yarn
+- Firebase project (for cloud persistence)
 
-### Installation
+### Quick Start
 
 ```bash
 # Clone the repository
@@ -50,21 +52,46 @@ cd household-budget
 # Install dependencies
 npm install
 
-# Start development server
+# Start development server (uses local storage)
 npm run dev
+```
 
+### Firebase Setup (Optional but Recommended)
+
+For cloud persistence and multi-device syncing:
+
+1. Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
+2. Copy `.env.example` to `.env` and fill in your Firebase configuration
+3. Enable Firestore Database in your Firebase project
+4. Deploy security rules: `npm run firebase:deploy:rules`
+
+See [FIREBASE_SETUP.md](FIREBASE_SETUP.md) for detailed instructions.
+
+### Build and Deploy
+
+```bash
 # Build for production
 npm run build
+
+# Deploy to Firebase Hosting
+npm run firebase:deploy
+
+# Or deploy only hosting (faster updates)
+npm run firebase:deploy:hosting
 ```
 
 ### Development Commands
 
 ```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run preview      # Preview production build
-npm run lint         # Run ESLint
-npm run prettify     # Format code with Prettier
+npm run dev                    # Start development server
+npm run build                  # Build for production
+npm run preview                # Preview production build
+npm run lint                   # Run ESLint
+npm run prettify               # Format code with Prettier
+npm run firebase:emulators     # Start Firebase emulators
+npm run firebase:deploy        # Build and deploy to Firebase
+npm run firebase:deploy:hosting # Deploy only frontend
+npm run firebase:deploy:rules  # Deploy only Firestore rules
 ```
 
 ## Technology Stack
@@ -72,9 +99,12 @@ npm run prettify     # Format code with Prettier
 - **React 18** - Modern React with hooks and functional components
 - **TypeScript** - Type-safe development
 - **Tailwind CSS** - Utility-first styling
+- **Firebase Firestore** - Cloud database with real-time synchronization
+- **Firebase Hosting** - Fast, secure web hosting
 - **Recharts** - Interactive data visualization
 - **Lucide React** - Beautiful icons
 - **Vite** - Fast development and building
+- **React Router** - Client-side routing for multi-tenant support
 
 ## License
 

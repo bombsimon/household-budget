@@ -4,6 +4,11 @@ export interface User {
   monthlyIncome: number;
   color: string;
   municipalTaxRate?: number; // Combined municipal + county tax rate (default: 32%)
+  // Firebase integration fields
+  firebaseUid?: string;
+  email?: string;
+  photoURL?: string;
+  role?: 'owner' | 'member';
 }
 
 export interface ExpenseCategory {

@@ -1,0 +1,84 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { 
+      return request.auth != null; 
+    }
+
+    function isHouseholdOwner(householdId) {
+      return exists(/databases/$(database)/documents/householdMetadata/$(householdId)) &&
+             get(/databases/$(database)/documents/householdMetadata/$(householdId)).data.ownerUid == request.auth.uid;
+    }
+
+    function isHouseholdMember(householdId) {
+      return exists(/databases/$(database)/documents/households/$(householdId)/members/$(request.auth.uid));
+    }
+
+    // Household metadata - safe existence checking without exposing sensitive data
+    // Only contains: ownerUid, name, createdAt - no budget data
+    match /householdMetadata/{householdId} {
+      allow read: if signedIn(); // Anyone can check if household exists
+      allow create: if signedIn() && 
+                    request.resource.data.ownerUid == request.auth.uid &&
+                    request.resource.data.keys().hasAll(['ownerUid', 'name', 'createdAt']) &&
+                    request.resource.data.keys().size() == 3;
+      allow update: if isHouseholdOwner(householdId);
+      allow delete: if isHouseholdOwner(householdId);
+    }
+
+    // Main household budget data - only accessible to members
+    match /households/{householdId} {
+      allow read, write: if isHouseholdMember(householdId);
+      // Allow creation if user will be the owner (metadata might not exist yet during creation)
+      allow create: if signedIn() && 
+                    request.resource.data.ownerUid == request.auth.uid;
+    }
+
+    // Household members - strict access control
+    match /households/{householdId}/members/{uid} {
+      // Members can read other members
+      allow read: if isHouseholdMember(householdId);
+      
+      // Users can create their own member document OR household owner can create member documents
+      allow create: if signedIn() && 
+                    request.resource.data.keys().hasAll(['role', 'addedAt', 'monthlyIncome', 'municipalTaxRate', 'color']) &&
+                    ((request.auth.uid == uid && request.resource.data.role == 'owner') || // User creating their own owner account
+                     (request.auth.uid == uid && isHouseholdMember(householdId)) || // Existing member updating their own
+                     isHouseholdOwner(householdId)); // Owner creating member accounts for others
+      
+      allow update: if signedIn() && 
+                    request.auth.uid == uid &&
+                    request.resource.data.keys().hasAll(['role', 'addedAt', 'monthlyIncome', 'municipalTaxRate', 'color']);
+      
+      // Only household owner can delete members (but not themselves)
+      allow delete: if isHouseholdOwner(householdId) && request.auth.uid != uid;
+      
+      // Household owner can also update any member (for admin purposes)
+      allow update: if isHouseholdOwner(householdId);
+    }
+
+    // Applications - only owner can manage, applicant can create/update their own
+    match /households/{householdId}/applications/{uid} {
+      // Only household owner can read applications
+      allow read: if isHouseholdOwner(householdId);
+      
+      // Applicant can create their own application
+      allow create: if signedIn() && 
+                    request.auth.uid == uid &&
+                    request.resource.data.userId == request.auth.uid;
+      
+      // Applicant can update their own application (but only before approval/rejection)
+      allow update: if signedIn() && 
+                    request.auth.uid == uid &&
+                    request.resource.data.userId == request.auth.uid &&
+                    (!resource.data.status || resource.data.status == 'pending');
+      
+      // Household owner can approve/reject/delete applications (separate update rule)
+      // Also allow if the user is owner of the household document itself (fallback check)
+      allow update, delete: if isHouseholdOwner(householdId) || 
+                            (exists(/databases/$(database)/documents/households/$(householdId)) &&
+                             get(/databases/$(database)/documents/households/$(householdId)).data.ownerUid == request.auth.uid);
+    }
+  }
+}

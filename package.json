@@ -8,13 +8,19 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "prettify": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\""
+    "prettify": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "firebase:emulators": "firebase emulators:start",
+    "firebase:deploy": "npm run build && firebase deploy",
+    "firebase:deploy:hosting": "npm run build && firebase deploy --only hosting",
+    "firebase:deploy:rules": "firebase deploy --only firestore:rules"
   },
   "dependencies": {
     "@types/uuid": "^10.0.0",
+    "firebase": "^12.2.1",
     "lucide-react": "^0.542.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "react-router-dom": "^7.8.2",
     "recharts": "^3.1.2",
     "uuid": "^11.1.0"
   },
@@ -29,6 +35,7 @@
     "eslint": "^9.33.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
+    "firebase-tools": "^14.15.2",
     "globals": "^16.3.0",
     "postcss": "^8.5.6",
     "prettier": "^3.6.2",

@@ -114,7 +114,7 @@ export function Dashboard({
         <MetricCard
           title="After Tax Income"
           value={budgetSummary.afterTaxIncome}
-          subtitle={`${((budgetSummary.afterTaxIncome / budgetSummary.totalIncome) * 100).toFixed(0)}% of gross`}
+          subtitle={`${budgetSummary.totalIncome > 0 ? ((budgetSummary.afterTaxIncome / budgetSummary.totalIncome) * 100).toFixed(0) : '0'}% of gross`}
           color="text-green-600"
           trend="up"
         />
@@ -363,7 +363,10 @@ export function Dashboard({
               {userBreakdowns.map((breakdown) => {
                 const user = users.find((u) => u.id === breakdown.userId);
                 const percentageLeft =
-                  (breakdown.remainingAfterExpenses / breakdown.income) * 100;
+                  breakdown.income > 0
+                    ? (breakdown.remainingAfterExpenses / breakdown.income) *
+                      100
+                    : 0;
                 // const uncategorizedExpenses = getUncategorizedExpenses(
                 //   breakdown.userId
                 // );
