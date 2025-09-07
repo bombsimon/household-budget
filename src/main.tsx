@@ -8,7 +8,9 @@ import { AuthProvider } from './contexts/AuthContext.tsx';
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AuthProvider>
-      <BrowserRouter>
+      <BrowserRouter
+        basename={import.meta.env.PROD ? '/household-budget' : undefined}
+      >
         <App />
       </BrowserRouter>
     </AuthProvider>
