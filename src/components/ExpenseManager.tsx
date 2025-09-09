@@ -120,38 +120,54 @@ export function ExpenseManager({
 
           return (
             <div key={category.id} className="bg-white rounded-lg shadow-sm">
-              <div className="p-4 border-b border-gray-200">
-                <div className="flex items-center justify-between">
+              <div className="p-3 sm:p-4 border-b border-gray-200">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  {/* Mobile: 3-row layout, Desktop: single row */}
                   <button
                     onClick={() => onToggleCategoryCollapse(category.id)}
-                    className="flex items-center gap-2 text-left flex-1"
+                    className="flex items-center gap-2 text-left flex-1 min-w-0"
                   >
                     {category.collapsed ? (
-                      <ChevronRight className="w-5 h-5 text-gray-400" />
+                      <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
                     ) : (
-                      <ChevronDown className="w-5 h-5 text-gray-400" />
+                      <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
                     )}
-                    <div className="flex items-center gap-2">
-                      <Receipt className="w-5 h-5 text-gray-600" />
-                      <h2 className="text-lg font-semibold text-gray-900">
-                        {category.name}
-                      </h2>
-                      <span className="text-sm text-gray-500">
-                        ({category.expenses.length} expenses)
-                      </span>
-                      {totalExpenses > 0 && (
-                        <span className="text-sm font-medium text-gray-700">
-                          • {formatMoney(totalExpenses)} kr/month
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 min-w-0 flex-1">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Receipt className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 flex-shrink-0" />
+                        <h2 className="text-base font-semibold text-gray-900 leading-tight truncate">
+                          {category.name}
+                        </h2>
+                        <span className="text-sm text-gray-500 flex-shrink-0">
+                          ({category.expenses.length})
                         </span>
+                      </div>
+                      {totalExpenses > 0 && (
+                        <div className="text-sm font-medium text-gray-700 mt-1 sm:mt-0">
+                          {formatMoney(totalExpenses)} kr/month
+                        </div>
                       )}
                     </div>
                   </button>
+                  
+                  {/* Desktop: inline button */}
                   <button
                     onClick={() => setAddingToCategory(category.id)}
-                    className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                    className="hidden sm:flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex-shrink-0"
                   >
                     <Plus className="w-4 h-4" />
                     Add
+                  </button>
+                </div>
+                
+                {/* Mobile: Add button on separate row */}
+                <div className="sm:hidden mt-2">
+                  <button
+                    onClick={() => setAddingToCategory(category.id)}
+                    className="w-full flex items-center justify-center gap-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Expense
                   </button>
                 </div>
               </div>
@@ -345,78 +361,142 @@ function ExpenseItem({
     return 'Fixed';
   };
 
-  // Use denser layout for personal expenses
+  // Multi-line layout for personal expenses with compact yearly display
   if (!isSharedCategory && !expense.isShared) {
+    const monthlyAmount = getMonthlyAmount(expense);
+    const isYearly = expense.isYearly;
+    
     return (
-      <div className="flex items-center justify-between py-2 px-3 border border-gray-200 rounded bg-white">
-        <div className="flex items-center gap-3 flex-1">
-          <h4 className="font-medium text-gray-900">{expense.name}</h4>
-          <span className="text-sm text-gray-500">
-            {formatExpenseAmount(expense, true)}
-          </span>
-          {expense.isYearly && (
-            <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">
-              {getFrequencyText(expense)}
-            </span>
+      <div className="p-3 border border-gray-200 rounded bg-white">
+        <div className="space-y-2">
+          {/* Row 1: Title, Amount, and Icons (desktop) */}
+          <div className="flex items-start justify-between">
+            <h4 className="font-medium text-gray-900 flex-1 mr-2 text-left">{expense.name}</h4>
+            <div className="flex items-center gap-2">
+              <div className="text-sm text-gray-500 text-right">
+                {isYearly ? (
+                  <span className="text-xs">
+                    {expense.amount.toLocaleString()} kr/year ({monthlyAmount.toLocaleString()} kr/month)
+                  </span>
+                ) : (
+                  <span>{formatExpenseAmount(expense, true)}</span>
+                )}
+              </div>
+              {/* Desktop: Icons on same line */}
+              <div className="hidden sm:flex gap-1">
+                <button
+                  onClick={onStartEdit}
+                  className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                  title="Edit expense"
+                >
+                  <Edit2 className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={onDelete}
+                  className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                  title="Delete expense"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          {/* Row 2: Yearly indicator (if yearly) */}
+          {isYearly && (
+            <div className="flex justify-end sm:justify-start sm:ml-0">
+              <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">
+                yearly
+              </span>
+            </div>
           )}
-        </div>
-        <div className="flex gap-1">
-          <button
-            onClick={onStartEdit}
-            className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
-            title="Edit expense"
-          >
-            <Edit2 className="w-3 h-3" />
-          </button>
-          <button
-            onClick={onDelete}
-            className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-            title="Delete expense"
-          >
-            <Trash2 className="w-3 h-3" />
-          </button>
+          
+          {/* Mobile: Icons on separate line */}
+          <div className="flex justify-center gap-4 sm:hidden">
+            <button
+              onClick={onStartEdit}
+              className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+              title="Edit expense"
+            >
+              <Edit2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={onDelete}
+              className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+              title="Delete expense"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Dense layout for shared expenses
+  // Multi-line layout for shared expenses
   return (
-    <div className="flex items-center justify-between py-2 px-3 border border-gray-200 rounded bg-white">
-      <div className="flex items-center gap-3 flex-1">
-        <h4 className="font-medium text-gray-900">{expense.name}</h4>
-        <span className="text-sm text-gray-500">
-          {formatExpenseAmount(expense, true)}
-        </span>
-        {expense.isYearly && (
-          <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">
-            {getFrequencyText(expense)}
-          </span>
-        )}
-        <div className="flex items-center gap-1.5 text-xs text-gray-500">
-          <span>by {paidByUser?.name || 'Unknown'}</span>
-          <span>•</span>
-          <div className="flex items-center gap-1">
+    <div className="p-3 border border-gray-200 rounded bg-white">
+      <div className="space-y-2">
+        {/* Row 1: Title, Amount, and Icons (desktop) */}
+        <div className="flex items-start justify-between">
+          <h4 className="font-medium text-gray-900 flex-1 mr-2 text-left">{expense.name}</h4>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500 text-right">
+              {formatExpenseAmount(expense, true)}
+            </span>
+            {/* Desktop: Icons on same line */}
+            <div className="hidden sm:flex gap-1">
+              <button
+                onClick={onStartEdit}
+                className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                title="Edit expense"
+              >
+                <Edit2 className="w-3 h-3" />
+              </button>
+              <button
+                onClick={onDelete}
+                className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                title="Delete expense"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        {/* Row 2: Payee and Payment method */}
+        <div className="flex items-center justify-between text-xs text-gray-500">
+          <div className="flex items-center gap-2">
+            <span>by {paidByUser?.name || 'Unknown'}</span>
+            {expense.isYearly && (
+              <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full">
+                {getFrequencyText(expense)}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
             {getSplitIcon()}
             <span>{getShortSplitDescription()}</span>
           </div>
         </div>
-      </div>
-      <div className="flex gap-1">
-        <button
-          onClick={onStartEdit}
-          className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
-          title="Edit expense"
-        >
-          <Edit2 className="w-3 h-3" />
-        </button>
-        <button
-          onClick={onDelete}
-          className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-          title="Delete expense"
-        >
-          <Trash2 className="w-3 h-3" />
-        </button>
+        
+        {/* Mobile: Icons on separate line */}
+        <div className="flex justify-center gap-4 sm:hidden">
+          <button
+            onClick={onStartEdit}
+            className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+            title="Edit expense"
+          >
+            <Edit2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={onDelete}
+            className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+            title="Delete expense"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -833,30 +913,30 @@ function GroupedPersonalExpenses({
             key={categoryInfo.id}
             className="border border-gray-200 rounded-lg"
           >
-            {/* Category Header */}
+            {/* Category Header - Mobile: 3-row layout */}
             <div className="p-3 bg-gray-50 border-b border-gray-200">
               <button
                 onClick={() => toggleCategoryCollapse(categoryInfo.id)}
-                className="flex items-center justify-between w-full text-left"
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full text-left gap-2"
               >
-                <div className="flex items-center gap-2">
-                  {categoryInfo.isCollapsed ? (
-                    <ChevronRight className="w-4 h-4 text-gray-400" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-gray-400" />
-                  )}
-                  <h3 className="font-medium text-gray-900">
-                    {categoryInfo.name}
-                  </h3>
-                  <span className="text-sm text-gray-500">
-                    ({categoryInfo.count} expense
-                    {categoryInfo.count !== 1 ? 's' : ''})
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="font-medium text-gray-900">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between min-w-0 flex-1 gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {categoryInfo.isCollapsed ? (
+                      <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    )}
+                    <h3 className="font-medium text-gray-900 leading-tight truncate">
+                      {categoryInfo.name}
+                    </h3>
+                    <span className="text-sm text-gray-500 flex-shrink-0">
+                      ({categoryInfo.count})
+                    </span>
+                  </div>
+                  
+                  <div className="font-medium text-gray-900 ml-6 sm:ml-0 sm:text-right sm:flex-shrink-0">
                     {formatMoney(categoryInfo.totalAmount)} kr/month
-                  </span>
+                  </div>
                 </div>
               </button>
             </div>

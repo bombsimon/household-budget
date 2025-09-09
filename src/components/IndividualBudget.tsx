@@ -387,8 +387,8 @@ function UserBudgetCard({
                         </span>
                       </div>
                       <div className="text-right flex-shrink-0 ml-2">
-                        <div className="text-gray-900 font-medium">
-                          {formatMoney(item.amount)} kr
+                        <div className="text-gray-900 font-medium whitespace-nowrap">
+                          {formatMoney(item.amount)}&nbsp;kr
                         </div>
                         <div className="text-gray-500 text-xs">
                           {item.value.toFixed(1)}%
@@ -480,8 +480,8 @@ function UserBudgetCard({
                       {category.categoryName}
                     </h5>
                     <div className="text-right">
-                      <span className="text-lg font-semibold text-gray-900">
-                        {formatMoney(category.amount)} kr
+                      <span className="text-lg font-semibold text-gray-900 whitespace-nowrap">
+                        {formatMoney(category.amount)}&nbsp;kr
                       </span>
                       <div className="text-sm text-gray-500">
                         {category.percentage > 0
@@ -496,18 +496,18 @@ function UserBudgetCard({
                     <div className="space-y-1 border-t border-gray-100 pt-2">
                       {sortExpenses([...categoryExpenses]).map((expense) => (
                         <div key={expense.id} className="text-sm">
-                          <div className="flex justify-between items-center py-1 px-2">
-                            <span className="font-medium text-gray-700">
+                          <div className="flex justify-between items-start sm:items-center py-1 px-2">
+                            <span className="font-medium text-gray-700 text-left flex-1">
                               {expense.name}
                             </span>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-shrink-0">
                               {expense.isYearly && (
-                                <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">
+                                <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full whitespace-nowrap">
                                   {getFrequencyText(expense)}
                                 </span>
                               )}
-                              <span className="text-gray-500">
-                                {formatMoney(getMonthlyAmount(expense))} kr
+                              <span className="text-gray-500 whitespace-nowrap">
+                                {formatMoney(getMonthlyAmount(expense))}&nbsp;kr
                               </span>
                             </div>
                           </div>

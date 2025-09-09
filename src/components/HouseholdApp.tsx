@@ -205,7 +205,7 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 flex overflow-x-hidden">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
@@ -223,12 +223,12 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
       >
         <div className="flex flex-col h-full">
           {/* Header - Fixed at top */}
-          <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 flex-shrink-0">
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">
+          <div className="flex items-center justify-between min-h-16 px-4 border-b border-gray-200 flex-shrink-0 py-3">
+            <div className="min-w-0 flex-1 pr-2">
+              <h1 className="text-lg font-bold text-gray-900 leading-tight">
                 Household Budget
               </h1>
-              <p className="text-xs text-gray-500 mt-1">{householdId}</p>
+              <p className="text-xs text-gray-500 mt-1 truncate">{householdId}</p>
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -336,24 +336,26 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 lg:ml-64">
+      <div className="flex-1 lg:ml-64 min-w-0 overflow-x-hidden">
         {/* Mobile header - only show on mobile */}
-        <div className="lg:hidden flex items-center justify-between h-16 px-4 bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="lg:hidden flex items-center justify-between h-16 px-3 bg-white border-b border-gray-200">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-2 text-gray-400 hover:text-gray-600"
+            className="p-2 text-gray-400 hover:text-gray-600 flex-shrink-0"
           >
             <Menu className="w-5 h-5" />
           </button>
-          <h1 className="text-lg font-semibold text-gray-900">
+          <h1 className="text-base font-semibold text-gray-900 truncate px-2">
             {tabs.find((tab) => tab.id === activeTab)?.name}
           </h1>
           <div className="w-9" />
         </div>
 
         {/* Page content */}
-        <main className="p-4 lg:p-6 min-h-screen lg:min-h-screen lg:overflow-y-auto">
-          {renderContent()}
+        <main className="p-3 sm:p-4 lg:p-6 min-h-screen lg:min-h-screen lg:overflow-y-auto">
+          <div className="max-w-full overflow-x-hidden">
+            {renderContent()}
+          </div>
         </main>
       </div>
     </div>

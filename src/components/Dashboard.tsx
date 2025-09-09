@@ -103,7 +103,7 @@ export function Dashboard({
   return (
     <div className="space-y-6">
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <MetricCard
           title="Total Income"
           value={budgetSummary.totalIncome}
@@ -335,26 +335,26 @@ export function Dashboard({
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
           Individual Budget Summary
         </h3>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto table-responsive">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 sm:px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   User
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 sm:px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   After-Tax Income
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Household Expenses
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Personal Expenses
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Remaining
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   % Left
                 </th>
               </tr>
@@ -375,7 +375,7 @@ export function Dashboard({
                 return (
                   <React.Fragment key={breakdown.userId}>
                     <tr>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => toggleUserExpanded(breakdown.userId)}
@@ -396,16 +396,16 @@ export function Dashboard({
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatMoney(breakdown.income)} kr
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-red-600">
                         {formatMoney(breakdown.sharedExpensesOwed)} kr
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-orange-600">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-orange-600">
                         {formatMoney(breakdown.personalExpenses)} kr
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm">
                         <span
                           className={
                             breakdown.remainingAfterExpenses > 0
@@ -416,7 +416,7 @@ export function Dashboard({
                           {formatMoney(breakdown.remainingAfterExpenses)} kr
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm">
                         <span
                           className={
                             percentageLeft > 0
@@ -430,7 +430,7 @@ export function Dashboard({
                     </tr>
                     {isExpanded && user && (
                       <tr key={`${breakdown.userId}-details`}>
-                        <td colSpan={6} className="px-6 py-4 bg-gray-50">
+                        <td colSpan={6} className="px-3 sm:px-6 py-4 bg-gray-50">
                           <div className="max-w-4xl">
                             <h4 className="text-sm font-medium text-gray-900 mb-3">
                               Budget Breakdown for {user.name}:
@@ -950,30 +950,30 @@ export function Dashboard({
                       key={`${settlement.from}-${settlement.to}-${index}`}
                       className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 min-w-0">
                           <div
-                            className="w-4 h-4 rounded-full"
+                            className="w-4 h-4 rounded-full flex-shrink-0"
                             style={{
                               backgroundColor: fromUser?.color || '#666',
                             }}
                           />
-                          <span className="font-medium text-gray-900">
+                          <span className="font-medium text-gray-900 truncate">
                             {fromUser?.name || 'Unknown'}
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-2 text-gray-500">
-                          <span>owes</span>
+                        <div className="flex items-center gap-1 sm:gap-2 text-gray-500 flex-shrink-0">
+                          <span className="hidden sm:inline">owes</span>
                           <ChevronRight className="w-4 h-4" />
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
                           <div
-                            className="w-4 h-4 rounded-full"
+                            className="w-4 h-4 rounded-full flex-shrink-0"
                             style={{ backgroundColor: toUser?.color || '#666' }}
                           />
-                          <span className="font-medium text-gray-900">
+                          <span className="font-medium text-gray-900 truncate">
                             {toUser?.name || 'Unknown'}
                           </span>
                         </div>
@@ -1016,19 +1016,19 @@ interface MetricCardProps {
 
 function MetricCard({ title, value, subtitle, color, trend }: MetricCardProps) {
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-medium text-gray-500">{title}</h3>
+    <div className="bg-white rounded-lg shadow-sm p-3 sm:p-6 min-w-0">
+      <div className="flex items-start justify-between mb-2">
+        <h3 className="text-xs sm:text-sm font-medium text-gray-500 leading-tight pr-2">{title}</h3>
         {trend === 'up' ? (
-          <TrendingUp className={`w-4 h-4 ${color}`} />
+          <TrendingUp className={`w-3 h-3 sm:w-4 sm:h-4 ${color} flex-shrink-0 mt-0.5`} />
         ) : (
-          <TrendingDown className={`w-4 h-4 ${color}`} />
+          <TrendingDown className={`w-3 h-3 sm:w-4 sm:h-4 ${color} flex-shrink-0 mt-0.5`} />
         )}
       </div>
-      <div className={`text-2xl font-bold ${color}`}>
+      <div className={`text-lg sm:text-2xl font-bold ${color} leading-tight mb-1`}>
         {formatMoney(value)} kr
       </div>
-      <div className="text-sm text-gray-500 mt-1">{subtitle}</div>
+      <div className="text-xs sm:text-sm text-gray-500 leading-tight">{subtitle}</div>
     </div>
   );
 }

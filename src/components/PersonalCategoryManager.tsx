@@ -67,33 +67,49 @@ export function PersonalCategoryManager({
 
   return (
     <div className="bg-white rounded-lg shadow-sm">
-      <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
+      <div className="p-3 sm:p-4 border-b border-gray-200">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          {/* Mobile: 3-row layout, Desktop: single row */}
           <button
             onClick={onTogglePersonalCategoriesSectionCollapse}
-            className="flex items-center gap-2 text-left flex-1"
+            className="flex items-center gap-2 text-left flex-1 min-w-0"
           >
             {!isCollapsed ? (
-              <ChevronDown className="w-5 h-5 text-gray-400" />
+              <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
             ) : (
-              <ChevronRight className="w-5 h-5 text-gray-400" />
+              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
             )}
-            <div className="flex items-center gap-2">
-              <Tag className="w-5 h-5 text-gray-600" />
-              <h2 className="text-lg font-semibold text-gray-900">
-                Categories
-              </h2>
-              <span className="text-sm text-gray-500">
-                ({personalCategories.length})
-              </span>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 min-w-0 flex-1">
+              <div className="flex items-center gap-2 min-w-0">
+                <Tag className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 flex-shrink-0" />
+                <h2 className="text-base font-semibold text-gray-900 leading-tight truncate">
+                  Categories
+                </h2>
+                <span className="text-sm text-gray-500 flex-shrink-0">
+                  ({personalCategories.length})
+                </span>
+              </div>
             </div>
           </button>
+
+          {/* Desktop: inline button */}
           <button
             onClick={() => setIsAddingCategory(true)}
-            className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            className="hidden sm:flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex-shrink-0"
           >
             <Plus className="w-4 h-4" />
             Add
+          </button>
+        </div>
+
+        {/* Mobile: Add button on separate row */}
+        <div className="sm:hidden mt-2">
+          <button
+            onClick={() => setIsAddingCategory(true)}
+            className="w-full flex items-center justify-center gap-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Add Category
           </button>
         </div>
       </div>

@@ -108,19 +108,39 @@ export function AssetManager({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-          <Car className="w-5 h-5" />
-          Assets & Household Costs
-        </h2>
-        <button
-          onClick={() => setIsAdding(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Add Asset
-        </button>
+    <div className="bg-white rounded-lg shadow-sm p-3 sm:p-6">
+      <div className="mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center gap-2">
+            <Car className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="hidden sm:inline">Assets & Household Costs</span>
+            <span className="sm:hidden">Assets</span>
+          </h2>
+          
+          {/* Desktop: inline button */}
+          <button
+            onClick={() => setIsAdding(true)}
+            className="hidden sm:flex items-center justify-center gap-2 px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors min-w-[100px]"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Asset</span>
+          </button>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-2">
+          <p className="text-sm text-gray-600">
+            Track cars, boats, and household belongings with fixed and variable costs.
+          </p>
+          
+          {/* Mobile: separate row button */}
+          <button
+            onClick={() => setIsAdding(true)}
+            className="sm:hidden flex items-center justify-center gap-2 px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Asset</span>
+          </button>
+        </div>
       </div>
 
       {isAdding && (
@@ -276,35 +296,64 @@ function AssetCard({
 
   return (
     <div className="border border-gray-200 rounded-lg">
-      <div className="p-4 bg-gray-50 flex items-center justify-between">
-        <button
-          onClick={onToggleExpansion}
-          className="flex items-center gap-2 text-left flex-1"
-        >
-          {isExpanded ? (
-            <ChevronDown className="w-4 h-4" />
-          ) : (
-            <ChevronRight className="w-4 h-4" />
-          )}
-          <h3 className="font-medium text-gray-900">{asset.name}</h3>
-          <span className="text-sm text-gray-500">
-            (Fixed: {totalFixedCosts.toLocaleString()} kr, Variable:{' '}
-            {totalVariableCosts.toLocaleString()} kr)
-          </span>
-        </button>
-        <div className="flex gap-2">
+      <div className="p-4 bg-gray-50">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <button
-            onClick={onStartEdit}
-            className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+            onClick={onToggleExpansion}
+            className="flex items-center gap-2 text-left flex-1 min-w-0"
           >
-            <Edit2 className="w-4 h-4" />
+            {isExpanded ? (
+              <ChevronDown className="w-4 h-4 flex-shrink-0" />
+            ) : (
+              <ChevronRight className="w-4 h-4 flex-shrink-0" />
+            )}
+            <div className="flex flex-col min-w-0 flex-1">
+              {/* Row 1: Asset name + edit/trash (mobile) */}
+              <div className="flex items-center justify-between sm:justify-start gap-2 mb-1">
+                <h3 className="font-medium text-gray-900">{asset.name}</h3>
+                <div className="flex gap-2 sm:hidden">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onStartEdit();
+                    }}
+                    className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                  >
+                    <Edit2 className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete();
+                    }}
+                    className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+              {/* Row 2: Fixed/Variable costs */}
+              <span className="text-sm text-gray-500 leading-tight">
+                (Fixed: {totalFixedCosts.toLocaleString()} kr, Variable: {totalVariableCosts.toLocaleString()} kr)
+              </span>
+            </div>
           </button>
-          <button
-            onClick={onDelete}
-            className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          
+          {/* Desktop: edit/trash buttons on the right */}
+          <div className="hidden sm:flex gap-2 flex-shrink-0">
+            <button
+              onClick={onStartEdit}
+              className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+            >
+              <Edit2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={onDelete}
+              className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -397,22 +446,28 @@ function ExpenseSection({
 
   return (
     <div className={`${classes.bg} ${classes.border} border rounded-lg p-4`}>
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <h4 className={`font-medium ${classes.text}`}>{title}</h4>
-          <p className="text-sm text-gray-500">{description}</p>
-          <p className="text-sm text-gray-600 mt-1">
+      <div className="mb-4">
+        {/* Mobile: Stack everything vertically */}
+        <div className="flex flex-col gap-3">
+          <div>
+            <h4 className={`font-medium ${classes.text} mb-1`}>{title}</h4>
+            <p className="text-sm text-gray-500 mb-2">{description}</p>
+          </div>
+          
+          {/* Full-width button on mobile, smaller on desktop */}
+          <button
+            onClick={() => setIsAdding(true)}
+            className={`w-full sm:w-auto flex items-center justify-center gap-1 px-3 py-2 text-sm text-white rounded ${classes.button} transition-colors`}
+          >
+            <Plus className="w-3 h-3" />
+            Add
+          </button>
+          
+          <p className="text-sm text-gray-600">
             Total: {totalAmount.toLocaleString()} kr ({expenses.length}{' '}
-            expenses)
+            {expenses.length === 1 ? 'expense' : 'expenses'})
           </p>
         </div>
-        <button
-          onClick={() => setIsAdding(true)}
-          className={`flex items-center gap-1 px-3 py-1 text-sm text-white rounded ${classes.button} transition-colors`}
-        >
-          <Plus className="w-3 h-3" />
-          Add
-        </button>
       </div>
 
       <div className="space-y-2">
@@ -499,34 +554,36 @@ function AssetExpenseItem({
   };
 
   return (
-    <div className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-md">
-      <div className="flex-1">
-        <div className="flex items-center gap-2">
-          <h5 className="font-medium text-gray-900">{expense.name}</h5>
-          <span className="text-sm text-gray-500">
-            {expense.amount.toLocaleString()} kr
-          </span>
+    <div className="p-3 bg-white border border-gray-200 rounded-md">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+            <h5 className="font-medium text-gray-900 truncate">{expense.name}</h5>
+            <span className="text-sm text-gray-500">
+              {expense.amount.toLocaleString()} kr
+            </span>
+          </div>
+          <div className="text-xs text-gray-500 mt-1">
+            {users.length > 1 && (
+              <div>Paid by: {paidByUser?.name || 'Unknown'}</div>
+            )}
+            {users.length > 1 && <div>{getSplitDescription()}</div>}
+          </div>
         </div>
-        <div className="text-xs text-gray-500 mt-1">
-          {users.length > 1 && (
-            <div>Paid by: {paidByUser?.name || 'Unknown'}</div>
-          )}
-          {users.length > 1 && <div>{getSplitDescription()}</div>}
+        <div className="flex gap-1 sm:flex-shrink-0">
+          <button
+            onClick={onStartEdit}
+            className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+          >
+            <Edit2 className="w-3 h-3" />
+          </button>
+          <button
+            onClick={onDelete}
+            className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
         </div>
-      </div>
-      <div className="flex gap-1">
-        <button
-          onClick={onStartEdit}
-          className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
-        >
-          <Edit2 className="w-3 h-3" />
-        </button>
-        <button
-          onClick={onDelete}
-          className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-        >
-          <Trash2 className="w-3 h-3" />
-        </button>
       </div>
     </div>
   );
@@ -633,7 +690,7 @@ function AssetExpenseForm({
       </div>
 
       {users.length > 1 && (
-        <div className="grid grid-cols-2 gap-2 mb-3">
+        <div className="space-y-2 mb-3">
           <div>
             <select
               value={paidBy}

@@ -53,23 +53,43 @@ export function LoanTracker({
   //     : 0;
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-          <Calculator className="w-5 h-5" />
-          Loans & Mortgages
-        </h2>
-        <button
-          onClick={() => setIsAdding(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Add Loan
-        </button>
+    <div className="bg-white rounded-lg shadow-sm p-3 sm:p-6">
+      <div className="mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center gap-2">
+            <Calculator className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="hidden xs:inline">Loans & Mortgages</span>
+            <span className="xs:hidden">Loans</span>
+          </h2>
+          
+          {/* Desktop: inline button */}
+          <button
+            onClick={() => setIsAdding(true)}
+            className="hidden sm:flex items-center justify-center gap-2 px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors min-w-[100px]"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Loan</span>
+          </button>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-2">
+          <p className="text-sm text-gray-600">
+            Track loans, mortgages, and other debt obligations with payment schedules.
+          </p>
+          
+          {/* Mobile: separate row button */}
+          <button
+            onClick={() => setIsAdding(true)}
+            className="sm:hidden flex items-center justify-center gap-2 px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Loan</span>
+          </button>
+        </div>
       </div>
 
       {loans.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <SummaryCard
             title="Total Debt"
             amount={totalCurrentAmount}
@@ -253,7 +273,7 @@ function LoanCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <div>
           <h4 className="text-sm font-medium text-gray-500 mb-3">
             Loan Overview
@@ -494,7 +514,7 @@ function LoanForm({ users, initialData, onSubmit, onCancel }: LoanFormProps) {
       onSubmit={handleSubmit}
       className="border border-gray-300 rounded-lg p-6 bg-gray-50 mb-4"
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Loan Name
@@ -524,7 +544,7 @@ function LoanForm({ users, initialData, onSubmit, onCancel }: LoanFormProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Current Balance (kr)
@@ -556,7 +576,7 @@ function LoanForm({ users, initialData, onSubmit, onCancel }: LoanFormProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Monthly Payment (kr)

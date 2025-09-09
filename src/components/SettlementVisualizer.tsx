@@ -94,7 +94,7 @@ export function SettlementVisualizer({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div
-                      className="w-4 h-4 rounded-full"
+                      className="w-4 h-4 rounded-full flex-shrink-0"
                       style={{ backgroundColor: user.color }}
                     />
                     <span className="font-medium text-gray-900">
@@ -196,22 +196,22 @@ interface SettlementCardProps {
 
 function SettlementCard({ settlement, fromUser, toUser }: SettlementCardProps) {
   return (
-    <div className="flex items-center justify-between p-4 bg-gradient-to-r from-red-50 to-green-50 border border-gray-200 rounded-lg">
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-gradient-to-r from-red-50 to-green-50 border border-gray-200 rounded-lg gap-2">
+      <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+        <div className="flex items-center gap-2 min-w-0">
           <div
-            className="w-4 h-4 rounded-full"
+            className="w-4 h-4 rounded-full flex-shrink-0"
             style={{ backgroundColor: fromUser.color }}
           />
-          <span className="font-medium text-gray-900">{fromUser.name}</span>
+          <span className="font-medium text-gray-900 truncate">{fromUser.name}</span>
         </div>
-        <ArrowRight className="w-5 h-5 text-gray-400" />
-        <div className="flex items-center gap-2">
+        <ArrowRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+        <div className="flex items-center gap-2 min-w-0">
           <div
-            className="w-4 h-4 rounded-full"
+            className="w-4 h-4 rounded-full flex-shrink-0"
             style={{ backgroundColor: toUser.color }}
           />
-          <span className="font-medium text-gray-900">{toUser.name}</span>
+          <span className="font-medium text-gray-900 truncate">{toUser.name}</span>
         </div>
       </div>
 
@@ -264,7 +264,7 @@ function SettlementSummary({ users, settlements }: SettlementSummaryProps) {
           >
             <div className="flex items-center gap-2 mb-3">
               <div
-                className="w-4 h-4 rounded-full"
+                className="w-4 h-4 rounded-full flex-shrink-0"
                 style={{ backgroundColor: user.color }}
               />
               <span className="font-medium text-gray-900">{user.name}</span>
