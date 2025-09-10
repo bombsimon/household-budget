@@ -203,7 +203,9 @@ function SettlementCard({ settlement, fromUser, toUser }: SettlementCardProps) {
             className="w-4 h-4 rounded-full flex-shrink-0"
             style={{ backgroundColor: fromUser.color }}
           />
-          <span className="font-medium text-gray-900 truncate">{fromUser.name}</span>
+          <span className="font-medium text-gray-900 truncate">
+            {fromUser.name}
+          </span>
         </div>
         <ArrowRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
         <div className="flex items-center gap-2 min-w-0">
@@ -211,7 +213,9 @@ function SettlementCard({ settlement, fromUser, toUser }: SettlementCardProps) {
             className="w-4 h-4 rounded-full flex-shrink-0"
             style={{ backgroundColor: toUser.color }}
           />
-          <span className="font-medium text-gray-900 truncate">{toUser.name}</span>
+          <span className="font-medium text-gray-900 truncate">
+            {toUser.name}
+          </span>
         </div>
       </div>
 

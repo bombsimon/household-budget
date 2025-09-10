@@ -9,7 +9,7 @@ export function AppRouter() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="h-screen bg-white flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
@@ -45,8 +45,8 @@ function HouseholdWrapper() {
 
   if (!validHouseholdId) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
+      <div className="h-screen flex items-center justify-center bg-white">
+        <div className="text-center p-6">
           <h1 className="text-2xl font-bold text-red-600 mb-4">
             Invalid Household ID
           </h1>

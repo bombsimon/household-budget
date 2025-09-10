@@ -21,6 +21,7 @@ import { LoanTracker } from './LoanTracker';
 import { AssetManager } from './AssetManager';
 import { SettlementVisualizer } from './SettlementVisualizer';
 import { ApplicationManager } from './ApplicationManager';
+import { formatMoney } from '../utils/expenseCalculations';
 
 type TabType =
   | 'dashboard'
@@ -228,7 +229,9 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
               <h1 className="text-lg font-bold text-gray-900 leading-tight">
                 Household Budget
               </h1>
-              <p className="text-xs text-gray-500 mt-1 truncate">{householdId}</p>
+              <p className="text-xs text-gray-500 mt-1 truncate">
+                {householdId}
+              </p>
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -296,7 +299,7 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
               <div className="flex justify-between">
                 <span>Total Income:</span>
                 <span className="font-medium">
-                  {budgetSummary.totalIncome.toLocaleString()} kr
+                  {formatMoney(budgetSummary.totalIncome)} kr
                 </span>
               </div>
               <div className="flex justify-between">
@@ -304,7 +307,7 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
                 <span
                   className={`font-medium ${budgetSummary.remainingIncome > 0 ? 'text-green-600' : 'text-red-600'}`}
                 >
-                  {budgetSummary.remainingIncome.toLocaleString()} kr
+                  {formatMoney(budgetSummary.remainingIncome)} kr
                 </span>
               </div>
             </div>
@@ -336,9 +339,9 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 lg:ml-64 min-w-0 overflow-x-hidden">
+      <div className="flex-1 lg:ml-64 flex flex-col min-w-0 overflow-x-hidden h-screen">
         {/* Mobile header - only show on mobile */}
-        <div className="lg:hidden flex items-center justify-between h-16 px-3 bg-white border-b border-gray-200">
+        <div className="lg:hidden flex items-center justify-between h-16 px-3 bg-white border-b border-gray-200 flex-shrink-0">
           <button
             onClick={() => setSidebarOpen(true)}
             className="p-2 text-gray-400 hover:text-gray-600 flex-shrink-0"
@@ -352,10 +355,8 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
         </div>
 
         {/* Page content */}
-        <main className="p-3 sm:p-4 lg:p-6 min-h-screen lg:min-h-screen lg:overflow-y-auto">
-          <div className="max-w-full overflow-x-hidden">
-            {renderContent()}
-          </div>
+        <main className="p-3 sm:p-4 lg:p-6 flex-1 overflow-y-auto">
+          <div className="max-w-full">{renderContent()}</div>
         </main>
       </div>
     </div>

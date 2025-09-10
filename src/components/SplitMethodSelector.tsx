@@ -4,12 +4,14 @@ interface SplitMethodSelectorProps {
   value: SplitType;
   onChange: (value: SplitType) => void;
   showFixed?: boolean;
+  name?: string;
 }
 
 export function SplitMethodSelector({
   value,
   onChange,
   showFixed = true,
+  name = 'splitMethod',
 }: SplitMethodSelectorProps) {
   const options = [
     {
@@ -42,7 +44,7 @@ export function SplitMethodSelector({
           <label key={option.key} className="flex items-start">
             <input
               type="radio"
-              name="splitMethod"
+              name={name}
               value={option.key}
               checked={value === option.key}
               onChange={(e) => onChange(e.target.value as any)}

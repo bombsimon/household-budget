@@ -430,7 +430,10 @@ export function Dashboard({
                     </tr>
                     {isExpanded && user && (
                       <tr key={`${breakdown.userId}-details`}>
-                        <td colSpan={6} className="px-3 sm:px-6 py-4 bg-gray-50">
+                        <td
+                          colSpan={6}
+                          className="px-3 sm:px-6 py-4 bg-gray-50"
+                        >
                           <div className="max-w-4xl">
                             <h4 className="text-sm font-medium text-gray-900 mb-3">
                               Budget Breakdown for {user.name}:
@@ -874,12 +877,12 @@ export function Dashboard({
                     key={asset.id}
                     className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                   >
-                    <div>
+                    <div className="text-left">
                       <div className="font-medium text-gray-900">
                         {asset.name}
                       </div>
                       <div className="text-sm text-gray-600">
-                        Fixed: {formatMoney(fixedCostTotal)} kr | Variable:{' '}
+                        Fixed: {formatMoney(fixedCostTotal)} kr • Variable:{' '}
                         {formatMoney(variableCostTotal)} kr
                       </div>
                     </div>
@@ -964,7 +967,6 @@ export function Dashboard({
                         </div>
 
                         <div className="flex items-center gap-1 sm:gap-2 text-gray-500 flex-shrink-0">
-                          <span className="hidden sm:inline">owes</span>
                           <ChevronRight className="w-4 h-4" />
                         </div>
 
@@ -1016,19 +1018,29 @@ interface MetricCardProps {
 
 function MetricCard({ title, value, subtitle, color, trend }: MetricCardProps) {
   return (
-    <div className="bg-white rounded-lg shadow-sm p-3 sm:p-6 min-w-0">
-      <div className="flex items-start justify-between mb-2">
-        <h3 className="text-xs sm:text-sm font-medium text-gray-500 leading-tight pr-2">{title}</h3>
+    <div className="bg-white rounded-lg shadow-sm p-3 sm:p-6 min-w-0 text-center">
+      <div className="flex flex-col items-center mb-2">
+        <h3 className="text-xs sm:text-sm font-medium text-gray-500 leading-tight mb-1">
+          {title}
+        </h3>
         {trend === 'up' ? (
-          <TrendingUp className={`w-3 h-3 sm:w-4 sm:h-4 ${color} flex-shrink-0 mt-0.5`} />
+          <TrendingUp
+            className={`w-3 h-3 sm:w-4 sm:h-4 ${color} flex-shrink-0`}
+          />
         ) : (
-          <TrendingDown className={`w-3 h-3 sm:w-4 sm:h-4 ${color} flex-shrink-0 mt-0.5`} />
+          <TrendingDown
+            className={`w-3 h-3 sm:w-4 sm:h-4 ${color} flex-shrink-0`}
+          />
         )}
       </div>
-      <div className={`text-lg sm:text-2xl font-bold ${color} leading-tight mb-1`}>
+      <div
+        className={`text-lg sm:text-2xl font-bold ${color} leading-tight mb-1`}
+      >
         {formatMoney(value)} kr
       </div>
-      <div className="text-xs sm:text-sm text-gray-500 leading-tight">{subtitle}</div>
+      <div className="text-xs sm:text-sm text-gray-500 leading-tight">
+        {subtitle}
+      </div>
     </div>
   );
 }

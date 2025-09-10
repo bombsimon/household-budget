@@ -110,192 +110,201 @@ export function ExpenseManager({
       />
 
       <div className="space-y-6">
-        {categories.map((category) => {
-          const isSharedCategory = category.id === 'shared';
-          const isPersonalCategory = category.id.startsWith('personal-');
-          const totalExpenses = category.expenses.reduce(
-            (sum, expense) => sum + getMonthlyAmount(expense),
-            0
-          );
+        {[...categories]
+          .sort((a, b) => {
+            // Keep 'shared' category first, then sort others alphabetically
+            if (a.id === 'shared') return -1;
+            if (b.id === 'shared') return 1;
+            return a.name.localeCompare(b.name);
+          })
+          .map((category) => {
+            const isSharedCategory = category.id === 'shared';
+            const isPersonalCategory = category.id.startsWith('personal-');
+            const totalExpenses = category.expenses.reduce(
+              (sum, expense) => sum + getMonthlyAmount(expense),
+              0
+            );
 
-          return (
-            <div key={category.id} className="bg-white rounded-lg shadow-sm">
-              <div className="p-3 sm:p-4 border-b border-gray-200">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  {/* Mobile: 3-row layout, Desktop: single row */}
-                  <button
-                    onClick={() => onToggleCategoryCollapse(category.id)}
-                    className="flex items-center gap-2 text-left flex-1 min-w-0"
-                  >
-                    {category.collapsed ? (
-                      <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
-                    )}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 min-w-0 flex-1">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Receipt className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 flex-shrink-0" />
-                        <h2 className="text-base font-semibold text-gray-900 leading-tight truncate">
-                          {category.name}
-                        </h2>
-                        <span className="text-sm text-gray-500 flex-shrink-0">
-                          ({category.expenses.length})
-                        </span>
-                      </div>
-                      {totalExpenses > 0 && (
-                        <div className="text-sm font-medium text-gray-700 mt-1 sm:mt-0">
-                          {formatMoney(totalExpenses)} kr/month
-                        </div>
+            return (
+              <div key={category.id} className="bg-white rounded-lg shadow-sm">
+                <div className="p-3 sm:p-4 border-b border-gray-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    {/* Mobile: 3-row layout, Desktop: single row */}
+                    <button
+                      onClick={() => onToggleCategoryCollapse(category.id)}
+                      className="flex items-center gap-2 text-left flex-1 min-w-0"
+                    >
+                      {category.collapsed ? (
+                        <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
                       )}
-                    </div>
-                  </button>
-                  
-                  {/* Desktop: inline button */}
-                  <button
-                    onClick={() => setAddingToCategory(category.id)}
-                    className="hidden sm:flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex-shrink-0"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add
-                  </button>
-                </div>
-                
-                {/* Mobile: Add button on separate row */}
-                <div className="sm:hidden mt-2">
-                  <button
-                    onClick={() => setAddingToCategory(category.id)}
-                    className="w-full flex items-center justify-center gap-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Expense
-                  </button>
-                </div>
-              </div>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Receipt className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 flex-shrink-0" />
+                          <h2 className="text-base font-semibold text-gray-900 leading-tight truncate">
+                            {category.name}
+                          </h2>
+                          <span className="text-sm text-gray-500 flex-shrink-0">
+                            ({category.expenses.length})
+                          </span>
+                        </div>
+                        {totalExpenses > 0 && (
+                          <div className="text-sm font-medium text-gray-700 mt-1 sm:mt-0">
+                            {formatMoney(totalExpenses)} kr/month
+                          </div>
+                        )}
+                      </div>
+                    </button>
 
-              {!category.collapsed && (
-                <div className="p-4">
-                  {addingToCategory === category.id && (
-                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                      <ExpenseForm
+                    {/* Desktop: inline button */}
+                    <button
+                      onClick={() => setAddingToCategory(category.id)}
+                      className="hidden sm:flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex-shrink-0"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add
+                    </button>
+                  </div>
+
+                  {/* Mobile: Add button on separate row - hide when collapsed */}
+                  {!category.collapsed && (
+                    <div className="sm:hidden mt-2">
+                      <button
+                        onClick={() => setAddingToCategory(category.id)}
+                        className="w-full flex items-center justify-center gap-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add Expense
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {!category.collapsed && (
+                  <div className="p-4">
+                    {addingToCategory === category.id && (
+                      <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <ExpenseForm
+                          users={users}
+                          personalCategories={personalCategories}
+                          isSharedCategory={isSharedCategory}
+                          category={category}
+                          onSubmit={(expense) => {
+                            onAddExpense(category.id, expense);
+                            setAddingToCategory(null);
+                          }}
+                          onCancel={() => setAddingToCategory(null)}
+                        />
+                      </div>
+                    )}
+
+                    {category.expenses.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <Receipt className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                        <p className="text-sm">No expenses in this category</p>
+                        <p className="text-xs text-gray-400">
+                          Click "Add" to create your first expense
+                        </p>
+                      </div>
+                    ) : isPersonalCategory ? (
+                      <GroupedPersonalExpenses
+                        expenses={category.expenses}
                         users={users}
                         personalCategories={personalCategories}
-                        isSharedCategory={isSharedCategory}
-                        category={category}
-                        onSubmit={(expense) => {
-                          onAddExpense(category.id, expense);
-                          setAddingToCategory(null);
-                        }}
-                        onCancel={() => setAddingToCategory(null)}
+                        editingExpense={editingExpense}
+                        onStartEdit={setEditingExpense}
+                        onStopEdit={() => setEditingExpense(null)}
+                        onUpdateExpense={onUpdateExpense}
+                        onDeleteExpense={onDeleteExpense}
                       />
-                    </div>
-                  )}
-
-                  {category.expenses.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      <Receipt className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                      <p className="text-sm">No expenses in this category</p>
-                      <p className="text-xs text-gray-400">
-                        Click "Add" to create your first expense
-                      </p>
-                    </div>
-                  ) : isPersonalCategory ? (
-                    <GroupedPersonalExpenses
-                      expenses={category.expenses}
-                      users={users}
-                      personalCategories={personalCategories}
-                      editingExpense={editingExpense}
-                      onStartEdit={setEditingExpense}
-                      onStopEdit={() => setEditingExpense(null)}
-                      onUpdateExpense={onUpdateExpense}
-                      onDeleteExpense={onDeleteExpense}
-                    />
-                  ) : (
-                    <>
-                      {isSharedCategory && category.expenses.length > 0 && (
-                        <div className="flex justify-end gap-2 mb-4">
-                          <span className="text-xs text-gray-500 self-center">
-                            Sort by:
-                          </span>
-                          <button
-                            onClick={() => toggleSharedSort('name')}
-                            className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
-                              sharedSortBy === 'name'
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                          >
-                            Name
-                            {sharedSortBy === 'name' &&
-                              (sharedSortOrder === 'asc' ? (
-                                <ArrowUp className="w-3 h-3" />
-                              ) : (
-                                <ArrowDown className="w-3 h-3" />
-                              ))}
-                          </button>
-                          <button
-                            onClick={() => toggleSharedSort('amount')}
-                            className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
-                              sharedSortBy === 'amount'
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                          >
-                            Amount
-                            {sharedSortBy === 'amount' &&
-                              (sharedSortOrder === 'asc' ? (
-                                <ArrowUp className="w-3 h-3" />
-                              ) : (
-                                <ArrowDown className="w-3 h-3" />
-                              ))}
-                          </button>
-                        </div>
-                      )}
-                      <div className="space-y-2">
-                        {(isSharedCategory
-                          ? sortSharedExpenses(category.expenses)
-                          : category.expenses
-                        ).map((expense) => (
-                          <div key={expense.id}>
-                            {editingExpense === expense.id ? (
-                              <ExpenseForm
-                                users={users}
-                                personalCategories={personalCategories}
-                                isSharedCategory={isSharedCategory}
-                                category={category}
-                                initialData={expense}
-                                onSubmit={(updates) => {
-                                  onUpdateExpense(expense.id, updates);
-                                  setEditingExpense(null);
-                                }}
-                                onCancel={() => setEditingExpense(null)}
-                              />
-                            ) : (
-                              <ExpenseItem
-                                expense={expense}
-                                users={users}
-                                personalCategories={personalCategories}
-                                isEditing={false}
-                                isSharedCategory={isSharedCategory}
-                                onUpdate={(updates) =>
-                                  onUpdateExpense(expense.id, updates)
-                                }
-                                onDelete={() => onDeleteExpense(expense.id)}
-                                onStartEdit={() =>
-                                  setEditingExpense(expense.id)
-                                }
-                                onStopEdit={() => setEditingExpense(null)}
-                              />
-                            )}
+                    ) : (
+                      <>
+                        {isSharedCategory && category.expenses.length > 0 && (
+                          <div className="flex justify-end gap-2 mb-4">
+                            <span className="text-xs text-gray-500 self-center">
+                              Sort by:
+                            </span>
+                            <button
+                              onClick={() => toggleSharedSort('name')}
+                              className={`flex items-center gap-1 px-2 py-0 text-xs rounded transition-colors h-6 sm:h-7 ${
+                                sharedSortBy === 'name'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              }`}
+                            >
+                              Name
+                              {sharedSortBy === 'name' &&
+                                (sharedSortOrder === 'asc' ? (
+                                  <ArrowUp className="w-3 h-3" />
+                                ) : (
+                                  <ArrowDown className="w-3 h-3" />
+                                ))}
+                            </button>
+                            <button
+                              onClick={() => toggleSharedSort('amount')}
+                              className={`flex items-center gap-1 px-2 py-0 text-xs rounded transition-colors h-6 sm:h-7 ${
+                                sharedSortBy === 'amount'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              }`}
+                            >
+                              Amount
+                              {sharedSortBy === 'amount' &&
+                                (sharedSortOrder === 'asc' ? (
+                                  <ArrowUp className="w-3 h-3" />
+                                ) : (
+                                  <ArrowDown className="w-3 h-3" />
+                                ))}
+                            </button>
                           </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
+                        )}
+                        <div className="space-y-2">
+                          {(isSharedCategory
+                            ? sortSharedExpenses(category.expenses)
+                            : category.expenses
+                          ).map((expense) => (
+                            <div key={expense.id}>
+                              {editingExpense === expense.id ? (
+                                <ExpenseForm
+                                  users={users}
+                                  personalCategories={personalCategories}
+                                  isSharedCategory={isSharedCategory}
+                                  category={category}
+                                  initialData={expense}
+                                  onSubmit={(updates) => {
+                                    onUpdateExpense(expense.id, updates);
+                                    setEditingExpense(null);
+                                  }}
+                                  onCancel={() => setEditingExpense(null)}
+                                />
+                              ) : (
+                                <ExpenseItem
+                                  expense={expense}
+                                  users={users}
+                                  personalCategories={personalCategories}
+                                  isEditing={false}
+                                  isSharedCategory={isSharedCategory}
+                                  onUpdate={(updates) =>
+                                    onUpdateExpense(expense.id, updates)
+                                  }
+                                  onDelete={() => onDeleteExpense(expense.id)}
+                                  onStartEdit={() =>
+                                    setEditingExpense(expense.id)
+                                  }
+                                  onStopEdit={() => setEditingExpense(null)}
+                                />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
       </div>
     </div>
   );
@@ -343,40 +352,49 @@ function ExpenseItem({
     );
   }
 
-  const getSplitIcon = () => {
+  const getSplitDisplay = () => {
     if (expense.splitType === 'equal') {
-      return <Scale className="w-3 h-3 text-gray-500" />;
-    } else if (expense.splitType === 'percentage') {
-      return <Percent className="w-3 h-3 text-gray-500" />;
-    }
-    return <UserIcon className="w-3 h-3 text-gray-500" />;
-  };
-
-  const getShortSplitDescription = () => {
-    if (expense.splitType === 'equal') {
-      return '50/50';
+      return (
+        <div className="flex items-center gap-1">
+          <Scale className="w-3 h-3 text-gray-500" />
+          <span>50/50</span>
+        </div>
+      );
     } else if (expense.splitType === 'percentage' && expense.splitData) {
-      return 'Income %';
+      return (
+        <div className="flex items-center gap-1">
+          <Percent className="w-3 h-3 text-gray-500" />
+          <span>Income</span>
+        </div>
+      );
     }
-    return 'Fixed';
+    return (
+      <div className="flex items-center gap-1">
+        <UserIcon className="w-3 h-3 text-gray-500" />
+        <span>Fixed</span>
+      </div>
+    );
   };
 
   // Multi-line layout for personal expenses with compact yearly display
   if (!isSharedCategory && !expense.isShared) {
     const monthlyAmount = getMonthlyAmount(expense);
     const isYearly = expense.isYearly;
-    
+
     return (
       <div className="p-3 border border-gray-200 rounded bg-white">
         <div className="space-y-2">
           {/* Row 1: Title, Amount, and Icons (desktop) */}
           <div className="flex items-start justify-between">
-            <h4 className="font-medium text-gray-900 flex-1 mr-2 text-left">{expense.name}</h4>
+            <h4 className="font-medium text-gray-900 flex-1 mr-2 text-left">
+              {expense.name}
+            </h4>
             <div className="flex items-center gap-2">
               <div className="text-sm text-gray-500 text-right">
                 {isYearly ? (
                   <span className="text-xs">
-                    {expense.amount.toLocaleString()} kr/year ({monthlyAmount.toLocaleString()} kr/month)
+                    {expense.amount.toLocaleString()} kr/year (
+                    {monthlyAmount.toLocaleString()} kr/month)
                   </span>
                 ) : (
                   <span>{formatExpenseAmount(expense, true)}</span>
@@ -401,16 +419,20 @@ function ExpenseItem({
               </div>
             </div>
           </div>
-          
+
           {/* Row 2: Yearly indicator (if yearly) */}
           {isYearly && (
             <div className="flex justify-end sm:justify-start sm:ml-0">
-              <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">
+              <span
+                className="px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full cursor-pointer hover:bg-blue-200 transition-colors"
+                onClick={() => onStartEdit()}
+                title="Click to edit this expense"
+              >
                 yearly
               </span>
             </div>
           )}
-          
+
           {/* Mobile: Icons on separate line */}
           <div className="flex justify-center gap-4 sm:hidden">
             <button
@@ -439,7 +461,9 @@ function ExpenseItem({
       <div className="space-y-2">
         {/* Row 1: Title, Amount, and Icons (desktop) */}
         <div className="flex items-start justify-between">
-          <h4 className="font-medium text-gray-900 flex-1 mr-2 text-left">{expense.name}</h4>
+          <h4 className="font-medium text-gray-900 flex-1 mr-2 text-left">
+            {expense.name}
+          </h4>
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500 text-right">
               {formatExpenseAmount(expense, true)}
@@ -463,23 +487,24 @@ function ExpenseItem({
             </div>
           </div>
         </div>
-        
+
         {/* Row 2: Payee and Payment method */}
         <div className="flex items-center justify-between text-xs text-gray-500">
           <div className="flex items-center gap-2">
             <span>by {paidByUser?.name || 'Unknown'}</span>
             {expense.isYearly && (
-              <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full">
+              <span
+                className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs cursor-pointer hover:bg-blue-200 transition-colors"
+                onClick={() => onStartEdit()}
+                title="Click to edit this expense"
+              >
                 {getFrequencyText(expense)}
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {getSplitIcon()}
-            <span>{getShortSplitDescription()}</span>
-          </div>
+          <div className="flex-shrink-0">{getSplitDisplay()}</div>
         </div>
-        
+
         {/* Mobile: Icons on separate line */}
         <div className="flex justify-center gap-4 sm:hidden">
           <button
@@ -874,7 +899,7 @@ function GroupedPersonalExpenses({
         <span className="text-xs text-gray-500 self-center">Sort by:</span>
         <button
           onClick={() => toggleSort('name')}
-          className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
+          className={`flex items-center gap-1 px-2 py-0 text-xs rounded transition-colors h-6 sm:h-7 ${
             sortBy === 'name'
               ? 'bg-blue-100 text-blue-800'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -890,7 +915,7 @@ function GroupedPersonalExpenses({
         </button>
         <button
           onClick={() => toggleSort('amount')}
-          className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
+          className={`flex items-center gap-1 px-2 py-0 text-xs rounded transition-colors h-6 sm:h-7 ${
             sortBy === 'amount'
               ? 'bg-blue-100 text-blue-800'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -933,7 +958,7 @@ function GroupedPersonalExpenses({
                       ({categoryInfo.count})
                     </span>
                   </div>
-                  
+
                   <div className="font-medium text-gray-900 ml-6 sm:ml-0 sm:text-right sm:flex-shrink-0">
                     {formatMoney(categoryInfo.totalAmount)} kr/month
                   </div>

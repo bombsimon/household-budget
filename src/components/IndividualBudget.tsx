@@ -429,7 +429,7 @@ function UserBudgetCard({
             <div className="flex gap-2">
               <button
                 onClick={() => toggleSort('name')}
-                className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
+                className={`flex items-center gap-1 px-2 py-0 text-xs rounded transition-colors h-6 sm:h-7 ${
                   sortBy === 'name'
                     ? 'bg-blue-100 text-blue-800'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -445,7 +445,7 @@ function UserBudgetCard({
               </button>
               <button
                 onClick={() => toggleSort('amount')}
-                className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
+                className={`flex items-center gap-1 px-2 py-0 text-xs rounded transition-colors h-6 sm:h-7 ${
                   sortBy === 'amount'
                     ? 'bg-blue-100 text-blue-800'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'

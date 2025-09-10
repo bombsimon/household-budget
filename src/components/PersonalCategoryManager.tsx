@@ -102,16 +102,18 @@ export function PersonalCategoryManager({
           </button>
         </div>
 
-        {/* Mobile: Add button on separate row */}
-        <div className="sm:hidden mt-2">
-          <button
-            onClick={() => setIsAddingCategory(true)}
-            className="w-full flex items-center justify-center gap-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm"
-          >
-            <Plus className="w-4 h-4" />
-            Add Category
-          </button>
-        </div>
+        {/* Mobile: Add button on separate row - hide when collapsed */}
+        {!isCollapsed && (
+          <div className="sm:hidden mt-2">
+            <button
+              onClick={() => setIsAddingCategory(true)}
+              className="w-full flex items-center justify-center gap-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Add Category
+            </button>
+          </div>
+        )}
       </div>
 
       {isAddingCategory && !isCollapsed && (
@@ -160,63 +162,51 @@ export function PersonalCategoryManager({
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {personalCategories.map((category) => (
-                <div key={category.id} className="group">
-                  {editingCategory === category.id ? (
-                    <div className="flex items-center gap-1 bg-blue-50 border border-blue-200 rounded-full px-3 py-1">
-                      <input
-                        type="text"
-                        value={editingName}
-                        onChange={(e) => setEditingName(e.target.value)}
-                        className="w-20 px-1 py-0 text-sm border-none bg-transparent focus:outline-none"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleUpdateCategory(category.id);
-                          } else if (e.key === 'Escape') {
-                            cancelEditing();
-                          }
-                        }}
-                        autoFocus
-                      />
-                      <button
-                        onClick={() => handleUpdateCategory(category.id)}
-                        className="text-green-600 hover:text-green-700 text-xs"
-                        title="Save"
-                      >
-                        ✓
-                      </button>
-                      <button
-                        onClick={cancelEditing}
-                        className="text-gray-500 hover:text-gray-700 text-xs"
-                        title="Cancel"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1 bg-green-50 border border-green-200 rounded-full px-3 py-1 text-sm text-green-700 group-hover:bg-green-100 transition-colors">
-                      <Tag className="w-3 h-3" />
-                      <span>{category.name}</span>
-                      <div className="opacity-0 group-hover:opacity-100 flex gap-1 ml-1 transition-opacity">
+              {[...personalCategories]
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((category) => (
+                  <div key={category.id}>
+                    {editingCategory === category.id ? (
+                      <div className="flex items-center justify-center gap-1 bg-blue-50 border border-blue-200 rounded-full px-2 py-0 min-w-0 h-6">
+                        <input
+                          type="text"
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          className="min-w-0 flex-1 px-1 py-0 text-xs text-center border-none bg-transparent focus:outline-none"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleUpdateCategory(category.id);
+                            } else if (e.key === 'Escape') {
+                              cancelEditing();
+                            }
+                          }}
+                          autoFocus
+                        />
                         <button
-                          onClick={() => startEditingCategory(category)}
-                          className="text-blue-500 hover:text-blue-700 text-xs"
-                          title="Edit"
+                          onClick={() => handleUpdateCategory(category.id)}
+                          className="text-green-500 hover:text-green-700 flex-shrink-0"
+                          title="Save"
                         >
-                          <Edit2 className="w-3 h-3" />
+                          ✓
                         </button>
                         <button
                           onClick={() => onDeletePersonalCategory(category.id)}
-                          className="text-red-500 hover:text-red-700 text-xs"
+                          className="text-red-500 hover:text-red-700 flex-shrink-0"
                           title="Delete"
                         >
                           <Trash2 className="w-3 h-3" />
                         </button>
                       </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+                    ) : (
+                      <button
+                        onClick={() => startEditingCategory(category)}
+                        className="flex items-center justify-center bg-green-50 border border-green-200 rounded-full px-2 py-0 text-xs text-green-700 hover:bg-green-100 transition-colors cursor-pointer h-6"
+                      >
+                        <span className="text-center">{category.name}</span>
+                      </button>
+                    )}
+                  </div>
+                ))}
             </div>
           )}
         </div>

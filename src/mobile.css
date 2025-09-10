@@ -5,7 +5,8 @@
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   overflow-x: hidden;
   width: 100%;
 }
@@ -21,10 +22,10 @@ html, body {
     min-height: 44px;
     min-width: 44px;
   }
-  
-  input[type="text"],
-  input[type="number"],
-  input[type="email"],
+
+  input[type='text'],
+  input[type='number'],
+  input[type='email'],
   select,
   textarea {
     min-height: 44px;
@@ -43,12 +44,13 @@ html, body {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
-  
+
   table {
     font-size: 14px;
   }
-  
-  th, td {
+
+  th,
+  td {
     padding: 8px 4px;
     white-space: nowrap;
   }
@@ -61,17 +63,17 @@ html, body {
     padding: 1rem;
     border-radius: 8px;
   }
-  
+
   /* Stack grid items on very small screens */
   .grid {
     gap: 0.75rem;
   }
-  
+
   /* Better spacing for mobile */
   .space-y-6 > * + * {
     margin-top: 1.5rem;
   }
-  
+
   .space-y-4 > * + * {
     margin-top: 1rem;
   }

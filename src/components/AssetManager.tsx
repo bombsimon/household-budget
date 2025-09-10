@@ -6,6 +6,9 @@ import {
   Car,
   ChevronDown,
   ChevronRight,
+  Scale,
+  Percent,
+  User as UserIcon,
 } from 'lucide-react';
 import type { Asset, Expense, User } from '../types';
 import { FormActionButtons } from './FormActionButtons';
@@ -116,7 +119,7 @@ export function AssetManager({
             <span className="hidden sm:inline">Assets & Household Costs</span>
             <span className="sm:hidden">Assets</span>
           </h2>
-          
+
           {/* Desktop: inline button */}
           <button
             onClick={() => setIsAdding(true)}
@@ -126,12 +129,13 @@ export function AssetManager({
             <span>Add Asset</span>
           </button>
         </div>
-        
+
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-2">
           <p className="text-sm text-gray-600">
-            Track cars, boats, and household belongings with fixed and variable costs.
+            Track cars, boats, and household belongings with fixed and variable
+            costs.
           </p>
-          
+
           {/* Mobile: separate row button */}
           <button
             onClick={() => setIsAdding(true)}
@@ -298,34 +302,30 @@ function AssetCard({
     <div className="border border-gray-200 rounded-lg">
       <div className="p-4 bg-gray-50">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <button
-            onClick={onToggleExpansion}
-            className="flex items-center gap-2 text-left flex-1 min-w-0"
-          >
-            {isExpanded ? (
-              <ChevronDown className="w-4 h-4 flex-shrink-0" />
-            ) : (
-              <ChevronRight className="w-4 h-4 flex-shrink-0" />
-            )}
+          <div className="flex items-center gap-2 text-left flex-1 min-w-0">
+            <button
+              onClick={onToggleExpansion}
+              className="flex items-center gap-2 text-left"
+            >
+              {isExpanded ? (
+                <ChevronDown className="w-4 h-4 flex-shrink-0" />
+              ) : (
+                <ChevronRight className="w-4 h-4 flex-shrink-0" />
+              )}
+            </button>
             <div className="flex flex-col min-w-0 flex-1">
               {/* Row 1: Asset name + edit/trash (mobile) */}
               <div className="flex items-center justify-between sm:justify-start gap-2 mb-1">
                 <h3 className="font-medium text-gray-900">{asset.name}</h3>
                 <div className="flex gap-2 sm:hidden">
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onStartEdit();
-                    }}
+                    onClick={onStartEdit}
                     className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
                   >
                     <Edit2 className="w-3 h-3" />
                   </button>
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete();
-                    }}
+                    onClick={onDelete}
                     className="p-1 text-gray-400 hover:text-red-600 transition-colors"
                   >
                     <Trash2 className="w-3 h-3" />
@@ -334,11 +334,12 @@ function AssetCard({
               </div>
               {/* Row 2: Fixed/Variable costs */}
               <span className="text-sm text-gray-500 leading-tight">
-                (Fixed: {totalFixedCosts.toLocaleString()} kr, Variable: {totalVariableCosts.toLocaleString()} kr)
+                (Fixed: {totalFixedCosts.toLocaleString()} kr, Variable:{' '}
+                {totalVariableCosts.toLocaleString()} kr)
               </span>
             </div>
-          </button>
-          
+          </div>
+
           {/* Desktop: edit/trash buttons on the right */}
           <div className="hidden sm:flex gap-2 flex-shrink-0">
             <button
@@ -453,7 +454,7 @@ function ExpenseSection({
             <h4 className={`font-medium ${classes.text} mb-1`}>{title}</h4>
             <p className="text-sm text-gray-500 mb-2">{description}</p>
           </div>
-          
+
           {/* Full-width button on mobile, smaller on desktop */}
           <button
             onClick={() => setIsAdding(true)}
@@ -462,7 +463,7 @@ function ExpenseSection({
             <Plus className="w-3 h-3" />
             Add
           </button>
-          
+
           <p className="text-sm text-gray-600">
             Total: {totalAmount.toLocaleString()} kr ({expenses.length}{' '}
             {expenses.length === 1 ? 'expense' : 'expenses'})
@@ -539,49 +540,83 @@ function AssetExpenseItem({
     );
   }
 
-  const getSplitDescription = () => {
+  const getSplitIcon = () => {
     if (expense.splitType === 'equal') {
-      return `Split equally (${(expense.amount / users.length).toLocaleString()} kr each)`;
-    } else if (expense.splitType === 'percentage' && expense.splitData) {
-      return `Split by percentage (${Object.entries(expense.splitData)
-        .map(([userId, percentage]) => {
-          const user = users.find((u) => u.id === userId);
-          return `${user?.name}: ${Math.round(percentage * 100)}%`;
-        })
-        .join(', ')})`;
+      return <Scale className="w-3 h-3 text-gray-500" />;
+    } else if (expense.splitType === 'percentage') {
+      return <Percent className="w-3 h-3 text-gray-500" />;
     }
-    return 'Fixed amount';
+    return <UserIcon className="w-3 h-3 text-gray-500" />;
+  };
+
+  const getSplitText = () => {
+    if (expense.splitType === 'equal') {
+      return '50/50';
+    }
+    if (expense.splitType === 'percentage' && expense.splitData) {
+      return 'Income';
+    }
+    return 'Fixed';
   };
 
   return (
-    <div className="p-3 bg-white border border-gray-200 rounded-md">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
-            <h5 className="font-medium text-gray-900 truncate">{expense.name}</h5>
-            <span className="text-sm text-gray-500">
-              {expense.amount.toLocaleString()} kr
+    <div className="p-3 border border-gray-200 rounded bg-white">
+      <div className="space-y-2">
+        {/* Row 1: Title, Amount, and Icons (desktop) */}
+        <div className="flex items-start justify-between">
+          <h5 className="font-medium text-gray-900 flex-1 mr-2 text-left">
+            {expense.name}
+          </h5>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500 text-right whitespace-nowrap">
+              {expense.amount.toLocaleString()}&nbsp;kr
             </span>
-          </div>
-          <div className="text-xs text-gray-500 mt-1">
-            {users.length > 1 && (
-              <div>Paid by: {paidByUser?.name || 'Unknown'}</div>
-            )}
-            {users.length > 1 && <div>{getSplitDescription()}</div>}
+            {/* Desktop: Icons on same line */}
+            <div className="hidden sm:flex gap-1">
+              <button
+                onClick={onStartEdit}
+                className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                title="Edit expense"
+              >
+                <Edit2 className="w-3 h-3" />
+              </button>
+              <button
+                onClick={onDelete}
+                className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                title="Delete expense"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
           </div>
         </div>
-        <div className="flex gap-1 sm:flex-shrink-0">
+
+        {/* Row 2: Paid by and Split method */}
+        {users.length > 1 && (
+          <div className="flex items-center justify-between text-xs text-gray-500">
+            <span>by {paidByUser?.name || 'Unknown'}</span>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {getSplitIcon()}
+              <span>{getSplitText()}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Mobile: Icons on separate line */}
+        <div className="flex justify-center gap-4 sm:hidden">
           <button
             onClick={onStartEdit}
-            className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+            className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+            title="Edit expense"
           >
-            <Edit2 className="w-3 h-3" />
+            <Edit2 className="w-4 h-4" />
           </button>
           <button
             onClick={onDelete}
-            className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+            className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+            title="Delete expense"
           >
-            <Trash2 className="w-3 h-3" />
+            <Trash2 className="w-4 h-4" />
           </button>
         </div>
       </div>

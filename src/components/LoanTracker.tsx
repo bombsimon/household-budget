@@ -61,7 +61,7 @@ export function LoanTracker({
             <span className="hidden xs:inline">Loans & Mortgages</span>
             <span className="xs:hidden">Loans</span>
           </h2>
-          
+
           {/* Desktop: inline button */}
           <button
             onClick={() => setIsAdding(true)}
@@ -71,12 +71,13 @@ export function LoanTracker({
             <span>Add Loan</span>
           </button>
         </div>
-        
+
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-2">
           <p className="text-sm text-gray-600">
-            Track loans, mortgages, and other debt obligations with payment schedules.
+            Track loans, mortgages, and other debt obligations with payment
+            schedules.
           </p>
-          
+
           {/* Mobile: separate row button */}
           <button
             onClick={() => setIsAdding(true)}
@@ -663,6 +664,7 @@ function LoanForm({ users, initialData, onSubmit, onCancel }: LoanFormProps) {
                       setInterestSplitType(value as 'percentage' | 'equal')
                     }
                     showFixed={false}
+                    name="interestSplitMethod"
                   />
                 )}
               </div>
@@ -725,6 +727,7 @@ function LoanForm({ users, initialData, onSubmit, onCancel }: LoanFormProps) {
                       setMortgageSplitType(value as 'percentage' | 'equal')
                     }
                     showFixed={false}
+                    name="mortgageSplitMethod"
                   />
                 )}
               </div>

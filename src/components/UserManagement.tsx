@@ -211,12 +211,9 @@ export function UserManagement({
           );
         })()}
 
-      <div className="space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
         {users.map((user) => (
-          <div
-            key={user.id}
-            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
-          >
+          <div key={user.id} className="p-4 border border-gray-200 rounded-lg">
             {editingId === user.id ? (
               <EditUserForm
                 user={user}
@@ -224,68 +221,81 @@ export function UserManagement({
                 onCancel={() => setEditingId(null)}
               />
             ) : (
-              <>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className="flex-shrink-0">
-                      {user.photoURL ? (
-                        <img
-                          src={user.photoURL}
-                          alt={user.name}
-                          className="w-10 h-10 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div
-                          className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium"
-                          style={{ backgroundColor: user.color }}
-                        >
-                          {user.name.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-medium text-gray-900 truncate">{user.name}</h3>
-                        {user.role === 'owner' && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 flex-shrink-0">
-                            Owner
-                          </span>
-                        )}
-                      </div>
-                      {user.email && (
-                        <p className="text-xs text-gray-400 truncate mb-1">{user.email}</p>
-                      )}
-                      <div className="text-sm text-gray-500 space-y-0.5">
-                        <p>Monthly Income: {formatMoney(user.monthlyIncome)} kr</p>
-                        <p>
-                          After Tax ({formatTaxRate(user.municipalTaxRate || getDefaultMunicipalTaxRate())} municipal): {formatMoney(calculateMonthlyAfterTaxIncome(user.monthlyIncome * 12, user.municipalTaxRate))} kr
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Mobile: buttons on separate row */}
-                  <div className="flex gap-2 sm:flex-shrink-0 justify-end sm:justify-start">
-                    <button
-                      onClick={() => setEditingId(user.id)}
-                      className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                      title="Edit income and tax rate"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    {user.role !== 'owner' && onDeleteUser && (
-                      <button
-                        onClick={() => handleDeleteUser(user.id, user.name)}
-                        disabled={deletingId === user.id}
-                        className="p-2 text-gray-400 hover:text-red-600 transition-colors disabled:opacity-50"
-                        title="Remove from household"
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0">
+                    {user.photoURL ? (
+                      <img
+                        src={user.photoURL}
+                        alt={user.name}
+                        className="w-12 h-12 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div
+                        className="w-12 h-12 rounded-full flex items-center justify-center text-white text-sm font-medium"
+                        style={{ backgroundColor: user.color }}
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                        {user.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-medium text-gray-900 truncate text-left">
+                        {user.name}
+                      </h3>
+                      {user.role === 'owner' && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 flex-shrink-0">
+                          Owner
+                        </span>
+                      )}
+                    </div>
+                    {user.email && (
+                      <p className="text-xs text-gray-400 truncate mb-1 text-left">
+                        {user.email}
+                      </p>
                     )}
                   </div>
                 </div>
-              </>
+
+                <div className="text-sm text-gray-500 space-y-1 text-left">
+                  <p>Monthly Income: {formatMoney(user.monthlyIncome)} kr</p>
+                  <p>
+                    After Tax (
+                    {formatTaxRate(
+                      user.municipalTaxRate || getDefaultMunicipalTaxRate()
+                    )}{' '}
+                    municipal):{' '}
+                    {formatMoney(
+                      calculateMonthlyAfterTaxIncome(
+                        user.monthlyIncome * 12,
+                        user.municipalTaxRate
+                      )
+                    )}{' '}
+                    kr
+                  </p>
+                </div>
+
+                <div className="flex gap-2 justify-start pt-2">
+                  <button
+                    onClick={() => setEditingId(user.id)}
+                    className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                    title="Edit income and tax rate"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  {user.role !== 'owner' && onDeleteUser && (
+                    <button
+                      onClick={() => handleDeleteUser(user.id, user.name)}
+                      disabled={deletingId === user.id}
+                      className="p-2 text-gray-400 hover:text-red-600 transition-colors disabled:opacity-50"
+                      title="Remove from household"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         ))}
