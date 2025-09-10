@@ -6,19 +6,22 @@ shared finances, track expenses, and plan for financial goals.
 
 ## About
 
-For the longest time, I've been keeping track of mine and my household budget in
-a Google Spreadsheet. Nothing wrong with that, it's just... Not pretty.
+For the longest time, I've been keeping track of my personal and household
+budget in a Google Spreadsheet. Nothing wrong with that, it's just... not
+pretty.
 
-I got the idea to do yet another test with some AI coding and thought "maybe I
-can just feed the spreadsheet to Claude?". Well, I could. And it did something
-initially, but not really what I wanted. From there, I've been prompting for
-days, hitting my 5h limit several days in a row. Getting so close, and then so
-far back again.
+I got the idea to do yet another test with some AI coding and thought, _"Maybe I
+can just feed the spreadsheet to Claude?"_ Well, I could. And it did something
+at first, but not really what I wanted. From there, I spent days prompting,
+hitting my 5 hour limit several days in a row. Getting so close, and then ending
+up right back where I started.
 
 Finally, after about a week, I have something that feels good enough to share.
-So to clarify, I've written 0 lines of this code, I've removed maybe 5 lines of
-code and I've written the about section in this README. The rest is just me
-prompting and directing Claude to do what I mean. I think it turned out OK!
+Just to clarify, I've written 0 lines of this code. I only removed maybe 5
+lines, and I wrote the About section in this README. The rest is just me
+prompting and directing Claude to do what I meant. I think it turned out OK!
+
+This text was cleaned up a little with ChatGPT...
 
 ## Features
 
