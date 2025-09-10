@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   Plus,
-  Edit2,
   Trash2,
   ChevronDown,
   ChevronRight,
