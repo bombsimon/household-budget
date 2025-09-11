@@ -1,11 +1,5 @@
 import React, { useState } from 'react';
-import {
-  Plus,
-  Trash2,
-  ChevronDown,
-  ChevronRight,
-  Tag,
-} from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronRight, Tag } from 'lucide-react';
 import type { PersonalExpenseCategory } from '../types';
 
 interface PersonalCategoryManagerProps {

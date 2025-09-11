@@ -488,22 +488,37 @@ function ExpenseItem({
           </div>
         </div>
 
-        {/* Row 2: Payee and Payment method */}
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <div className="flex items-center gap-2">
-            <span>by {paidByUser?.name || 'Unknown'}</span>
-            {expense.isYearly && (
-              <span
-                className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs cursor-pointer hover:bg-blue-200 transition-colors"
-                onClick={() => onStartEdit()}
-                title="Click to edit this expense"
-              >
-                {getFrequencyText(expense)}
-              </span>
-            )}
+        {/* Row 2: Payee and Payment method - only show if multiple users */}
+        {users.length > 1 && (
+          <div className="flex items-center justify-between text-xs text-gray-500">
+            <div className="flex items-center gap-2">
+              <span>by {paidByUser?.name || 'Unknown'}</span>
+              {expense.isYearly && (
+                <span
+                  className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs cursor-pointer hover:bg-blue-200 transition-colors"
+                  onClick={() => onStartEdit()}
+                  title="Click to edit this expense"
+                >
+                  {getFrequencyText(expense)}
+                </span>
+              )}
+            </div>
+            <div className="flex-shrink-0">{getSplitDisplay()}</div>
           </div>
-          <div className="flex-shrink-0">{getSplitDisplay()}</div>
-        </div>
+        )}
+
+        {/* Row 2 alternative for single user: Just show yearly indicator if needed */}
+        {users.length === 1 && expense.isYearly && (
+          <div className="flex justify-center text-xs text-gray-500">
+            <span
+              className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs cursor-pointer hover:bg-blue-200 transition-colors"
+              onClick={() => onStartEdit()}
+              title="Click to edit this expense"
+            >
+              {getFrequencyText(expense)}
+            </span>
+          </div>
+        )}
 
         {/* Mobile: Icons on separate line */}
         <div className="flex justify-center gap-4 sm:hidden">
@@ -700,17 +715,31 @@ function ExpenseForm({
           />
           Yearly Expense
         </label>
-        {isSharedCategory && (
-          <span className="text-sm text-blue-600 font-medium">
-            Household expense between users
-          </span>
-        )}
         {isPersonalCategory && (
           <span className="text-sm text-green-600 font-medium">
             Personal expense for{' '}
             {users.find((u) => u.id === personalUserId)?.name}
           </span>
         )}
+      </div>
+
+      {/* Category selection - available for all expense types */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Category (optional)
+        </label>
+        <select
+          value={personalCategoryId}
+          onChange={(e) => setPersonalCategoryId(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">Uncategorized</option>
+          {personalCategories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {isSharedCategory && users.length > 1 ? (
@@ -730,12 +759,6 @@ function ExpenseForm({
             <SplitInfoBox users={users} splitData={splitData} />
           )}
         </div>
-      ) : isSharedCategory && users.length === 1 ? (
-        <div className="mb-4">
-          <span className="text-sm text-blue-600 font-medium">
-            Household expense for single user - no split needed
-          </span>
-        </div>
       ) : (
         <div className="space-y-4 mb-4">
           {!isPersonalCategory && !initialData?.userId && users.length > 1 && (
@@ -753,25 +776,6 @@ function ExpenseForm({
                 {users.map((user) => (
                   <option key={user.id} value={user.id}>
                     {user.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          {(userId || isPersonalCategory || users.length === 1) && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Category (optional)
-              </label>
-              <select
-                value={personalCategoryId}
-                onChange={(e) => setPersonalCategoryId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Uncategorized</option>
-                {personalCategories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
                   </option>
                 ))}
               </select>
