@@ -36,6 +36,7 @@ export interface Expense {
   paidBy?: string;
   isVariable?: boolean;
   isYearly?: boolean; // True if this is a yearly expense
+  isBudgeted?: boolean; // True if this is a budgeted/variable expense
   personalCategoryId?: string; // Link to personal expense category (optional)
 }
 
@@ -63,8 +64,7 @@ export interface Loan {
 export interface Asset {
   id: string;
   name: string;
-  fixedCosts: Expense[];
-  variableCosts: Expense[];
+  expenses: Expense[];
 }
 
 export interface Settlement {
@@ -77,6 +77,8 @@ export interface BudgetSummary {
   totalIncome: number;
   totalSharedExpenses: number;
   totalPersonalExpenses: number;
+  totalBudgetedSharedExpenses: number;
+  totalBudgetedPersonalExpenses: number;
   afterTaxIncome: number;
   afterSharedExpenses: number;
   afterPersonalExpenses: number;

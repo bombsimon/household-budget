@@ -6,14 +6,38 @@ import {
   Car,
   ChevronDown,
   ChevronRight,
-  Scale,
-  Percent,
-  User as UserIcon,
 } from 'lucide-react';
 import type { Asset, Expense, User } from '../types';
+import { formatMoney, getMonthlyAmount } from '../utils/expenseCalculations';
 import { FormActionButtons } from './FormActionButtons';
-import { SplitMethodSelector } from './SplitMethodSelector';
-import { SplitInfoBox } from './SplitInfoBox';
+import { ExpenseForm } from './ExpenseForm';
+import { ExpenseItem } from './ExpenseItem';
+
+// Helper function to migrate legacy asset data structure
+const migrateAssetData = (asset: Asset): Asset => {
+  if (
+    !asset.expenses &&
+    ((asset as any).fixedCosts || (asset as any).variableCosts)
+  ) {
+    return {
+      ...asset,
+      expenses: [
+        ...((asset as any).fixedCosts || []).map((exp: any) => ({
+          ...exp,
+          isBudgeted: false,
+        })),
+        ...((asset as any).variableCosts || []).map((exp: any) => ({
+          ...exp,
+          isBudgeted: true,
+        })),
+      ],
+    };
+  }
+  return {
+    ...asset,
+    expenses: asset.expenses || [],
+  };
+};
 
 interface AssetManagerProps {
   users: User[];
@@ -31,7 +55,11 @@ export function AssetManager({
   onDeleteAsset,
 }: AssetManagerProps) {
   const [isAdding, setIsAdding] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingAsset, setEditingAsset] = useState<string | null>(null);
+  const [addingExpenseToAsset, setAddingExpenseToAsset] = useState<
+    string | null
+  >(null);
+  const [editingExpense, setEditingExpense] = useState<string | null>(null);
   const [expandedAssets, setExpandedAssets] = useState<Set<string>>(
     new Set(assets.map((a) => a.id))
   );
@@ -48,31 +76,23 @@ export function AssetManager({
     });
   };
 
-  const addExpenseToAsset = (
-    assetId: string,
-    expense: Omit<Expense, 'id'>,
-    type: 'fixed' | 'variable'
-  ) => {
+  const handleAddExpense = (assetId: string, expense: Omit<Expense, 'id'>) => {
     const asset = assets.find((a) => a.id === assetId);
     if (!asset) return;
 
-    const newExpense: Expense = {
+    const migratedAsset = migrateAssetData(asset);
+    const newExpense = {
       ...expense,
-      id: `${assetId}-${type}-${Date.now()}`,
-      isVariable: type === 'variable',
+      id: crypto.randomUUID(),
     };
 
-    const updatedAsset: Partial<Asset> = {
-      [type === 'fixed' ? 'fixedCosts' : 'variableCosts']: [
-        ...(type === 'fixed' ? asset.fixedCosts : asset.variableCosts),
-        newExpense,
-      ],
-    };
-
-    onUpdateAsset(assetId, updatedAsset);
+    onUpdateAsset(assetId, {
+      expenses: [...migratedAsset.expenses, newExpense],
+    });
+    setAddingExpenseToAsset(null);
   };
 
-  const updateAssetExpense = (
+  const handleUpdateExpense = (
     assetId: string,
     expenseId: string,
     updates: Partial<Expense>
@@ -80,123 +100,278 @@ export function AssetManager({
     const asset = assets.find((a) => a.id === assetId);
     if (!asset) return;
 
-    const updatedFixedCosts = asset.fixedCosts.map((exp) =>
-      exp.id === expenseId ? { ...exp, ...updates } : exp
-    );
-    const updatedVariableCosts = asset.variableCosts.map((exp) =>
+    const migratedAsset = migrateAssetData(asset);
+    const updatedExpenses = migratedAsset.expenses.map((exp) =>
       exp.id === expenseId ? { ...exp, ...updates } : exp
     );
 
-    onUpdateAsset(assetId, {
-      fixedCosts: updatedFixedCosts,
-      variableCosts: updatedVariableCosts,
-    });
+    onUpdateAsset(assetId, { expenses: updatedExpenses });
   };
 
-  const deleteAssetExpense = (assetId: string, expenseId: string) => {
+  const handleDeleteExpense = (assetId: string, expenseId: string) => {
     const asset = assets.find((a) => a.id === assetId);
     if (!asset) return;
 
-    const updatedFixedCosts = asset.fixedCosts.filter(
-      (exp) => exp.id !== expenseId
-    );
-    const updatedVariableCosts = asset.variableCosts.filter(
+    const migratedAsset = migrateAssetData(asset);
+    const updatedExpenses = migratedAsset.expenses.filter(
       (exp) => exp.id !== expenseId
     );
 
-    onUpdateAsset(assetId, {
-      fixedCosts: updatedFixedCosts,
-      variableCosts: updatedVariableCosts,
-    });
+    onUpdateAsset(assetId, { expenses: updatedExpenses });
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-3 sm:p-6">
-      <div className="mb-4 sm:mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center gap-2">
-            <Car className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span className="hidden sm:inline">Assets & Household Costs</span>
-            <span className="sm:hidden">Assets</span>
-          </h2>
-
-          {/* Desktop: inline button */}
-          <button
-            onClick={() => setIsAdding(true)}
-            className="hidden sm:flex items-center justify-center gap-2 px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors min-w-[100px]"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Asset</span>
-          </button>
-        </div>
-
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-2">
-          <p className="text-sm text-gray-600">
-            Track cars, boats, and household belongings with fixed and variable
-            costs.
-          </p>
-
-          {/* Mobile: separate row button */}
-          <button
-            onClick={() => setIsAdding(true)}
-            className="sm:hidden flex items-center justify-center gap-2 px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Asset</span>
-          </button>
-        </div>
-      </div>
-
+    <div className="space-y-6">
+      {/* Add Asset Form */}
       {isAdding && (
-        <AssetForm
-          onSubmit={(asset) => {
-            onAddAsset(asset);
-            setIsAdding(false);
-          }}
-          onCancel={() => setIsAdding(false)}
-        />
+        <div className="bg-white rounded-lg shadow-sm p-4">
+          <AssetForm
+            onSubmit={(assetData) => {
+              onAddAsset(assetData);
+              setIsAdding(false);
+            }}
+            onCancel={() => setIsAdding(false)}
+          />
+        </div>
       )}
 
-      <div className="space-y-4">
-        {assets.map((asset) => (
-          <AssetCard
-            key={asset.id}
-            asset={asset}
-            users={users}
-            isExpanded={expandedAssets.has(asset.id)}
-            isEditing={editingId === asset.id}
-            onToggleExpansion={() => toggleAssetExpansion(asset.id)}
-            onStartEdit={() => setEditingId(asset.id)}
-            onStopEdit={() => setEditingId(null)}
-            onUpdate={(updates) => {
-              onUpdateAsset(asset.id, updates);
-              setEditingId(null);
-            }}
-            onDelete={() => onDeleteAsset(asset.id)}
-            onAddExpense={addExpenseToAsset}
-            onUpdateExpense={updateAssetExpense}
-            onDeleteExpense={deleteAssetExpense}
-          />
-        ))}
+      {/* Add Asset Button */}
+      {!isAdding && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => setIsAdding(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Asset
+          </button>
+        </div>
+      )}
+
+      {/* Assets List - using same structure as ExpenseManager */}
+      <div className="space-y-6">
+        {assets.map((asset) => {
+          const migratedAsset = migrateAssetData(asset);
+          const fixedExpenses = migratedAsset.expenses
+            .filter((expense) => !expense.isBudgeted)
+            .reduce((sum, expense) => sum + getMonthlyAmount(expense), 0);
+          const budgetedExpenses = migratedAsset.expenses
+            .filter((expense) => expense.isBudgeted)
+            .reduce((sum, expense) => sum + getMonthlyAmount(expense), 0);
+          const totalExpenses = fixedExpenses + budgetedExpenses;
+          const isExpanded = expandedAssets.has(asset.id);
+
+          return (
+            <div key={asset.id} className="bg-white rounded-lg shadow-sm">
+              <div className="p-3 sm:p-4 border-b border-gray-200">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  {/* Asset Header - same pattern as category header */}
+                  <button
+                    onClick={() => toggleAssetExpansion(asset.id)}
+                    className="flex items-center gap-2 text-left flex-1 min-w-0"
+                  >
+                    {!isExpanded ? (
+                      <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
+                    )}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 min-w-0 flex-1">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Car className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 flex-shrink-0" />
+                        <h2 className="text-base font-semibold text-gray-900 leading-tight truncate">
+                          {asset.name}
+                        </h2>
+                        <span className="text-sm text-gray-500 flex-shrink-0">
+                          ({migratedAsset.expenses.length})
+                        </span>
+                      </div>
+                      {totalExpenses > 0 && (
+                        <div className="text-sm font-medium mt-1 sm:mt-0">
+                          <span className="text-gray-700">
+                            {formatMoney(fixedExpenses)} kr/month
+                          </span>
+                          {budgetedExpenses > 0 && (
+                            <>
+                              <span className="text-gray-400"> + </span>
+                              <span className="text-orange-600">
+                                {formatMoney(budgetedExpenses)} kr budgeted
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </button>
+
+                  {/* Desktop: Action buttons */}
+                  <div className="hidden sm:flex items-center gap-2">
+                    <button
+                      onClick={() => setAddingExpenseToAsset(asset.id)}
+                      className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex-shrink-0"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add
+                    </button>
+                    <button
+                      onClick={() => setEditingAsset(asset.id)}
+                      className="flex items-center gap-1 px-3 py-1 text-gray-600 hover:text-gray-800 hover:bg-gray-100 transition-colors flex-shrink-0"
+                      title="Edit asset"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => onDeleteAsset(asset.id)}
+                      className="flex items-center gap-1 px-3 py-1 text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors flex-shrink-0"
+                      title="Delete asset"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Mobile: Action buttons */}
+                {!isExpanded && (
+                  <div className="sm:hidden mt-2 flex gap-2">
+                    <button
+                      onClick={() => setAddingExpenseToAsset(asset.id)}
+                      className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Expense
+                    </button>
+                    <button
+                      onClick={() => setEditingAsset(asset.id)}
+                      className="flex items-center justify-center gap-1 px-3 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors text-sm"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => onDeleteAsset(asset.id)}
+                      className="flex items-center justify-center gap-1 px-3 py-2 text-red-500 bg-red-50 hover:bg-red-100 transition-colors text-sm"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Asset Content */}
+              {isExpanded && (
+                <div className="p-4">
+                  {/* Edit Asset Form */}
+                  {editingAsset === asset.id && (
+                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <AssetForm
+                        initialData={asset}
+                        onSubmit={(updates) => {
+                          onUpdateAsset(asset.id, updates);
+                          setEditingAsset(null);
+                        }}
+                        onCancel={() => setEditingAsset(null)}
+                      />
+                    </div>
+                  )}
+
+                  {/* Add Expense Form */}
+                  {addingExpenseToAsset === asset.id && (
+                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <ExpenseForm
+                        users={users}
+                        personalCategories={[]}
+                        isSharedCategory={false}
+                        category={null}
+                        onSubmit={(expenseData) =>
+                          handleAddExpense(asset.id, expenseData)
+                        }
+                        onCancel={() => setAddingExpenseToAsset(null)}
+                        showCategorySelector={false}
+                        isAssetExpense={true}
+                      />
+                    </div>
+                  )}
+
+                  {/* Expenses List - using ExpenseItem component */}
+                  {migratedAsset.expenses.length > 0 && (
+                    <div className="space-y-2">
+                      {migratedAsset.expenses.map((expense) => (
+                        <ExpenseItem
+                          key={expense.id}
+                          expense={expense}
+                          users={users}
+                          personalCategories={[]}
+                          isEditing={editingExpense === expense.id}
+                          isSharedCategory={false}
+                          onUpdate={(updates) =>
+                            handleUpdateExpense(asset.id, expense.id, updates)
+                          }
+                          onDelete={() =>
+                            handleDeleteExpense(asset.id, expense.id)
+                          }
+                          onStartEdit={() => setEditingExpense(expense.id)}
+                          onStopEdit={() => setEditingExpense(null)}
+                          renderEditForm={(expense, onSubmit, onCancel) => (
+                            <ExpenseForm
+                              users={users}
+                              personalCategories={[]}
+                              isSharedCategory={false}
+                              category={null}
+                              initialData={expense}
+                              onSubmit={onSubmit}
+                              onCancel={onCancel}
+                              showCategorySelector={false}
+                              isAssetExpense={true}
+                            />
+                          )}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Empty State */}
+                  {migratedAsset.expenses.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <Car className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                      <p>No expenses added for this asset yet.</p>
+                      <button
+                        onClick={() => setAddingExpenseToAsset(asset.id)}
+                        className="mt-2 text-blue-600 hover:text-blue-800"
+                      >
+                        Add your first expense
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      {assets.length === 0 && !isAdding && (
+      {/* Empty State */}
+      {assets.length === 0 && (
         <div className="text-center py-12 text-gray-500">
-          <Car className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>No assets added yet. Click "Add Asset" to get started.</p>
-          <p className="text-sm mt-2">
-            Assets can include cars, boats, or other household belongings with
-            costs.
-          </p>
+          <Car className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            No assets yet
+          </h3>
+          <p className="mb-4">Add your first asset to start tracking costs.</p>
+          <button
+            onClick={() => setIsAdding(true)}
+            className="flex items-center gap-2 mx-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Asset
+          </button>
         </div>
       )}
     </div>
   );
 }
 
+// Asset Form Component - simplified version
 interface AssetFormProps {
   initialData?: Asset;
-  onSubmit: (asset: Omit<Asset, 'id'>) => void;
+  onSubmit: (assetData: Omit<Asset, 'id'>) => void;
   onCancel: () => void;
 }
 
@@ -207,584 +382,39 @@ function AssetForm({ initialData, onSubmit, onCancel }: AssetFormProps) {
     e.preventDefault();
     if (!name.trim()) return;
 
-    onSubmit({
+    const assetData: Omit<Asset, 'id'> = {
       name: name.trim(),
-      fixedCosts: initialData?.fixedCosts || [],
-      variableCosts: initialData?.variableCosts || [],
-    });
+      expenses: initialData ? migrateAssetData(initialData).expenses : [],
+    };
+
+    onSubmit(assetData);
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="border border-gray-300 rounded-lg p-6 bg-gray-50 mb-4"
-    >
-      <div className="mb-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <h3 className="text-lg font-semibold text-gray-900">
+        {initialData ? 'Edit Asset' : 'Add Asset'}
+      </h3>
+
+      <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Asset Name
+          Asset Name *
         </label>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="e.g., Family Car, Boat"
+          placeholder="e.g., My Car, House, etc."
           required
         />
       </div>
 
       <FormActionButtons
-        submitType="submit"
-        submitLabel={`${initialData ? 'Update' : 'Add'} Asset`}
         onCancel={onCancel}
+        submitType="submit"
+        submitLabel={initialData ? 'Update Asset' : 'Add Asset'}
       />
-    </form>
-  );
-}
-
-interface AssetCardProps {
-  asset: Asset;
-  users: User[];
-  isExpanded: boolean;
-  isEditing: boolean;
-  onToggleExpansion: () => void;
-  onStartEdit: () => void;
-  onStopEdit: () => void;
-  onUpdate: (updates: Partial<Asset>) => void;
-  onDelete: () => void;
-  onAddExpense: (
-    assetId: string,
-    expense: Omit<Expense, 'id'>,
-    type: 'fixed' | 'variable'
-  ) => void;
-  onUpdateExpense: (
-    assetId: string,
-    expenseId: string,
-    updates: Partial<Expense>
-  ) => void;
-  onDeleteExpense: (assetId: string, expenseId: string) => void;
-}
-
-function AssetCard({
-  asset,
-  users,
-  isExpanded,
-  isEditing,
-  onToggleExpansion,
-  onStartEdit,
-  onStopEdit,
-  onUpdate,
-  onDelete,
-  onAddExpense,
-  onUpdateExpense,
-  onDeleteExpense,
-}: AssetCardProps) {
-  const totalFixedCosts = asset.fixedCosts.reduce(
-    (sum, exp) => sum + exp.amount,
-    0
-  );
-  const totalVariableCosts = asset.variableCosts.reduce(
-    (sum, exp) => sum + exp.amount,
-    0
-  );
-
-  if (isEditing) {
-    return (
-      <AssetForm
-        initialData={asset}
-        onSubmit={onUpdate}
-        onCancel={onStopEdit}
-      />
-    );
-  }
-
-  return (
-    <div className="border border-gray-200 rounded-lg">
-      <div className="p-4 bg-gray-50">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-2 text-left flex-1 min-w-0">
-            <button
-              onClick={onToggleExpansion}
-              className="flex items-center gap-2 text-left"
-            >
-              {isExpanded ? (
-                <ChevronDown className="w-4 h-4 flex-shrink-0" />
-              ) : (
-                <ChevronRight className="w-4 h-4 flex-shrink-0" />
-              )}
-            </button>
-            <div className="flex flex-col min-w-0 flex-1">
-              {/* Row 1: Asset name + edit/trash (mobile) */}
-              <div className="flex items-center justify-between sm:justify-start gap-2 mb-1">
-                <h3 className="font-medium text-gray-900">{asset.name}</h3>
-                <div className="flex gap-2 sm:hidden">
-                  <button
-                    onClick={onStartEdit}
-                    className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
-                  >
-                    <Edit2 className="w-3 h-3" />
-                  </button>
-                  <button
-                    onClick={onDelete}
-                    className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-              {/* Row 2: Fixed/Variable costs */}
-              <span className="text-sm text-gray-500 leading-tight">
-                (Fixed: {totalFixedCosts.toLocaleString()} kr, Variable:{' '}
-                {totalVariableCosts.toLocaleString()} kr)
-              </span>
-            </div>
-          </div>
-
-          {/* Desktop: edit/trash buttons on the right */}
-          <div className="hidden sm:flex gap-2 flex-shrink-0">
-            <button
-              onClick={onStartEdit}
-              className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-            >
-              <Edit2 className="w-4 h-4" />
-            </button>
-            <button
-              onClick={onDelete}
-              className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {isExpanded && (
-        <div className="p-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <ExpenseSection
-              title="Fixed Costs"
-              description="Regular monthly costs (insurance, registration, etc.)"
-              expenses={asset.fixedCosts}
-              users={users}
-              onAddExpense={(expense) =>
-                onAddExpense(asset.id, expense, 'fixed')
-              }
-              onUpdateExpense={(expenseId, updates) =>
-                onUpdateExpense(asset.id, expenseId, updates)
-              }
-              onDeleteExpense={(expenseId) =>
-                onDeleteExpense(asset.id, expenseId)
-              }
-              color="blue"
-            />
-            <ExpenseSection
-              title="Variable Costs"
-              description="Costs that vary month to month (fuel, maintenance, etc.)"
-              expenses={asset.variableCosts}
-              users={users}
-              onAddExpense={(expense) =>
-                onAddExpense(asset.id, expense, 'variable')
-              }
-              onUpdateExpense={(expenseId, updates) =>
-                onUpdateExpense(asset.id, expenseId, updates)
-              }
-              onDeleteExpense={(expenseId) =>
-                onDeleteExpense(asset.id, expenseId)
-              }
-              color="orange"
-              allowVariable={false}
-            />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface ExpenseSectionProps {
-  title: string;
-  description: string;
-  expenses: Expense[];
-  users: User[];
-  onAddExpense: (expense: Omit<Expense, 'id'>) => void;
-  onUpdateExpense: (expenseId: string, updates: Partial<Expense>) => void;
-  onDeleteExpense: (expenseId: string) => void;
-  color: 'blue' | 'orange';
-  allowVariable?: boolean;
-}
-
-function ExpenseSection({
-  title,
-  description,
-  expenses,
-  users,
-  onAddExpense,
-  onUpdateExpense,
-  onDeleteExpense,
-  color,
-  allowVariable = false,
-}: ExpenseSectionProps) {
-  const [isAdding, setIsAdding] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-
-  const colorClasses = {
-    blue: {
-      bg: 'bg-blue-50',
-      border: 'border-blue-200',
-      button: 'bg-blue-600 hover:bg-blue-700',
-      text: 'text-blue-600',
-    },
-    orange: {
-      bg: 'bg-orange-50',
-      border: 'border-orange-200',
-      button: 'bg-orange-600 hover:bg-orange-700',
-      text: 'text-orange-600',
-    },
-  };
-
-  const classes = colorClasses[color];
-  const totalAmount = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-
-  return (
-    <div className={`${classes.bg} ${classes.border} border rounded-lg p-4`}>
-      <div className="mb-4">
-        {/* Mobile: Stack everything vertically */}
-        <div className="flex flex-col gap-3">
-          <div>
-            <h4 className={`font-medium ${classes.text} mb-1`}>{title}</h4>
-            <p className="text-sm text-gray-500 mb-2">{description}</p>
-          </div>
-
-          {/* Full-width button on mobile, smaller on desktop */}
-          <button
-            onClick={() => setIsAdding(true)}
-            className={`w-full sm:w-auto flex items-center justify-center gap-1 px-3 py-2 text-sm text-white rounded ${classes.button} transition-colors`}
-          >
-            <Plus className="w-3 h-3" />
-            Add
-          </button>
-
-          <p className="text-sm text-gray-600">
-            Total: {totalAmount.toLocaleString()} kr ({expenses.length}{' '}
-            {expenses.length === 1 ? 'expense' : 'expenses'})
-          </p>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        {expenses.map((expense) => (
-          <AssetExpenseItem
-            key={expense.id}
-            expense={expense}
-            users={users}
-            isEditing={editingId === expense.id}
-            onStartEdit={() => setEditingId(expense.id)}
-            onStopEdit={() => setEditingId(null)}
-            onUpdate={(updates) => {
-              onUpdateExpense(expense.id, updates);
-              setEditingId(null);
-            }}
-            onDelete={() => onDeleteExpense(expense.id)}
-            allowVariable={allowVariable}
-          />
-        ))}
-
-        {isAdding && (
-          <AssetExpenseForm
-            users={users}
-            allowVariable={allowVariable}
-            onSubmit={(expense) => {
-              onAddExpense(expense);
-              setIsAdding(false);
-            }}
-            onCancel={() => setIsAdding(false)}
-          />
-        )}
-      </div>
-    </div>
-  );
-}
-
-interface AssetExpenseItemProps {
-  expense: Expense;
-  users: User[];
-  isEditing: boolean;
-  allowVariable: boolean;
-  onStartEdit: () => void;
-  onStopEdit: () => void;
-  onUpdate: (updates: Partial<Expense>) => void;
-  onDelete: () => void;
-}
-
-function AssetExpenseItem({
-  expense,
-  users,
-  isEditing,
-  allowVariable,
-  onStartEdit,
-  onStopEdit,
-  onUpdate,
-  onDelete,
-}: AssetExpenseItemProps) {
-  const paidByUser = users.find((u) => u.id === expense.paidBy);
-
-  if (isEditing) {
-    return (
-      <AssetExpenseForm
-        users={users}
-        allowVariable={allowVariable}
-        initialData={expense}
-        onSubmit={onUpdate}
-        onCancel={onStopEdit}
-      />
-    );
-  }
-
-  const getSplitIcon = () => {
-    if (expense.splitType === 'equal') {
-      return <Scale className="w-3 h-3 text-gray-500" />;
-    } else if (expense.splitType === 'percentage') {
-      return <Percent className="w-3 h-3 text-gray-500" />;
-    }
-    return <UserIcon className="w-3 h-3 text-gray-500" />;
-  };
-
-  const getSplitText = () => {
-    if (expense.splitType === 'equal') {
-      return '50/50';
-    }
-    if (expense.splitType === 'percentage' && expense.splitData) {
-      return 'Income';
-    }
-    return 'Fixed';
-  };
-
-  return (
-    <div className="p-3 border border-gray-200 rounded bg-white">
-      <div className="space-y-2">
-        {/* Row 1: Title, Amount, and Icons (desktop) */}
-        <div className="flex items-start justify-between">
-          <h5 className="font-medium text-gray-900 flex-1 mr-2 text-left">
-            {expense.name}
-          </h5>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500 text-right whitespace-nowrap">
-              {expense.amount.toLocaleString()}&nbsp;kr
-            </span>
-            {/* Desktop: Icons on same line */}
-            <div className="hidden sm:flex gap-1">
-              <button
-                onClick={onStartEdit}
-                className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
-                title="Edit expense"
-              >
-                <Edit2 className="w-3 h-3" />
-              </button>
-              <button
-                onClick={onDelete}
-                className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                title="Delete expense"
-              >
-                <Trash2 className="w-3 h-3" />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Row 2: Paid by and Split method */}
-        {users.length > 1 && (
-          <div className="flex items-center justify-between text-xs text-gray-500">
-            <span>by {paidByUser?.name || 'Unknown'}</span>
-            <div className="flex items-center gap-1 flex-shrink-0">
-              {getSplitIcon()}
-              <span>{getSplitText()}</span>
-            </div>
-          </div>
-        )}
-
-        {/* Mobile: Icons on separate line */}
-        <div className="flex justify-center gap-4 sm:hidden">
-          <button
-            onClick={onStartEdit}
-            className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-            title="Edit expense"
-          >
-            <Edit2 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={onDelete}
-            className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-            title="Delete expense"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-interface AssetExpenseFormProps {
-  users: User[];
-  allowVariable: boolean;
-  initialData?: Expense;
-  onSubmit: (expense: Omit<Expense, 'id'>) => void;
-  onCancel: () => void;
-}
-
-function AssetExpenseForm({
-  users,
-  allowVariable,
-  initialData,
-  onSubmit,
-  onCancel,
-}: AssetExpenseFormProps) {
-  const [name, setName] = useState(initialData?.name || '');
-  const [amount, setAmount] = useState(initialData?.amount?.toString() || '');
-  const [splitType, setSplitType] = useState(initialData?.splitType || 'equal');
-  const [paidBy, setPaidBy] = useState(
-    initialData?.paidBy || users[0]?.id || ''
-  );
-  const [isVariable, setIsVariable] = useState(
-    initialData?.isVariable || false
-  );
-  // Calculate income-based percentages
-  const totalIncome = users.reduce((sum, user) => sum + user.monthlyIncome, 0);
-  const incomeBasedSplit = users.reduce(
-    (acc, user) => {
-      acc[user.id] =
-        totalIncome > 0 ? user.monthlyIncome / totalIncome : 1 / users.length;
-      return acc;
-    },
-    {} as { [userId: string]: number }
-  );
-
-  const [splitData] = useState<{ [userId: string]: number }>(
-    initialData?.splitData || incomeBasedSplit
-  );
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !amount.trim()) return;
-
-    let finalSplitData: { [userId: string]: number } | undefined;
-
-    if (splitType === 'percentage') {
-      const totalPercentage = Object.values(splitData).reduce(
-        (sum, val) => sum + val,
-        0
-      );
-      if (Math.abs(totalPercentage - 1) > 0.001) {
-        alert('Percentages must add up to 100%');
-        return;
-      }
-      finalSplitData = splitData;
-    }
-
-    onSubmit({
-      name: name.trim(),
-      amount: parseFloat(amount),
-      isShared: true,
-      splitType,
-      splitData: finalSplitData,
-      paidBy,
-      isVariable: allowVariable ? isVariable : false,
-    });
-  };
-
-  // Percentages are now automatically calculated based on income, no manual changes needed
-
-  return (
-    <form
-      onSubmit={handleSubmit}
-      className="p-3 border border-gray-300 rounded-md bg-gray-50"
-    >
-      <div className="grid grid-cols-2 gap-2 mb-3">
-        <div>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Expense name"
-            required
-          />
-        </div>
-        <div>
-          <input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Amount"
-            required
-            min="0"
-            step="0.01"
-          />
-        </div>
-      </div>
-
-      {users.length > 1 && (
-        <div className="space-y-2 mb-3">
-          <div>
-            <select
-              value={paidBy}
-              onChange={(e) => setPaidBy(e.target.value)}
-              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  Paid by {user.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <div className="text-xs">
-              <SplitMethodSelector
-                value={splitType as any}
-                onChange={(value) => setSplitType(value)}
-                showFixed={false}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-      {allowVariable && (
-        <div className="mb-3">
-          <label className="flex items-center text-sm">
-            <input
-              type="checkbox"
-              checked={isVariable}
-              onChange={(e) => setIsVariable(e.target.checked)}
-              className="mr-1"
-            />
-            Variable
-          </label>
-        </div>
-      )}
-
-      {splitType === 'percentage' && users.length > 1 && (
-        <div className="mb-3">
-          <SplitInfoBox users={users} splitData={splitData} />
-        </div>
-      )}
-
-      <div className="flex gap-2">
-        <button
-          type="submit"
-          className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-        >
-          {initialData ? 'Update' : 'Add'}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-3 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
-        >
-          Cancel
-        </button>
-      </div>
     </form>
   );
 }

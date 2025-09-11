@@ -27,6 +27,32 @@ import type {
   AppState,
 } from '../types';
 import { getMonthlyAmount } from '../utils/expenseCalculations';
+
+// Helper function to migrate legacy asset data structure
+const migrateAssetData = (asset: Asset): Asset => {
+  if (
+    !asset.expenses &&
+    ((asset as any).fixedCosts || (asset as any).variableCosts)
+  ) {
+    return {
+      ...asset,
+      expenses: [
+        ...((asset as any).fixedCosts || []).map((exp: any) => ({
+          ...exp,
+          isBudgeted: false,
+        })),
+        ...((asset as any).variableCosts || []).map((exp: any) => ({
+          ...exp,
+          isBudgeted: true,
+        })),
+      ],
+    };
+  }
+  return {
+    ...asset,
+    expenses: asset.expenses || [],
+  };
+};
 import {
   calculateMonthlyAfterTaxIncome,
   getDefaultMunicipalTaxRate,
@@ -702,7 +728,7 @@ export function useManualFirebaseBudgetData(householdId: string) {
 
     categories.forEach((category) => {
       category.expenses.forEach((expense) => {
-        if (expense.isShared) {
+        if (expense.isShared && !expense.isBudgeted) {
           const paidBy = expense.paidBy || users[0]?.id;
           userBalances[paidBy] =
             (userBalances[paidBy] || 0) + getMonthlyAmount(expense);
@@ -718,7 +744,7 @@ export function useManualFirebaseBudgetData(householdId: string) {
                 if (userBalances[userId] !== undefined) {
                   // Only process if user still exists
                   userBalances[userId] -=
-                    getMonthlyAmount(expense) * percentage;
+                    getMonthlyAmount(expense) * (percentage as number);
                 }
               }
             );
@@ -738,30 +764,36 @@ export function useManualFirebaseBudgetData(householdId: string) {
     });
 
     assets.forEach((asset) => {
-      asset.fixedCosts.forEach((expense) => {
-        if (expense.isShared) {
-          const paidBy = expense.paidBy || users[0]?.id;
-          userBalances[paidBy] =
-            (userBalances[paidBy] || 0) + getMonthlyAmount(expense);
+      const migratedAsset = migrateAssetData(asset);
+      migratedAsset.expenses
+        .filter((expense: any) => !expense.isBudgeted)
+        .forEach((expense: any) => {
+          if (expense.isShared) {
+            const paidBy = expense.paidBy || users[0]?.id;
+            userBalances[paidBy] =
+              (userBalances[paidBy] || 0) + getMonthlyAmount(expense);
 
-          if (expense.splitType === 'equal') {
-            const perPerson = getMonthlyAmount(expense) / users.length;
-            users.forEach((user) => {
-              userBalances[user.id] -= perPerson;
-            });
-          } else if (expense.splitType === 'percentage' && expense.splitData) {
-            Object.entries(expense.splitData).forEach(
-              ([userId, percentage]) => {
-                if (userBalances[userId] !== undefined) {
-                  // Only process if user still exists
-                  userBalances[userId] -=
-                    getMonthlyAmount(expense) * percentage;
+            if (expense.splitType === 'equal') {
+              const perPerson = getMonthlyAmount(expense) / users.length;
+              users.forEach((user) => {
+                userBalances[user.id] -= perPerson;
+              });
+            } else if (
+              expense.splitType === 'percentage' &&
+              expense.splitData
+            ) {
+              Object.entries(expense.splitData).forEach(
+                ([userId, percentage]) => {
+                  if (userBalances[userId] !== undefined) {
+                    // Only process if user still exists
+                    userBalances[userId] -=
+                      getMonthlyAmount(expense) * (percentage as number);
+                  }
                 }
-              }
-            );
+              );
+            }
           }
-        }
-      });
+        });
     });
 
     // Handle loan settlements - separate interest and mortgage
@@ -890,7 +922,7 @@ export function useManualFirebaseBudgetData(householdId: string) {
     // Calculate shared expenses from categories
     categories.forEach((category) => {
       category.expenses.forEach((expense) => {
-        if (expense.isShared) {
+        if (expense.isShared && !expense.isBudgeted) {
           const paidBy = expense.paidBy || users[0]?.id;
           if (userBalances[paidBy]) {
             // Only process if payer still exists
@@ -925,44 +957,47 @@ export function useManualFirebaseBudgetData(householdId: string) {
 
     // Calculate asset costs by individual asset
     assets.forEach((asset) => {
-      asset.fixedCosts.forEach((expense) => {
-        if (expense.isShared) {
-          const paidBy = expense.paidBy || users[0]?.id;
-          const amount = getMonthlyAmount(expense);
+      const migratedAsset = migrateAssetData(asset);
+      migratedAsset.expenses
+        .filter((expense: any) => !expense.isBudgeted)
+        .forEach((expense: any) => {
+          if (expense.isShared) {
+            const paidBy = expense.paidBy || users[0]?.id;
+            const amount = getMonthlyAmount(expense);
 
-          if (userBalances[paidBy]) {
-            // Only process if payer still exists
-            userBalances[paidBy].total += amount;
-            userBalances[paidBy].assets[asset.name] =
-              (userBalances[paidBy].assets[asset.name] || 0) + amount;
+            if (userBalances[paidBy]) {
+              // Only process if payer still exists
+              userBalances[paidBy].total += amount;
+              userBalances[paidBy].assets[asset.name] =
+                (userBalances[paidBy].assets[asset.name] || 0) + amount;
 
-            if (expense.splitType === 'equal') {
-              const perPerson = amount / users.length;
-              users.forEach((user) => {
-                userBalances[user.id].total -= perPerson;
-                userBalances[user.id].assets[asset.name] =
-                  (userBalances[user.id].assets[asset.name] || 0) - perPerson;
-              });
-            } else if (
-              expense.splitType === 'percentage' &&
-              expense.splitData
-            ) {
-              Object.entries(expense.splitData).forEach(
-                ([userId, percentage]) => {
-                  if (userBalances[userId]) {
-                    // Only process if user still exists
-                    const userAmount = amount * percentage;
-                    userBalances[userId].total -= userAmount;
-                    userBalances[userId].assets[asset.name] =
-                      (userBalances[userId].assets[asset.name] || 0) -
-                      userAmount;
+              if (expense.splitType === 'equal') {
+                const perPerson = amount / users.length;
+                users.forEach((user) => {
+                  userBalances[user.id].total -= perPerson;
+                  userBalances[user.id].assets[asset.name] =
+                    (userBalances[user.id].assets[asset.name] || 0) - perPerson;
+                });
+              } else if (
+                expense.splitType === 'percentage' &&
+                expense.splitData
+              ) {
+                Object.entries(expense.splitData).forEach(
+                  ([userId, percentage]) => {
+                    if (userBalances[userId]) {
+                      // Only process if user still exists
+                      const userAmount = amount * (percentage as number);
+                      userBalances[userId].total -= userAmount;
+                      userBalances[userId].assets[asset.name] =
+                        (userBalances[userId].assets[asset.name] || 0) -
+                        userAmount;
+                    }
                   }
-                }
-              );
+                );
+              }
             }
           }
-        }
-      });
+        });
     });
 
     // Calculate loan costs - separate interest and mortgage components
@@ -1055,22 +1090,42 @@ export function useManualFirebaseBudgetData(householdId: string) {
     );
 
     const allExpenses = categories.flatMap((cat) => cat.expenses);
+
+    // Calculate fixed expenses (non-budgeted)
     const totalSharedExpenses = allExpenses
-      .filter((exp) => exp.isShared)
+      .filter((exp) => exp.isShared && !exp.isBudgeted)
       .reduce((sum, exp) => sum + getMonthlyAmount(exp), 0);
 
     const totalPersonalExpenses = allExpenses
-      .filter((exp) => !exp.isShared)
+      .filter((exp) => !exp.isShared && !exp.isBudgeted)
       .reduce((sum, exp) => sum + getMonthlyAmount(exp), 0);
 
-    // Calculate total asset expenses (both fixed and variable costs)
+    // Calculate budgeted expenses separately
+    const totalBudgetedSharedExpenses = allExpenses
+      .filter((exp) => exp.isShared && exp.isBudgeted)
+      .reduce((sum, exp) => sum + getMonthlyAmount(exp), 0);
+
+    const totalBudgetedPersonalExpenses = allExpenses
+      .filter((exp) => !exp.isShared && exp.isBudgeted)
+      .reduce((sum, exp) => sum + getMonthlyAmount(exp), 0);
+
+    // Calculate total asset expenses (only fixed costs for main budget)
     const totalAssetExpenses = assets.reduce(
       (sum, asset) =>
         sum +
-        [...asset.fixedCosts, ...asset.variableCosts].reduce(
-          (expSum, exp) => expSum + getMonthlyAmount(exp),
-          0
-        ),
+        migrateAssetData(asset)
+          .expenses.filter((exp: any) => !exp.isBudgeted)
+          .reduce((expSum: any, exp: any) => expSum + getMonthlyAmount(exp), 0),
+      0
+    );
+
+    // Calculate budgeted asset expenses separately
+    const totalBudgetedAssetExpenses = assets.reduce(
+      (sum, asset) =>
+        sum +
+        migrateAssetData(asset)
+          .expenses.filter((exp: any) => exp.isBudgeted)
+          .reduce((expSum: any, exp: any) => expSum + getMonthlyAmount(exp), 0),
       0
     );
 
@@ -1103,6 +1158,9 @@ export function useManualFirebaseBudgetData(householdId: string) {
       totalIncome,
       totalSharedExpenses: totalHouseholdExpenses, // Now includes all household costs
       totalPersonalExpenses,
+      totalBudgetedSharedExpenses:
+        totalBudgetedSharedExpenses + totalBudgetedAssetExpenses,
+      totalBudgetedPersonalExpenses,
       afterTaxIncome,
       afterSharedExpenses: afterHouseholdExpenses, // Now the accurate household surplus
       afterPersonalExpenses,
@@ -1120,10 +1178,12 @@ export function useManualFirebaseBudgetData(householdId: string) {
 
       const sharedExpenses = categories
         .flatMap((cat) => cat.expenses)
-        .filter((exp) => exp.isShared);
+        .filter((exp) => exp.isShared && !exp.isBudgeted);
 
       const assetExpenses = assets.flatMap((asset) =>
-        asset.fixedCosts.filter((exp) => exp.isShared)
+        migrateAssetData(asset).expenses.filter(
+          (exp: any) => !exp.isBudgeted && exp.isShared
+        )
       );
 
       const allSharedExpenses = [...sharedExpenses, ...assetExpenses];
@@ -1228,7 +1288,9 @@ export function useManualFirebaseBudgetData(householdId: string) {
 
       const personalExpenses = categories
         .flatMap((cat) => cat.expenses)
-        .filter((exp) => !exp.isShared && exp.userId === user.id)
+        .filter(
+          (exp) => !exp.isShared && exp.userId === user.id && !exp.isBudgeted
+        )
         .reduce((sum, exp) => sum + getMonthlyAmount(exp), 0);
 
       const remainingAfterExpenses =
@@ -1242,7 +1304,10 @@ export function useManualFirebaseBudgetData(householdId: string) {
         .flatMap((cat) => cat.expenses)
         .filter(
           (exp) =>
-            !exp.isShared && exp.userId === user.id && !exp.personalCategoryId
+            !exp.isShared &&
+            exp.userId === user.id &&
+            !exp.personalCategoryId &&
+            !exp.isBudgeted
         )
         .reduce((sum, exp) => sum + getMonthlyAmount(exp), 0);
 
@@ -1264,7 +1329,8 @@ export function useManualFirebaseBudgetData(householdId: string) {
             (exp) =>
               !exp.isShared &&
               exp.userId === user.id &&
-              exp.personalCategoryId === category.id
+              exp.personalCategoryId === category.id &&
+              !exp.isBudgeted
           )
           .reduce((sum, exp) => sum + getMonthlyAmount(exp), 0);
 

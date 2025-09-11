@@ -1,17 +1,5 @@
-import React, { useState } from 'react';
-import {
-  Plus,
-  Edit2,
-  Trash2,
-  ChevronDown,
-  ChevronRight,
-  Receipt,
-  ArrowUp,
-  ArrowDown,
-  Scale,
-  Percent,
-  User as UserIcon,
-} from 'lucide-react';
+import { useState } from 'react';
+import { Plus, ChevronDown, ChevronRight, Receipt } from 'lucide-react';
 import type {
   User,
   Expense,
@@ -19,15 +7,10 @@ import type {
   PersonalExpenseCategory,
 } from '../types';
 import { PersonalCategoryManager } from './PersonalCategoryManager';
-import {
-  getMonthlyAmount,
-  formatExpenseAmount,
-  getFrequencyText,
-  formatMoney,
-} from '../utils/expenseCalculations';
-import { FormActionButtons } from './FormActionButtons';
-import { SplitMethodSelector } from './SplitMethodSelector';
-import { SplitInfoBox } from './SplitInfoBox';
+import { getMonthlyAmount, formatMoney } from '../utils/expenseCalculations';
+import { ExpenseForm } from './ExpenseForm';
+import { ExpenseItem } from './ExpenseItem';
+import { ExpenseList } from './ExpenseList';
 
 interface ExpenseManagerProps {
   users: User[];
@@ -65,35 +48,6 @@ export function ExpenseManager({
 }: ExpenseManagerProps) {
   const [addingToCategory, setAddingToCategory] = useState<string | null>(null);
   const [editingExpense, setEditingExpense] = useState<string | null>(null);
-  const [sharedSortBy, setSharedSortBy] = useState<'name' | 'amount'>('name');
-  const [sharedSortOrder, setSharedSortOrder] = useState<'asc' | 'desc'>('asc');
-
-  const toggleSharedSort = (newSortBy: 'name' | 'amount') => {
-    if (sharedSortBy === newSortBy) {
-      setSharedSortOrder(sharedSortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSharedSortBy(newSortBy);
-      setSharedSortOrder('asc');
-    }
-  };
-
-  const sortSharedExpenses = (expenses: Expense[]) => {
-    return [...expenses].sort((a, b) => {
-      let aValue, bValue;
-
-      if (sharedSortBy === 'name') {
-        aValue = a.name.toLowerCase();
-        bValue = b.name.toLowerCase();
-        return sharedSortOrder === 'asc'
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
-      } else {
-        aValue = getMonthlyAmount(a);
-        bValue = getMonthlyAmount(b);
-        return sharedSortOrder === 'asc' ? aValue - bValue : bValue - aValue;
-      }
-    });
-  };
 
   return (
     <div className="space-y-6">
@@ -120,10 +74,13 @@ export function ExpenseManager({
           .map((category) => {
             const isSharedCategory = category.id === 'shared';
             const isPersonalCategory = category.id.startsWith('personal-');
-            const totalExpenses = category.expenses.reduce(
-              (sum, expense) => sum + getMonthlyAmount(expense),
-              0
-            );
+            const fixedExpenses = category.expenses
+              .filter((expense) => !expense.isBudgeted)
+              .reduce((sum, expense) => sum + getMonthlyAmount(expense), 0);
+            const budgetedExpenses = category.expenses
+              .filter((expense) => expense.isBudgeted)
+              .reduce((sum, expense) => sum + getMonthlyAmount(expense), 0);
+            const totalExpenses = fixedExpenses + budgetedExpenses;
 
             return (
               <div key={category.id} className="bg-white rounded-lg shadow-sm">
@@ -150,8 +107,18 @@ export function ExpenseManager({
                           </span>
                         </div>
                         {totalExpenses > 0 && (
-                          <div className="text-sm font-medium text-gray-700 mt-1 sm:mt-0">
-                            {formatMoney(totalExpenses)} kr/month
+                          <div className="text-sm font-medium mt-1 sm:mt-0">
+                            <span className="text-gray-700">
+                              {formatMoney(fixedExpenses)} kr/month
+                            </span>
+                            {budgetedExpenses > 0 && (
+                              <>
+                                <span className="text-gray-400"> + </span>
+                                <span className="text-orange-600">
+                                  {formatMoney(budgetedExpenses)} kr budgeted
+                                </span>
+                              </>
+                            )}
                           </div>
                         )}
                       </div>
@@ -219,86 +186,40 @@ export function ExpenseManager({
                         onDeleteExpense={onDeleteExpense}
                       />
                     ) : (
-                      <>
-                        {isSharedCategory && category.expenses.length > 0 && (
-                          <div className="flex justify-end gap-2 mb-4">
-                            <span className="text-xs text-gray-500 self-center">
-                              Sort by:
-                            </span>
-                            <button
-                              onClick={() => toggleSharedSort('name')}
-                              className={`flex items-center gap-1 px-2 py-0 text-xs rounded transition-colors h-6 sm:h-7 ${
-                                sharedSortBy === 'name'
-                                  ? 'bg-blue-100 text-blue-800'
-                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                              }`}
-                            >
-                              Name
-                              {sharedSortBy === 'name' &&
-                                (sharedSortOrder === 'asc' ? (
-                                  <ArrowUp className="w-3 h-3" />
-                                ) : (
-                                  <ArrowDown className="w-3 h-3" />
-                                ))}
-                            </button>
-                            <button
-                              onClick={() => toggleSharedSort('amount')}
-                              className={`flex items-center gap-1 px-2 py-0 text-xs rounded transition-colors h-6 sm:h-7 ${
-                                sharedSortBy === 'amount'
-                                  ? 'bg-blue-100 text-blue-800'
-                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                              }`}
-                            >
-                              Amount
-                              {sharedSortBy === 'amount' &&
-                                (sharedSortOrder === 'asc' ? (
-                                  <ArrowUp className="w-3 h-3" />
-                                ) : (
-                                  <ArrowDown className="w-3 h-3" />
-                                ))}
-                            </button>
-                          </div>
-                        )}
-                        <div className="space-y-2">
-                          {(isSharedCategory
-                            ? sortSharedExpenses(category.expenses)
-                            : category.expenses
-                          ).map((expense) => (
-                            <div key={expense.id}>
-                              {editingExpense === expense.id ? (
-                                <ExpenseForm
-                                  users={users}
-                                  personalCategories={personalCategories}
-                                  isSharedCategory={isSharedCategory}
-                                  category={category}
-                                  initialData={expense}
-                                  onSubmit={(updates) => {
-                                    onUpdateExpense(expense.id, updates);
-                                    setEditingExpense(null);
-                                  }}
-                                  onCancel={() => setEditingExpense(null)}
-                                />
-                              ) : (
-                                <ExpenseItem
-                                  expense={expense}
-                                  users={users}
-                                  personalCategories={personalCategories}
-                                  isEditing={false}
-                                  isSharedCategory={isSharedCategory}
-                                  onUpdate={(updates) =>
-                                    onUpdateExpense(expense.id, updates)
-                                  }
-                                  onDelete={() => onDeleteExpense(expense.id)}
-                                  onStartEdit={() =>
-                                    setEditingExpense(expense.id)
-                                  }
-                                  onStopEdit={() => setEditingExpense(null)}
-                                />
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </>
+                      <ExpenseList
+                        expenses={category.expenses}
+                        showSorting={isSharedCategory}
+                        renderExpenseItem={(expense) =>
+                          editingExpense === expense.id ? (
+                            <ExpenseForm
+                              users={users}
+                              personalCategories={personalCategories}
+                              isSharedCategory={isSharedCategory}
+                              category={category}
+                              initialData={expense}
+                              onSubmit={(updates) => {
+                                onUpdateExpense(expense.id, updates);
+                                setEditingExpense(null);
+                              }}
+                              onCancel={() => setEditingExpense(null)}
+                            />
+                          ) : (
+                            <ExpenseItem
+                              expense={expense}
+                              users={users}
+                              personalCategories={personalCategories}
+                              isEditing={false}
+                              isSharedCategory={isSharedCategory}
+                              onUpdate={(updates) =>
+                                onUpdateExpense(expense.id, updates)
+                              }
+                              onDelete={() => onDeleteExpense(expense.id)}
+                              onStartEdit={() => setEditingExpense(expense.id)}
+                              onStopEdit={() => setEditingExpense(null)}
+                            />
+                          )
+                        }
+                      />
                     )}
                   </div>
                 )}
@@ -307,489 +228,6 @@ export function ExpenseManager({
           })}
       </div>
     </div>
-  );
-}
-
-interface ExpenseItemProps {
-  expense: Expense;
-  users: User[];
-  personalCategories: PersonalExpenseCategory[];
-  isEditing: boolean;
-  isSharedCategory: boolean;
-  onUpdate: (updates: Partial<Expense>) => void;
-  onDelete: () => void;
-  onStartEdit: () => void;
-  onStopEdit: () => void;
-}
-
-function ExpenseItem({
-  expense,
-  users,
-  personalCategories,
-  isEditing,
-  isSharedCategory,
-  onUpdate,
-  onDelete,
-  onStartEdit,
-  onStopEdit,
-}: ExpenseItemProps) {
-  const paidByUser = users.find((u) => u.id === expense.paidBy);
-
-  if (isEditing) {
-    return (
-      <ExpenseForm
-        users={users}
-        personalCategories={personalCategories}
-        isSharedCategory={isSharedCategory}
-        category={null}
-        initialData={expense}
-        onSubmit={(updates) => {
-          onUpdate(updates);
-          onStopEdit();
-        }}
-        onCancel={onStopEdit}
-      />
-    );
-  }
-
-  const getSplitDisplay = () => {
-    if (expense.splitType === 'equal') {
-      return (
-        <div className="flex items-center gap-1">
-          <Scale className="w-3 h-3 text-gray-500" />
-          <span>50/50</span>
-        </div>
-      );
-    } else if (expense.splitType === 'percentage' && expense.splitData) {
-      return (
-        <div className="flex items-center gap-1">
-          <Percent className="w-3 h-3 text-gray-500" />
-          <span>Income</span>
-        </div>
-      );
-    }
-    return (
-      <div className="flex items-center gap-1">
-        <UserIcon className="w-3 h-3 text-gray-500" />
-        <span>Fixed</span>
-      </div>
-    );
-  };
-
-  // Multi-line layout for personal expenses with compact yearly display
-  if (!isSharedCategory && !expense.isShared) {
-    const monthlyAmount = getMonthlyAmount(expense);
-    const isYearly = expense.isYearly;
-
-    return (
-      <div className="p-3 border border-gray-200 rounded bg-white">
-        <div className="space-y-2">
-          {/* Row 1: Title, Amount, and Icons (desktop) */}
-          <div className="flex items-start justify-between">
-            <h4 className="font-medium text-gray-900 flex-1 mr-2 text-left">
-              {expense.name}
-            </h4>
-            <div className="flex items-center gap-2">
-              <div className="text-sm text-gray-500 text-right">
-                {isYearly ? (
-                  <span className="text-xs">
-                    {expense.amount.toLocaleString()} kr/year (
-                    {monthlyAmount.toLocaleString()} kr/month)
-                  </span>
-                ) : (
-                  <span>{formatExpenseAmount(expense, true)}</span>
-                )}
-              </div>
-              {/* Desktop: Icons on same line */}
-              <div className="hidden sm:flex gap-1">
-                <button
-                  onClick={onStartEdit}
-                  className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
-                  title="Edit expense"
-                >
-                  <Edit2 className="w-3 h-3" />
-                </button>
-                <button
-                  onClick={onDelete}
-                  className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                  title="Delete expense"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Row 2: Yearly indicator (if yearly) */}
-          {isYearly && (
-            <div className="flex justify-end sm:justify-start sm:ml-0">
-              <span
-                className="px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full cursor-pointer hover:bg-blue-200 transition-colors"
-                onClick={() => onStartEdit()}
-                title="Click to edit this expense"
-              >
-                yearly
-              </span>
-            </div>
-          )}
-
-          {/* Mobile: Icons on separate line */}
-          <div className="flex justify-center gap-4 sm:hidden">
-            <button
-              onClick={onStartEdit}
-              className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-              title="Edit expense"
-            >
-              <Edit2 className="w-4 h-4" />
-            </button>
-            <button
-              onClick={onDelete}
-              className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-              title="Delete expense"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Multi-line layout for shared expenses
-  return (
-    <div className="p-3 border border-gray-200 rounded bg-white">
-      <div className="space-y-2">
-        {/* Row 1: Title, Amount, and Icons (desktop) */}
-        <div className="flex items-start justify-between">
-          <h4 className="font-medium text-gray-900 flex-1 mr-2 text-left">
-            {expense.name}
-          </h4>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500 text-right">
-              {formatExpenseAmount(expense, true)}
-            </span>
-            {/* Desktop: Icons on same line */}
-            <div className="hidden sm:flex gap-1">
-              <button
-                onClick={onStartEdit}
-                className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
-                title="Edit expense"
-              >
-                <Edit2 className="w-3 h-3" />
-              </button>
-              <button
-                onClick={onDelete}
-                className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                title="Delete expense"
-              >
-                <Trash2 className="w-3 h-3" />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Row 2: Payee and Payment method - only show if multiple users */}
-        {users.length > 1 && (
-          <div className="flex items-center justify-between text-xs text-gray-500">
-            <div className="flex items-center gap-2">
-              <span>by {paidByUser?.name || 'Unknown'}</span>
-              {expense.isYearly && (
-                <span
-                  className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs cursor-pointer hover:bg-blue-200 transition-colors"
-                  onClick={() => onStartEdit()}
-                  title="Click to edit this expense"
-                >
-                  {getFrequencyText(expense)}
-                </span>
-              )}
-            </div>
-            <div className="flex-shrink-0">{getSplitDisplay()}</div>
-          </div>
-        )}
-
-        {/* Row 2 alternative for single user: Just show yearly indicator if needed */}
-        {users.length === 1 && expense.isYearly && (
-          <div className="flex justify-center text-xs text-gray-500">
-            <span
-              className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs cursor-pointer hover:bg-blue-200 transition-colors"
-              onClick={() => onStartEdit()}
-              title="Click to edit this expense"
-            >
-              {getFrequencyText(expense)}
-            </span>
-          </div>
-        )}
-
-        {/* Mobile: Icons on separate line */}
-        <div className="flex justify-center gap-4 sm:hidden">
-          <button
-            onClick={onStartEdit}
-            className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-            title="Edit expense"
-          >
-            <Edit2 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={onDelete}
-            className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-            title="Delete expense"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-interface ExpenseFormProps {
-  users: User[];
-  personalCategories: PersonalExpenseCategory[];
-  isSharedCategory: boolean;
-  category: ExpenseCategory | null;
-  initialData?: Expense;
-  onSubmit: (expense: Omit<Expense, 'id'>) => void;
-  onCancel: () => void;
-}
-
-function ExpenseForm({
-  users,
-  personalCategories,
-  isSharedCategory,
-  category,
-  initialData,
-  onSubmit,
-  onCancel,
-}: ExpenseFormProps) {
-  const [name, setName] = useState(initialData?.name || '');
-  const [amount, setAmount] = useState(initialData?.amount?.toString() || '');
-  // Determine if this is a personal category and which user
-  const isPersonalCategory = category?.id.startsWith('personal-') ?? false;
-  const personalUserId =
-    isPersonalCategory && category
-      ? category.id.replace('personal-', '')
-      : null;
-
-  const [isShared, setIsShared] = useState(
-    initialData?.isShared ?? isSharedCategory
-  );
-  const [splitType, setSplitType] = useState(
-    initialData?.splitType || (isSharedCategory ? 'equal' : 'fixed')
-  );
-  const [paidBy, setPaidBy] = useState(
-    initialData?.paidBy || personalUserId || users[0]?.id || ''
-  );
-  const [userId, setUserId] = useState(
-    initialData?.userId || personalUserId || ''
-  );
-  const [isYearly, setIsYearly] = useState(initialData?.isYearly || false);
-  // Calculate income-based percentages
-  const totalIncome = users.reduce((sum, user) => sum + user.monthlyIncome, 0);
-  const incomeBasedSplit = users.reduce(
-    (acc, user) => {
-      acc[user.id] =
-        totalIncome > 0 ? user.monthlyIncome / totalIncome : 1 / users.length;
-      return acc;
-    },
-    {} as { [userId: string]: number }
-  );
-
-  const [splitData, setSplitData] = useState<{ [userId: string]: number }>(
-    initialData?.splitData || incomeBasedSplit
-  );
-  const [personalCategoryId, setPersonalCategoryId] = useState(
-    initialData?.personalCategoryId || ''
-  );
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !amount.trim()) return;
-
-    let finalSplitData: { [userId: string]: number } | undefined;
-
-    if (isShared && splitType === 'percentage') {
-      const totalPercentage = Object.values(splitData).reduce(
-        (sum, val) => sum + val,
-        0
-      );
-      if (Math.abs(totalPercentage - 1) > 0.001) {
-        alert('Percentages must add up to 100%');
-        return;
-      }
-      finalSplitData = splitData;
-    }
-
-    onSubmit({
-      name: name.trim(),
-      amount: parseFloat(amount),
-      isShared: isSharedCategory,
-      splitType,
-      splitData: finalSplitData,
-      paidBy,
-      userId: isSharedCategory ? undefined : personalUserId || userId,
-      isYearly,
-      personalCategoryId: personalCategoryId || undefined,
-    });
-  };
-
-  // Remove manual percentage change since we auto-calculate based on income
-
-  return (
-    <form
-      onSubmit={handleSubmit}
-      className="p-4 border border-gray-300 rounded-lg bg-gray-50"
-    >
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Expense Name
-          </label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter expense name"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Amount (kr)
-          </label>
-          <input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter amount"
-            required
-            min="0"
-            step="0.01"
-          />
-        </div>
-      </div>
-
-      {!isPersonalCategory && !initialData?.userId && users.length > 1 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Paid By
-            </label>
-            <select
-              value={paidBy}
-              onChange={(e) => setPaidBy(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      )}
-
-      <div className="flex items-center gap-4 mb-4">
-        {!isSharedCategory &&
-          !isPersonalCategory &&
-          !initialData?.userId &&
-          users.length > 1 && (
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={isShared}
-                onChange={(e) => setIsShared(e.target.checked)}
-                className="mr-2"
-              />
-              Household Expense
-            </label>
-          )}
-        <label className="flex items-center">
-          <input
-            type="checkbox"
-            checked={isYearly}
-            onChange={(e) => setIsYearly(e.target.checked)}
-            className="mr-2"
-          />
-          Yearly Expense
-        </label>
-        {isPersonalCategory && (
-          <span className="text-sm text-green-600 font-medium">
-            Personal expense for{' '}
-            {users.find((u) => u.id === personalUserId)?.name}
-          </span>
-        )}
-      </div>
-
-      {/* Category selection - available for all expense types */}
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Category (optional)
-        </label>
-        <select
-          value={personalCategoryId}
-          onChange={(e) => setPersonalCategoryId(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">Uncategorized</option>
-          {personalCategories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {isSharedCategory && users.length > 1 ? (
-        <div className="mb-4">
-          <SplitMethodSelector
-            value={splitType as any}
-            onChange={(value) => {
-              setSplitType(value);
-              if (value === 'percentage') {
-                setSplitData(incomeBasedSplit);
-              }
-            }}
-            showFixed={false}
-          />
-
-          {splitType === 'percentage' && (
-            <SplitInfoBox users={users} splitData={splitData} />
-          )}
-        </div>
-      ) : (
-        <div className="space-y-4 mb-4">
-          {!isPersonalCategory && !initialData?.userId && users.length > 1 && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Assigned To
-              </label>
-              <select
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              >
-                <option value="">Select user...</option>
-                {users.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-        </div>
-      )}
-
-      <FormActionButtons
-        submitType="submit"
-        submitLabel={`${initialData ? 'Update' : 'Add'} Expense`}
-        onCancel={onCancel}
-      />
-    </form>
   );
 }
 
@@ -817,8 +255,6 @@ function GroupedPersonalExpenses({
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(
     new Set()
   );
-  const [sortBy, setSortBy] = useState<'name' | 'amount'>('name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const toggleCategoryCollapse = (categoryId: string) => {
     const newCollapsed = new Set(collapsedCategories);
@@ -828,33 +264,6 @@ function GroupedPersonalExpenses({
       newCollapsed.add(categoryId);
     }
     setCollapsedCategories(newCollapsed);
-  };
-
-  const toggleSort = (newSortBy: 'name' | 'amount') => {
-    if (sortBy === newSortBy) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(newSortBy);
-      setSortOrder('asc');
-    }
-  };
-
-  const sortExpenses = (expenses: Expense[]) => {
-    return [...expenses].sort((a, b) => {
-      let aValue, bValue;
-
-      if (sortBy === 'name') {
-        aValue = a.name.toLowerCase();
-        bValue = b.name.toLowerCase();
-        return sortOrder === 'asc'
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
-      } else {
-        aValue = getMonthlyAmount(a);
-        bValue = getMonthlyAmount(b);
-        return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
-      }
-    });
   };
 
   // Group expenses by personal category
@@ -883,7 +292,7 @@ function GroupedPersonalExpenses({
       return {
         id: categoryId,
         name: categoryName,
-        expenses: sortExpenses(categoryExpenses),
+        expenses: categoryExpenses,
         totalAmount,
         count: categoryExpenses.length,
         isCollapsed: collapsedCategories.has(categoryId),
@@ -898,43 +307,6 @@ function GroupedPersonalExpenses({
 
   return (
     <div className="space-y-4">
-      {/* Sorting Controls */}
-      <div className="flex justify-end gap-2">
-        <span className="text-xs text-gray-500 self-center">Sort by:</span>
-        <button
-          onClick={() => toggleSort('name')}
-          className={`flex items-center gap-1 px-2 py-0 text-xs rounded transition-colors h-6 sm:h-7 ${
-            sortBy === 'name'
-              ? 'bg-blue-100 text-blue-800'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
-        >
-          Name
-          {sortBy === 'name' &&
-            (sortOrder === 'asc' ? (
-              <ArrowUp className="w-3 h-3" />
-            ) : (
-              <ArrowDown className="w-3 h-3" />
-            ))}
-        </button>
-        <button
-          onClick={() => toggleSort('amount')}
-          className={`flex items-center gap-1 px-2 py-0 text-xs rounded transition-colors h-6 sm:h-7 ${
-            sortBy === 'amount'
-              ? 'bg-blue-100 text-blue-800'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
-        >
-          Amount
-          {sortBy === 'amount' &&
-            (sortOrder === 'asc' ? (
-              <ArrowUp className="w-3 h-3" />
-            ) : (
-              <ArrowDown className="w-3 h-3" />
-            ))}
-        </button>
-      </div>
-
       {/* Grouped Categories */}
       <div className="space-y-3">
         {categorySummaries.map((categoryInfo) => (
@@ -972,10 +344,12 @@ function GroupedPersonalExpenses({
 
             {/* Category Expenses */}
             {!categoryInfo.isCollapsed && (
-              <div className="p-3 space-y-2">
-                {categoryInfo.expenses.map((expense) => (
-                  <div key={expense.id}>
-                    {editingExpense === expense.id ? (
+              <div className="p-3">
+                <ExpenseList
+                  expenses={categoryInfo.expenses}
+                  showSorting={true}
+                  renderExpenseItem={(expense) =>
+                    editingExpense === expense.id ? (
                       <ExpenseForm
                         users={users}
                         personalCategories={personalCategories}
@@ -1002,9 +376,9 @@ function GroupedPersonalExpenses({
                         onStartEdit={() => onStartEdit(expense.id)}
                         onStopEdit={onStopEdit}
                       />
-                    )}
-                  </div>
-                ))}
+                    )
+                  }
+                />
               </div>
             )}
           </div>

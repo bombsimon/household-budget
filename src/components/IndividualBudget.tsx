@@ -6,8 +6,7 @@ import type {
   Loan,
   PersonalExpenseCategory,
 } from '../types';
-import { PieChart, ArrowUp, ArrowDown } from 'lucide-react';
-import { useState } from 'react';
+import { PieChart } from 'lucide-react';
 import {
   PieChart as RechartsPieChart,
   Pie,
@@ -21,6 +20,33 @@ import {
   getFrequencyText,
 } from '../utils/expenseCalculations';
 import { BudgetBreakdownSummary } from './BudgetBreakdownSummary';
+import { ExpenseList } from './ExpenseList';
+
+// Helper function to migrate legacy asset data structure
+const migrateAssetData = (asset: Asset): Asset => {
+  if (
+    !asset.expenses &&
+    ((asset as any).fixedCosts || (asset as any).variableCosts)
+  ) {
+    return {
+      ...asset,
+      expenses: [
+        ...((asset as any).fixedCosts || []).map((exp: any) => ({
+          ...exp,
+          isBudgeted: false,
+        })),
+        ...((asset as any).variableCosts || []).map((exp: any) => ({
+          ...exp,
+          isBudgeted: true,
+        })),
+      ],
+    };
+  }
+  return {
+    ...asset,
+    expenses: asset.expenses || [],
+  };
+};
 
 interface IndividualBudgetProps {
   users: User[];
@@ -80,11 +106,12 @@ export function IndividualBudget({
             0
           );
 
-          // Calculate individual asset allocations
+          // Calculate individual asset allocations (fixed costs)
           const assetAllocations = assets
             .map((asset) => {
-              const allocation = asset.fixedCosts
-                .filter((exp) => exp.isShared)
+              const migratedAsset = migrateAssetData(asset);
+              const allocation = migratedAsset.expenses
+                .filter((exp: any) => !exp.isBudgeted && exp.isShared)
                 .reduce((total, exp) => {
                   if (exp.splitType === 'equal') {
                     return total + getMonthlyAmount(exp) / users.length;
@@ -99,7 +126,7 @@ export function IndividualBudget({
                   return total;
                 }, 0);
 
-              return { name: asset.name, amount: allocation };
+              return { name: asset.name, amount: allocation, type: 'fixed' };
             })
             .filter((asset) => asset.amount > 0);
 
@@ -170,7 +197,7 @@ interface UserBudgetCardProps {
   breakdown: UserBudgetBreakdown;
   personalExpenses: any[];
   categorySharedExpenses: number;
-  assetAllocations: { name: string; amount: number }[];
+  assetAllocations: { name: string; amount: number; type: string }[];
   loanAllocations: { name: string; amount: number }[];
   categories: ExpenseCategory[];
   assets: Asset[];
@@ -190,36 +217,6 @@ function UserBudgetCard({
   loans,
   users,
 }: UserBudgetCardProps) {
-  const [sortBy, setSortBy] = useState<'name' | 'amount'>('name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-
-  const sortExpenses = (expenses: any[]) => {
-    return expenses.sort((a, b) => {
-      let aValue, bValue;
-
-      if (sortBy === 'name') {
-        aValue = a.name.toLowerCase();
-        bValue = b.name.toLowerCase();
-        return sortOrder === 'asc'
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
-      } else {
-        aValue = getMonthlyAmount(a);
-        bValue = getMonthlyAmount(b);
-        return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
-      }
-    });
-  };
-
-  const toggleSort = (newSortBy: 'name' | 'amount') => {
-    if (sortBy === newSortBy) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(newSortBy);
-      setSortOrder('asc');
-    }
-  };
-
   // Filter out uncategorized from breakdown since we'll handle it separately
   const sortedCategories = [...breakdown.personalExpenseBreakdown]
     .filter((cat) => cat.categoryId !== 'uncategorized')
@@ -239,7 +236,15 @@ function UserBudgetCard({
               (sum, exp) => sum + getMonthlyAmount(exp),
               0
             ),
-            percentage: 0,
+            percentage:
+              breakdown.income > 0
+                ? (uncategorizedExpenses.reduce(
+                    (sum, exp) => sum + getMonthlyAmount(exp),
+                    0
+                  ) /
+                    breakdown.income) *
+                  100
+                : 0,
           },
           ...sortedCategories,
         ]
@@ -268,7 +273,7 @@ function UserBudgetCard({
           },
         ]
       : []),
-    // Individual assets
+    // Individual assets (fixed)
     ...assetAllocations
       .filter((asset) => asset.amount > 0)
       .map((asset, index) => ({
@@ -276,6 +281,7 @@ function UserBudgetCard({
         value: (asset.amount / breakdown.income) * 100,
         amount: asset.amount,
         color: `hsl(${(index * 45 + 120) % 360}, 70%, 50%)`,
+        type: 'fixed',
       })),
     // Individual loans - separate interest and principal
     ...loanAllocations
@@ -426,40 +432,6 @@ function UserBudgetCard({
             <h4 className="text-sm font-medium text-gray-700">
               Personal Expense Details
             </h4>
-            <div className="flex gap-2">
-              <button
-                onClick={() => toggleSort('name')}
-                className={`flex items-center gap-1 px-2 py-0 text-xs rounded transition-colors h-6 sm:h-7 ${
-                  sortBy === 'name'
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                Name
-                {sortBy === 'name' &&
-                  (sortOrder === 'asc' ? (
-                    <ArrowUp className="w-3 h-3" />
-                  ) : (
-                    <ArrowDown className="w-3 h-3" />
-                  ))}
-              </button>
-              <button
-                onClick={() => toggleSort('amount')}
-                className={`flex items-center gap-1 px-2 py-0 text-xs rounded transition-colors h-6 sm:h-7 ${
-                  sortBy === 'amount'
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                Amount
-                {sortBy === 'amount' &&
-                  (sortOrder === 'asc' ? (
-                    <ArrowUp className="w-3 h-3" />
-                  ) : (
-                    <ArrowDown className="w-3 h-3" />
-                  ))}
-              </button>
-            </div>
           </div>
           <div className="space-y-3">
             {categoriesWithUncategorized.map((category) => {
@@ -469,6 +441,14 @@ function UserBudgetCard({
                   : personalExpenses.filter(
                       (exp) => exp.personalCategoryId === category.categoryId
                     );
+
+              // Calculate fixed vs budgeted totals for this category
+              const fixedTotal = categoryExpenses
+                .filter((exp) => !exp.isBudgeted)
+                .reduce((sum, exp) => sum + getMonthlyAmount(exp), 0);
+              const budgetedTotal = categoryExpenses
+                .filter((exp) => exp.isBudgeted)
+                .reduce((sum, exp) => sum + getMonthlyAmount(exp), 0);
 
               return (
                 <div
@@ -480,9 +460,28 @@ function UserBudgetCard({
                       {category.categoryName}
                     </h5>
                     <div className="text-right">
-                      <span className="text-lg font-semibold text-gray-900 whitespace-nowrap">
-                        {formatMoney(category.amount)}&nbsp;kr
-                      </span>
+                      <div className="text-sm font-medium">
+                        {fixedTotal > 0 && (
+                          <span className="text-gray-700">
+                            {formatMoney(fixedTotal)} kr/month
+                          </span>
+                        )}
+                        {budgetedTotal > 0 && (
+                          <>
+                            {fixedTotal > 0 && (
+                              <span className="text-gray-400"> + </span>
+                            )}
+                            <span className="text-orange-600">
+                              {formatMoney(budgetedTotal)} kr budgeted
+                            </span>
+                          </>
+                        )}
+                        {fixedTotal === 0 && budgetedTotal === 0 && (
+                          <span className="text-lg font-semibold text-gray-900 whitespace-nowrap">
+                            {formatMoney(category.amount)}&nbsp;kr
+                          </span>
+                        )}
+                      </div>
                       <div className="text-sm text-gray-500">
                         {category.percentage > 0
                           ? `${category.percentage.toFixed(1)}% of income`
@@ -493,26 +492,37 @@ function UserBudgetCard({
 
                   {/* Expenses list */}
                   {categoryExpenses.length > 0 && (
-                    <div className="space-y-1 border-t border-gray-100 pt-2">
-                      {sortExpenses([...categoryExpenses]).map((expense) => (
-                        <div key={expense.id} className="text-sm">
-                          <div className="flex justify-between items-start sm:items-center py-1 px-2">
-                            <span className="font-medium text-gray-700 text-left flex-1">
-                              {expense.name}
-                            </span>
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                              {expense.isYearly && (
-                                <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full whitespace-nowrap">
-                                  {getFrequencyText(expense)}
+                    <div className="border-t border-gray-100 pt-2">
+                      <ExpenseList
+                        expenses={categoryExpenses}
+                        showSorting={true}
+                        renderExpenseItem={(expense) => (
+                          <div
+                            className={`text-sm rounded px-2 py-1 border border-gray-300 ${
+                              expense.isBudgeted ? 'bg-orange-50' : 'bg-white'
+                            }`}
+                          >
+                            <div className="flex justify-between items-start sm:items-center">
+                              <div className="flex items-center gap-2 text-left flex-1">
+                                <span className="font-medium text-gray-700">
+                                  {expense.name}
                                 </span>
-                              )}
-                              <span className="text-gray-500 whitespace-nowrap">
-                                {formatMoney(getMonthlyAmount(expense))}&nbsp;kr
-                              </span>
+                              </div>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                {expense.isYearly && (
+                                  <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full whitespace-nowrap">
+                                    {getFrequencyText(expense)}
+                                  </span>
+                                )}
+                                <span className="text-gray-500 whitespace-nowrap">
+                                  {formatMoney(getMonthlyAmount(expense))}
+                                  &nbsp;kr
+                                </span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        )}
+                      />
                     </div>
                   )}
 

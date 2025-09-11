@@ -34,6 +34,32 @@ import type {
 import { getMonthlyAmount, formatMoney } from '../utils/expenseCalculations';
 import { BudgetBreakdownSummary } from './BudgetBreakdownSummary';
 
+// Helper function to migrate legacy asset data structure
+const migrateAssetData = (asset: Asset): Asset => {
+  if (
+    !asset.expenses &&
+    ((asset as any).fixedCosts || (asset as any).variableCosts)
+  ) {
+    return {
+      ...asset,
+      expenses: [
+        ...((asset as any).fixedCosts || []).map((exp: any) => ({
+          ...exp,
+          isBudgeted: false,
+        })),
+        ...((asset as any).variableCosts || []).map((exp: any) => ({
+          ...exp,
+          isBudgeted: true,
+        })),
+      ],
+    };
+  }
+  return {
+    ...asset,
+    expenses: asset.expenses || [],
+  };
+};
+
 interface DashboardProps {
   users: User[];
   budgetSummary: BudgetSummary;
@@ -556,28 +582,9 @@ export function Dashboard({
               (sum, cat) => sum + cat.amount,
               0
             );
-            const minThreshold = 0.05; // 5% minimum
 
-            const majorCategories = categoryTotals.filter(
-              (cat) => cat.amount / totalSpending >= minThreshold
-            );
-
-            const minorCategories = categoryTotals.filter(
-              (cat) => cat.amount / totalSpending < minThreshold
-            );
-
-            const chartData = [...majorCategories];
-            if (minorCategories.length > 0) {
-              const otherAmount = minorCategories.reduce(
-                (sum, cat) => sum + cat.amount,
-                0
-              );
-              chartData.push({
-                name: `Other (${minorCategories.length} categories)`,
-                amount: otherAmount,
-                color: '#9CA3AF',
-              });
-            }
+            // Show all categories without grouping into "Other"
+            const chartData = categoryTotals;
 
             return (
               <>
@@ -818,10 +825,12 @@ export function Dashboard({
                   assets.reduce(
                     (total, asset) =>
                       total +
-                      asset.fixedCosts.reduce(
-                        (sum, cost) => sum + getMonthlyAmount(cost),
-                        0
-                      ),
+                      migrateAssetData(asset)
+                        .expenses.filter((exp: any) => !exp.isBudgeted)
+                        .reduce(
+                          (sum: any, cost: any) => sum + getMonthlyAmount(cost),
+                          0
+                        ),
                     0
                   )
                 )}{' '}
@@ -835,10 +844,12 @@ export function Dashboard({
                   assets.reduce(
                     (total, asset) =>
                       total +
-                      asset.variableCosts.reduce(
-                        (sum, cost) => sum + getMonthlyAmount(cost),
-                        0
-                      ),
+                      migrateAssetData(asset)
+                        .expenses.filter((exp: any) => exp.isBudgeted)
+                        .reduce(
+                          (sum: any, cost: any) => sum + getMonthlyAmount(cost),
+                          0
+                        ),
                     0
                   )
                 )}{' '}
@@ -862,14 +873,19 @@ export function Dashboard({
             </h4>
             <div className="space-y-3">
               {assets.map((asset) => {
-                const fixedCostTotal = asset.fixedCosts.reduce(
-                  (sum, cost) => sum + getMonthlyAmount(cost),
-                  0
-                );
-                const variableCostTotal = asset.variableCosts.reduce(
-                  (sum, cost) => sum + getMonthlyAmount(cost),
-                  0
-                );
+                const migratedAsset = migrateAssetData(asset);
+                const fixedCostTotal = migratedAsset.expenses
+                  .filter((exp: any) => !exp.isBudgeted)
+                  .reduce(
+                    (sum: any, cost: any) => sum + getMonthlyAmount(cost),
+                    0
+                  );
+                const variableCostTotal = migratedAsset.expenses
+                  .filter((exp: any) => exp.isBudgeted)
+                  .reduce(
+                    (sum: any, cost: any) => sum + getMonthlyAmount(cost),
+                    0
+                  );
                 const totalCost = fixedCostTotal + variableCostTotal;
 
                 return (
