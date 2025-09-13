@@ -24,6 +24,9 @@ export function AppRouter() {
       {/* Landing page */}
       <Route path="/" element={<LandingPage />} />
 
+      {/* Invite redemption routes */}
+      <Route path="/invite/:inviteCode" element={<InviteWrapper />} />
+
       {/* Multi-tenant household routes */}
       <Route path="/:householdId" element={<HouseholdWrapper />} />
 
@@ -31,6 +34,39 @@ export function AppRouter() {
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );
+}
+
+function InviteWrapper() {
+  const { inviteCode } = useParams<{ inviteCode: string }>();
+
+  if (!inviteCode) {
+    return <Navigate to="/" />;
+  }
+
+  // Validate invite code format (should be 32 hex characters)
+  const validInviteCode = /^[a-f0-9]{32}$/i.test(inviteCode);
+
+  if (!validInviteCode) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-white">
+        <div className="text-center p-6">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">
+            Invalid Invite Code
+          </h1>
+          <p className="text-gray-600 mb-4">
+            This invite link appears to be malformed or corrupted.
+          </p>
+          <a href="/" className="text-blue-600 hover:text-blue-800 underline">
+            Go to Home
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  // For invite redemption, we pass a placeholder household ID
+  // The actual household ID will be determined from the invite
+  return <HouseholdAuth householdId="invite-redemption" />;
 }
 
 function HouseholdWrapper() {

@@ -20,7 +20,7 @@ import { IndividualBudget } from './IndividualBudget';
 import { LoanTracker } from './LoanTracker';
 import { AssetManager } from './AssetManager';
 import { SettlementVisualizer } from './SettlementVisualizer';
-import { ApplicationManager } from './ApplicationManager';
+import { InviteManager } from './InviteManager';
 import { formatMoney } from '../utils/expenseCalculations';
 
 type TabType =
@@ -48,6 +48,7 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
     personalCategoriesSectionCollapsed,
     loans,
     assets,
+    householdKey,
     updateUser,
     deleteUser,
     addExpense,
@@ -133,9 +134,12 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
               onUpdateUser={updateUser}
               onDeleteUser={deleteUser}
             />
-            <ApplicationManager
+            <InviteManager
               householdId={householdId}
-              isOwner={users.find((u) => u.id === user?.uid)?.role === 'owner'}
+              isOwner={
+                users.find((u: any) => u.id === user?.uid)?.role === 'owner'
+              }
+              householdKey={householdKey || undefined}
             />
           </div>
         );
