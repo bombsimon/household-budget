@@ -238,7 +238,8 @@ export function ExpenseForm({
         </div>
       )}
 
-      {isSharedCategory || (isAssetExpense && users.length > 1) ? (
+      {(isSharedCategory && users.length > 1) ||
+      (isAssetExpense && users.length > 1) ? (
         <div className="mb-4">
           <SplitMethodSelector
             value={splitType as any}
