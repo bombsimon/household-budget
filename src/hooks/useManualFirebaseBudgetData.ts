@@ -518,6 +518,7 @@ export function useManualFirebaseBudgetData(householdId: string) {
       try {
         console.log(`🗑️ Removing member ${userId} from household...`);
 
+        // Delete member document and encryption key first
         const memberDocRef = doc(
           db,
           'households',
@@ -527,9 +528,77 @@ export function useManualFirebaseBudgetData(householdId: string) {
         );
         await deleteDoc(memberDocRef);
 
-        // Also remove their encryption key
         const keyDocRef = doc(db, 'households', householdId, 'keys', userId);
         await deleteDoc(keyDocRef);
+
+        // Clean up user data from local state after successful deletion
+        console.log(`🧹 Cleaning up data for user ${userId}...`);
+
+        setCategories((prev) => {
+          // Only remove shared expenses where this user was paying
+          const cleanedCategories = prev.map((category) => {
+            if (category.id === 'shared') {
+              const originalExpenses = category.expenses.length;
+              const filteredExpenses = category.expenses.filter((expense) => {
+                const shouldRemove = expense.paidBy === userId;
+                if (shouldRemove) {
+                  console.log(
+                    `🗑️ Removing shared expense "${expense.name}" (paidBy: ${expense.paidBy})`
+                  );
+                } else {
+                  console.log(
+                    `✅ Keeping shared expense "${expense.name}" (paidBy: ${expense.paidBy})`
+                  );
+                }
+                return !shouldRemove;
+              });
+
+              console.log(
+                `📊 Shared expenses: ${originalExpenses} -> ${filteredExpenses.length}`
+              );
+
+              return {
+                ...category,
+                expenses: filteredExpenses,
+              };
+            }
+            return category;
+          });
+
+          // Remove the entire personal category for this user
+          const filtered = cleanedCategories.filter(
+            (category) => category.id !== `personal-${userId}`
+          );
+
+          console.log(
+            `🧹 Removed personal category and shared expenses paid by user ${userId}`
+          );
+          return filtered;
+        });
+
+        // DO NOT remove personalCategories - they are shared labels that should remain available
+
+        setLoans((prev) => {
+          const filtered = prev.filter(
+            (loan) => loan.fromUserId !== userId && loan.toUserId !== userId
+          );
+          console.log(
+            `🧹 Removed ${prev.length - filtered.length} loans for user ${userId}`
+          );
+          return filtered;
+        });
+
+        setAssets((prev) => {
+          const filtered = prev.filter((asset) => asset.ownerId !== userId);
+          console.log(
+            `🧹 Removed ${prev.length - filtered.length} assets for user ${userId}`
+          );
+          return filtered;
+        });
+
+        // Give a moment for state updates to complete and trigger auto-save
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        console.log(`✅ Data cleanup completed for user ${userId}`);
 
         console.log(`✅ Removed member ${userId} from household`);
       } catch (error) {
@@ -668,6 +737,7 @@ export function useManualFirebaseBudgetData(householdId: string) {
     setPersonalCategories((prev) =>
       prev.filter((category) => category.id !== categoryId)
     );
+    // Also remove the personalCategoryId from any expenses that reference it
     setCategories((prev) =>
       prev.map((cat) => ({
         ...cat,
@@ -698,12 +768,12 @@ export function useManualFirebaseBudgetData(householdId: string) {
   const calculateSettlements = useCallback((): Settlement[] => {
     // [Same implementation as before]
     return [];
-  }, [users, categories, assets, loans]);
+  }, [users, categories, personalCategories, assets, loans]);
 
   const calculateDetailedBalances = useCallback(() => {
     // [Same implementation as before]
     return {};
-  }, [users, categories, assets, loans]);
+  }, [users, categories, personalCategories, assets, loans]);
 
   const calculateBudgetSummary = useCallback((): BudgetSummary => {
     const totalIncome = users.reduce(
@@ -789,7 +859,7 @@ export function useManualFirebaseBudgetData(householdId: string) {
       remainingIncome: afterPersonalExpenses,
       percentageRemaining,
     };
-  }, [users, categories, assets, loans]);
+  }, [users, categories, personalCategories, assets, loans]);
 
   const calculateUserBreakdowns = useCallback((): UserBudgetBreakdown[] => {
     return users.map((user) => {
@@ -919,7 +989,7 @@ export function useManualFirebaseBudgetData(householdId: string) {
         sharedExpensePercentage,
       };
     });
-  }, [users, categories, assets, personalCategories, loans]);
+  }, [users, categories, personalCategories, assets, loans]);
 
   const getCurrentState = useCallback((): AppState => {
     return {

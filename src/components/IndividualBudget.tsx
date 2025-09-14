@@ -61,7 +61,7 @@ export function IndividualBudget({
   users,
   breakdowns,
   categories,
-  // personalCategories,
+  personalCategories,
   assets,
   loans,
 }: IndividualBudgetProps) {

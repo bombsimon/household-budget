@@ -71,6 +71,9 @@ service cloud.firestore {
 
       // Users can create their own key during invite redemption
       allow create: if signedIn() && request.auth.uid == userId;
+
+      // Household owner can delete member keys (when removing users)
+      allow delete: if isHouseholdOwner(householdId);
     }
 
     // Invites - household members can create, only target email can read
