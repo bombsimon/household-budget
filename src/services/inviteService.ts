@@ -194,7 +194,9 @@ class InviteService {
    * Generate invite URL for sharing
    */
   generateInviteUrl(inviteCode: string): string {
-    const baseUrl = window.location.origin;
+    // Get the full base URL including any sub-path (e.g., /household-budget on GitHub Pages)
+    const baseUrl =
+      window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '');
     return `${baseUrl}/invite/${inviteCode}`;
   }
 

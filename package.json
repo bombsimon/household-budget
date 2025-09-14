@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build --base=./ && cp dist/index.html dist/404.html",
+    "build": "tsc -b && vite build --base=./",
+    "build:github": "tsc -b && vite build --base=/household-budget/ && cp dist/index.html dist/404.html",
     "lint": "eslint .",
     "preview": "vite preview",
     "prettify": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",

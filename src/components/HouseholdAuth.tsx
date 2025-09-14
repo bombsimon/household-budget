@@ -26,11 +26,10 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
   const [creatingHousehold, setCreatingHousehold] = useState(false);
   const [redemptionAttempted, setRedemptionAttempted] = useState(false);
 
-  // Check if this is an invite URL
-  const isInviteUrl = window.location.pathname.startsWith('/invite/');
-  const inviteCode = isInviteUrl
-    ? window.location.pathname.split('/invite/')[1]
-    : null;
+  // Check if this is an invite URL (handle both dev and prod base paths)
+  const pathname = window.location.pathname;
+  const isInviteUrl = pathname.includes('/invite/');
+  const inviteCode = isInviteUrl ? pathname.split('/invite/')[1] : null;
 
   const normalizeSlug = (slug: string): string => {
     return slug
@@ -274,11 +273,12 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
       );
 
       // Redirect to the household (remove /invite/ from URL)
-      window.history.replaceState({}, '', `/${targetHouseholdId}`);
+      const basePath = import.meta.env.PROD ? '/household-budget' : '';
+      window.history.replaceState({}, '', `${basePath}/${targetHouseholdId}`);
 
       // Update the householdId prop to point to the actual household
       // Since we can't change props directly, we'll trigger a page reload
-      window.location.href = `/${targetHouseholdId}`;
+      window.location.href = `${basePath}/${targetHouseholdId}`;
 
       // Update local state
       setHouseholdExists(true);
