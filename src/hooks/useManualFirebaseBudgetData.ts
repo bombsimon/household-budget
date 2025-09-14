@@ -759,13 +759,365 @@ export function useManualFirebaseBudgetData(householdId: string) {
 
   // Calculation methods remain the same...
   const calculateSettlements = useCallback((): Settlement[] => {
-    // [Same implementation as before]
-    return [];
+    const userBalances: { [userId: string]: number } = {};
+
+    users.forEach((user) => {
+      userBalances[user.id] = 0;
+    });
+
+    categories.forEach((category) => {
+      category.expenses.forEach((expense) => {
+        if (expense.isShared && !expense.isBudgeted) {
+          const paidBy = expense.paidBy || users[0]?.id;
+          userBalances[paidBy] =
+            (userBalances[paidBy] || 0) + getMonthlyAmount(expense);
+
+          if (expense.splitType === 'equal') {
+            const perPerson = getMonthlyAmount(expense) / users.length;
+            users.forEach((user) => {
+              userBalances[user.id] -= perPerson;
+            });
+          } else if (expense.splitType === 'percentage' && expense.splitData) {
+            Object.entries(expense.splitData).forEach(
+              ([userId, percentage]) => {
+                if (userBalances[userId] !== undefined) {
+                  // Only process if user still exists
+                  userBalances[userId] -=
+                    getMonthlyAmount(expense) * (percentage as number);
+                }
+              }
+            );
+          }
+        } else if (expense.userId && expense.paidBy !== expense.userId) {
+          const paidBy = expense.paidBy || expense.userId;
+          if (
+            userBalances[paidBy] !== undefined &&
+            userBalances[expense.userId] !== undefined
+          ) {
+            userBalances[paidBy] =
+              (userBalances[paidBy] || 0) + getMonthlyAmount(expense);
+            userBalances[expense.userId] -= getMonthlyAmount(expense);
+          }
+        }
+      });
+    });
+
+    assets.forEach((asset) => {
+      asset.expenses
+        .filter((expense: any) => !expense.isBudgeted)
+        .forEach((expense: any) => {
+          if (expense.isShared) {
+            const paidBy = expense.paidBy || users[0]?.id;
+            userBalances[paidBy] =
+              (userBalances[paidBy] || 0) + getMonthlyAmount(expense);
+
+            if (expense.splitType === 'equal') {
+              const perPerson = getMonthlyAmount(expense) / users.length;
+              users.forEach((user) => {
+                userBalances[user.id] -= perPerson;
+              });
+            } else if (
+              expense.splitType === 'percentage' &&
+              expense.splitData
+            ) {
+              Object.entries(expense.splitData).forEach(
+                ([userId, percentage]) => {
+                  if (userBalances[userId] !== undefined) {
+                    // Only process if user still exists
+                    userBalances[userId] -=
+                      getMonthlyAmount(expense) * (percentage as number);
+                  }
+                }
+              );
+            }
+          }
+        });
+    });
+
+    // Handle loan settlements - separate interest and mortgage
+    loans.forEach((loan) => {
+      const paidBy = loan.paidBy || users[0]?.id;
+      const monthlyInterest = (loan.currentAmount * loan.interestRate) / 12;
+      const monthlyPrincipal = loan.monthlyPayment;
+
+      // Fallback for old loan structure
+      const isInterestShared =
+        loan.isInterestShared !== undefined
+          ? loan.isInterestShared
+          : (loan as any).isShared;
+      const interestSplitType =
+        loan.interestSplitType || (loan as any).splitType || 'percentage';
+      const interestSplitData =
+        loan.interestSplitData || (loan as any).splitData;
+
+      const isMortgageShared =
+        loan.isMortgageShared !== undefined
+          ? loan.isMortgageShared
+          : (loan as any).isShared;
+      const mortgageSplitType =
+        loan.mortgageSplitType || (loan as any).splitType || 'equal';
+      const mortgageSplitData =
+        loan.mortgageSplitData || (loan as any).splitData;
+
+      // Add interest + monthly payment to payer (treating them as separate costs)
+      userBalances[paidBy] =
+        (userBalances[paidBy] || 0) + monthlyInterest + loan.monthlyPayment;
+
+      // Subtract interest portion based on interest splitting
+      if (isInterestShared) {
+        if (interestSplitType === 'equal') {
+          const perPerson = monthlyInterest / users.length;
+          users.forEach((user) => {
+            userBalances[user.id] = (userBalances[user.id] || 0) - perPerson;
+          });
+        } else if (interestSplitType === 'percentage' && interestSplitData) {
+          Object.entries(interestSplitData).forEach(([userId, percentage]) => {
+            if (userBalances[userId] !== undefined) {
+              // Only process if user still exists
+              userBalances[userId] =
+                (userBalances[userId] || 0) -
+                monthlyInterest * (percentage as number);
+            }
+          });
+        }
+      } else {
+        // Interest is personal to the payer
+        userBalances[paidBy] = (userBalances[paidBy] || 0) - monthlyInterest;
+      }
+
+      // Subtract mortgage portion based on mortgage splitting
+      if (isMortgageShared) {
+        if (mortgageSplitType === 'equal') {
+          const perPerson = monthlyPrincipal / users.length;
+          users.forEach((user) => {
+            userBalances[user.id] = (userBalances[user.id] || 0) - perPerson;
+          });
+        } else if (mortgageSplitType === 'percentage' && mortgageSplitData) {
+          Object.entries(mortgageSplitData).forEach(([userId, percentage]) => {
+            if (userBalances[userId] !== undefined) {
+              // Only process if user still exists
+              userBalances[userId] =
+                (userBalances[userId] || 0) -
+                monthlyPrincipal * (percentage as number);
+            }
+          });
+        }
+      } else {
+        // Mortgage is personal to the payer
+        userBalances[paidBy] = (userBalances[paidBy] || 0) - monthlyPrincipal;
+      }
+    });
+
+    const settlements: Settlement[] = [];
+    const debtors = Object.entries(userBalances).filter(
+      ([, balance]) => balance < 0
+    );
+    const creditors = Object.entries(userBalances).filter(
+      ([, balance]) => balance > 0
+    );
+
+    debtors.forEach(([debtorId, debtAmount]) => {
+      let remainingDebt = Math.abs(debtAmount);
+
+      creditors.forEach(([creditorId, creditAmount]) => {
+        if (remainingDebt > 0 && creditAmount > 0) {
+          const settlement = Math.min(remainingDebt, creditAmount);
+          settlements.push({
+            from: debtorId,
+            to: creditorId,
+            amount: settlement,
+          });
+          remainingDebt -= settlement;
+          userBalances[creditorId] -= settlement;
+        }
+      });
+    });
+
+    return settlements;
   }, [users, categories, personalCategories, assets, loans]);
 
   const calculateDetailedBalances = useCallback(() => {
-    // [Same implementation as before]
-    return {};
+    const userBalances: {
+      [userId: string]: {
+        total: number;
+        sharedExpenses: number;
+        assets: { [assetName: string]: number };
+        loanInterests: number;
+        loanMortgages: number;
+      };
+    } = {};
+
+    users.forEach((user) => {
+      userBalances[user.id] = {
+        total: 0,
+        sharedExpenses: 0,
+        assets: {},
+        loanInterests: 0,
+        loanMortgages: 0,
+      };
+    });
+
+    // Calculate shared expenses from categories
+    categories.forEach((category) => {
+      category.expenses.forEach((expense) => {
+        if (expense.isShared && !expense.isBudgeted) {
+          const paidBy = expense.paidBy || users[0]?.id;
+          if (userBalances[paidBy]) {
+            // Only process if payer still exists
+            userBalances[paidBy].total += getMonthlyAmount(expense);
+            userBalances[paidBy].sharedExpenses += getMonthlyAmount(expense);
+
+            if (expense.splitType === 'equal') {
+              const perPerson = getMonthlyAmount(expense) / users.length;
+              users.forEach((user) => {
+                userBalances[user.id].total -= perPerson;
+                userBalances[user.id].sharedExpenses -= perPerson;
+              });
+            } else if (
+              expense.splitType === 'percentage' &&
+              expense.splitData
+            ) {
+              Object.entries(expense.splitData).forEach(
+                ([userId, percentage]) => {
+                  if (userBalances[userId]) {
+                    // Only process if user still exists
+                    const amount = getMonthlyAmount(expense) * percentage;
+                    userBalances[userId].total -= amount;
+                    userBalances[userId].sharedExpenses -= amount;
+                  }
+                }
+              );
+            }
+          }
+        }
+      });
+    });
+
+    // Calculate asset costs by individual asset
+    assets.forEach((asset) => {
+      asset.expenses
+        .filter((expense: any) => !expense.isBudgeted)
+        .forEach((expense: any) => {
+          if (expense.isShared) {
+            const paidBy = expense.paidBy || users[0]?.id;
+            const amount = getMonthlyAmount(expense);
+
+            if (userBalances[paidBy]) {
+              // Only process if payer still exists
+              userBalances[paidBy].total += amount;
+              userBalances[paidBy].assets[asset.name] =
+                (userBalances[paidBy].assets[asset.name] || 0) + amount;
+
+              if (expense.splitType === 'equal') {
+                const perPerson = amount / users.length;
+                users.forEach((user) => {
+                  userBalances[user.id].total -= perPerson;
+                  userBalances[user.id].assets[asset.name] =
+                    (userBalances[user.id].assets[asset.name] || 0) - perPerson;
+                });
+              } else if (
+                expense.splitType === 'percentage' &&
+                expense.splitData
+              ) {
+                Object.entries(expense.splitData).forEach(
+                  ([userId, percentage]) => {
+                    if (userBalances[userId]) {
+                      // Only process if user still exists
+                      const userAmount = amount * (percentage as number);
+                      userBalances[userId].total -= userAmount;
+                      userBalances[userId].assets[asset.name] =
+                        (userBalances[userId].assets[asset.name] || 0) -
+                        userAmount;
+                    }
+                  }
+                );
+              }
+            }
+          }
+        });
+    });
+
+    // Calculate loan costs - separate interest and mortgage components
+    loans.forEach((loan) => {
+      const paidBy = loan.paidBy || users[0]?.id;
+      const monthlyInterest = (loan.currentAmount * loan.interestRate) / 12;
+      const monthlyPrincipal = loan.monthlyPayment;
+
+      // Fallback for old loan structure
+      const isInterestShared =
+        loan.isInterestShared !== undefined
+          ? loan.isInterestShared
+          : (loan as any).isShared;
+      const interestSplitType =
+        loan.interestSplitType || (loan as any).splitType || 'percentage';
+      const interestSplitData =
+        loan.interestSplitData || (loan as any).splitData;
+
+      const isMortgageShared =
+        loan.isMortgageShared !== undefined
+          ? loan.isMortgageShared
+          : (loan as any).isShared;
+      const mortgageSplitType =
+        loan.mortgageSplitType || (loan as any).splitType || 'equal';
+      const mortgageSplitData =
+        loan.mortgageSplitData || (loan as any).splitData;
+
+      // Add interest + monthly payment to payer first
+      if (userBalances[paidBy]) {
+        // Only process if payer still exists
+        userBalances[paidBy].total += monthlyInterest + loan.monthlyPayment;
+
+        // Handle interest portion splitting
+        if (isInterestShared) {
+          userBalances[paidBy].loanInterests += monthlyInterest;
+
+          if (interestSplitType === 'equal') {
+            const perPerson = monthlyInterest / users.length;
+            users.forEach((user) => {
+              userBalances[user.id].total -= perPerson;
+              userBalances[user.id].loanInterests -= perPerson;
+            });
+          } else if (interestSplitType === 'percentage' && interestSplitData) {
+            Object.entries(interestSplitData).forEach(
+              ([userId, percentage]) => {
+                if (userBalances[userId]) {
+                  // Only process if user still exists
+                  const userAmount = monthlyInterest * (percentage as number);
+                  userBalances[userId].total -= userAmount;
+                  userBalances[userId].loanInterests -= userAmount;
+                }
+              }
+            );
+          }
+        }
+
+        // Handle principal portion splitting
+        if (isMortgageShared) {
+          userBalances[paidBy].loanMortgages += monthlyPrincipal;
+
+          if (mortgageSplitType === 'equal') {
+            const perPerson = monthlyPrincipal / users.length;
+            users.forEach((user) => {
+              userBalances[user.id].total -= perPerson;
+              userBalances[user.id].loanMortgages -= perPerson;
+            });
+          } else if (mortgageSplitType === 'percentage' && mortgageSplitData) {
+            Object.entries(mortgageSplitData).forEach(
+              ([userId, percentage]) => {
+                if (userBalances[userId]) {
+                  // Only process if user still exists
+                  const userAmount = monthlyPrincipal * (percentage as number);
+                  userBalances[userId].total -= userAmount;
+                  userBalances[userId].loanMortgages -= userAmount;
+                }
+              }
+            );
+          }
+        }
+      }
+    });
+
+    return userBalances;
   }, [users, categories, personalCategories, assets, loans]);
 
   const calculateBudgetSummary = useCallback((): BudgetSummary => {
