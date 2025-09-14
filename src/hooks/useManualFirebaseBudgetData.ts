@@ -579,22 +579,15 @@ export function useManualFirebaseBudgetData(householdId: string) {
         // DO NOT remove personalCategories - they are shared labels that should remain available
 
         setLoans((prev) => {
-          const filtered = prev.filter(
-            (loan) => loan.fromUserId !== userId && loan.toUserId !== userId
-          );
+          const filtered = prev.filter((loan) => loan.paidBy !== userId);
           console.log(
             `🧹 Removed ${prev.length - filtered.length} loans for user ${userId}`
           );
           return filtered;
         });
 
-        setAssets((prev) => {
-          const filtered = prev.filter((asset) => asset.ownerId !== userId);
-          console.log(
-            `🧹 Removed ${prev.length - filtered.length} assets for user ${userId}`
-          );
-          return filtered;
-        });
+        // Assets don't have owner fields, so we don't need to filter them
+        // They are shared resources that should remain available
 
         // Give a moment for state updates to complete and trigger auto-save
         await new Promise((resolve) => setTimeout(resolve, 500));
