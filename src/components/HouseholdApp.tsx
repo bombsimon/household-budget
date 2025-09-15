@@ -20,7 +20,6 @@ import { IndividualBudget } from './IndividualBudget';
 import { LoanTracker } from './LoanTracker';
 import { AssetManager } from './AssetManager';
 import { SettlementVisualizer } from './SettlementVisualizer';
-import { InviteManager } from './InviteManager';
 import { formatMoney } from '../utils/expenseCalculations';
 
 type TabType =
@@ -134,13 +133,40 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
               onUpdateUser={updateUser}
               onDeleteUser={deleteUser}
             />
-            <InviteManager
-              householdId={householdId}
-              isOwner={
-                users.find((u: any) => u.id === user?.uid)?.role === 'owner'
-              }
-              householdKey={householdKey || undefined}
-            />
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Share Household
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Household ID
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={householdId}
+                      readOnly
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 font-mono text-sm"
+                    />
+                    <button
+                      onClick={() => navigator.clipboard.writeText(householdId)}
+                      className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                  <p className="text-sm text-blue-800">
+                    <strong>To share access:</strong> Give family members the
+                    Household ID above and the household password. They can join
+                    by entering both at{' '}
+                    <span className="font-mono">{window.location.origin}</span>
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         );
       case 'expenses':

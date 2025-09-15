@@ -2,8 +2,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function signedIn() { 
-      return request.auth != null; 
+    function signedIn() {
+      return request.auth != null;
     }
 
     function isHouseholdOwner(householdId) {
@@ -11,9 +11,6 @@ service cloud.firestore {
              get(/databases/$(database)/documents/householdMetadata/$(householdId)).data.ownerUid == request.auth.uid;
     }
 
-    function isHouseholdMember(householdId) {
-      return exists(/databases/$(database)/documents/households/$(householdId)/members/$(request.auth.uid));
-    }
 
     // Household metadata - safe existence checking without exposing sensitive data
     // Only contains: ownerUid, name, createdAt - no budget data
@@ -27,109 +24,10 @@ service cloud.firestore {
       allow delete: if isHouseholdOwner(householdId);
     }
 
-    // Main household budget data - only accessible to members
+    // Main household budget data - encrypted, accessible to signed-in users for joining
+    // Security is provided by client-side encryption - data is useless without password
     match /households/{householdId} {
-      allow read, write: if isHouseholdMember(householdId);
-      // Allow creation if user is the household owner (check metadata)
-      allow create: if signedIn() && isHouseholdOwner(householdId);
-    }
-
-    // Household members - strict access control
-    match /households/{householdId}/members/{uid} {
-      // Members can read other members
-      allow read: if isHouseholdMember(householdId);
-      
-      // Users can create their own member document OR household owner can create member documents
-      allow create: if signedIn() &&
-                    request.resource.data.keys().hasAll(['role', 'addedAt', 'color', 'encryptedData']) &&
-                    ((request.auth.uid == uid && request.resource.data.role == 'owner') || // User creating their own owner account
-                     (request.auth.uid == uid && isHouseholdMember(householdId)) || // Existing member updating their own
-                     (request.auth.uid == uid && request.resource.data.role == 'member') || // User joining via invite
-                     isHouseholdOwner(householdId)); // Owner creating member accounts for others
-      
-      allow update: if signedIn() &&
-                    request.auth.uid == uid &&
-                    request.resource.data.keys().hasAll(['role', 'addedAt', 'color', 'encryptedData']);
-      
-      // Only household owner can delete members (but not themselves)
-      allow delete: if isHouseholdOwner(householdId) && request.auth.uid != uid;
-      
-      // Household owner can also update any member (for admin purposes)
-      allow update: if isHouseholdOwner(householdId);
-    }
-
-    // Encryption keys - only the key owner can access their own key
-    match /households/{householdId}/keys/{userId} {
-      // Users can only read/write their own encryption key
-      allow read, write: if signedIn() && request.auth.uid == userId;
-
-      // Household owner can create keys for new members (invite redemption)
-      allow create: if isHouseholdOwner(householdId);
-
-      // When adding new member, household owner can create key for them
-      allow create: if signedIn() && isHouseholdMember(householdId);
-
-      // Users can create their own key during invite redemption
-      allow create: if signedIn() && request.auth.uid == userId;
-
-      // Household owner can delete member keys (when removing users)
-      allow delete: if isHouseholdOwner(householdId);
-    }
-
-    // Invites - household members can create, only target email can read
-    match /invites/{inviteCode} {
-      // Only the target email OR the invite creator can read the invite
-      allow read: if signedIn() &&
-                  (request.auth.token.email == resource.data.targetEmail ||
-                   request.auth.uid == resource.data.createdBy);
-
-      // Only household members can create invites
-      allow create: if signedIn() &&
-                    exists(/databases/$(database)/documents/households/$(request.resource.data.householdId)/members/$(request.auth.uid)) &&
-                    request.resource.data.createdBy == request.auth.uid;
-
-      // Only invite creator can update for general changes
-      allow update: if signedIn() &&
-                    resource.data.createdBy == request.auth.uid;
-
-      // Anyone can update to increment usage count for redemption
-      allow update: if signedIn() &&
-                    request.resource.data.usedCount > resource.data.usedCount &&
-                    request.resource.data.householdId == resource.data.householdId &&
-                    request.resource.data.createdBy == resource.data.createdBy &&
-                    request.resource.data.encryptedHouseholdKey == resource.data.encryptedHouseholdKey &&
-                    request.resource.data.keyIv == resource.data.keyIv &&
-                    request.resource.data.keyVersion == resource.data.keyVersion &&
-                    request.resource.data.expiresAt == resource.data.expiresAt &&
-                    request.resource.data.maxUses == resource.data.maxUses;
-
-      // Only invite creator OR target email can delete
-      allow delete: if signedIn() &&
-                    (resource.data.createdBy == request.auth.uid ||
-                     request.auth.token.email == resource.data.targetEmail);
-    }
-
-    // Applications (deprecated - keeping for backward compatibility)
-    match /households/{householdId}/applications/{uid} {
-      // Only household owner can read applications
-      allow read: if isHouseholdOwner(householdId);
-
-      // Applicant can create their own application
-      allow create: if signedIn() &&
-                    request.auth.uid == uid &&
-                    request.resource.data.userId == request.auth.uid;
-
-      // Applicant can update their own application (but only before approval/rejection)
-      allow update: if signedIn() &&
-                    request.auth.uid == uid &&
-                    request.resource.data.userId == request.auth.uid &&
-                    (!resource.data.status || resource.data.status == 'pending');
-
-      // Household owner can approve/reject/delete applications (separate update rule)
-      // Also allow if the user is owner of the household document itself (fallback check)
-      allow update, delete: if isHouseholdOwner(householdId) ||
-                            (exists(/databases/$(database)/documents/households/$(householdId)) &&
-                             get(/databases/$(database)/documents/households/$(householdId)).data.ownerUid == request.auth.uid);
+      allow read, write: if signedIn();
     }
   }
 }

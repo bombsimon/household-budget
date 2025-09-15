@@ -1,30 +1,14 @@
 import { getAuth } from 'firebase/auth';
 
-export interface EncryptedData {
+export interface HouseholdData {
   encryptedData: string;
   iv: string;
+  salt: string; // For password-based key derivation
   algorithm: 'AES-GCM';
   keyVersion: number;
-}
-
-export interface HouseholdKeyInfo {
-  encryptedKey: string;
-  iv: string;
-  keyVersion: number;
+  members: string[]; // User IDs for Firebase rules
   createdAt: number;
-}
-
-export interface InviteInfo {
-  inviteCode: string;
-  householdId: string;
-  createdBy: string;
-  targetEmail: string;
-  encryptedHouseholdKey: string;
-  keyIv: string;
-  keyVersion: number;
-  expiresAt: number;
-  maxUses: number;
-  usedCount: number;
+  updatedAt: number;
 }
 
 class EncryptionService {
@@ -32,230 +16,32 @@ class EncryptionService {
   private readonly KEY_LENGTH = 256;
   private readonly IV_LENGTH = 12;
 
-  /**
-   * Generate a secure random household key
-   */
-  async generateHouseholdKey(): Promise<CryptoKey> {
-    return await crypto.subtle.generateKey(
-      {
-        name: this.ALGORITHM,
-        length: this.KEY_LENGTH,
-      },
-      true, // extractable
-      ['encrypt', 'decrypt']
-    );
-  }
+  // In-memory password storage per household
+  private householdPasswords = new Map<string, string>();
 
   /**
-   * Generate a secure random invite code
+   * Encrypt household data with password
    */
-  generateInviteCode(): string {
-    const array = new Uint8Array(16);
-    crypto.getRandomValues(array);
-    return Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join(
-      ''
-    );
-  }
+  async encryptHouseholdData(
+    data: any,
+    password: string,
+    members: string[]
+  ): Promise<HouseholdData> {
+    // Generate a random salt for this household
+    const salt = crypto.getRandomValues(new Uint8Array(32));
+    const key = await this.deriveKeyFromPassword(password, salt);
 
-  /**
-   * Derive encryption key from user's auth token
-   */
-  private async deriveKeyFromToken(
-    token: string,
-    salt: string
-  ): Promise<CryptoKey> {
-    // Import the token as key material
-    const keyMaterial = await crypto.subtle.importKey(
-      'raw',
-      new TextEncoder().encode(token + salt),
-      'PBKDF2',
-      false,
-      ['deriveBits', 'deriveKey']
-    );
-
-    // Derive a key using PBKDF2
-    return await crypto.subtle.deriveKey(
-      {
-        name: 'PBKDF2',
-        salt: new TextEncoder().encode(salt),
-        iterations: 100000,
-        hash: 'SHA-256',
-      },
-      keyMaterial,
-      { name: this.ALGORITHM, length: this.KEY_LENGTH },
-      false, // not extractable
-      ['encrypt', 'decrypt']
-    );
-  }
-
-  /**
-   * Encrypt household key with user's auth token
-   */
-  async encryptHouseholdKeyForUser(
-    householdKey: CryptoKey,
-    userToken: string,
-    householdId: string
-  ): Promise<HouseholdKeyInfo> {
-    const salt = `household-${householdId}`;
-    const userKey = await this.deriveKeyFromToken(userToken, salt);
-
-    // Export household key as raw data
-    const keyData = await crypto.subtle.exportKey('raw', householdKey);
+    // Convert data to JSON string and encode
+    const jsonString = JSON.stringify(data);
+    const dataBytes = new TextEncoder().encode(jsonString);
 
     // Generate IV for encryption
     const iv = crypto.getRandomValues(new Uint8Array(this.IV_LENGTH));
 
-    // Encrypt the household key
-    const encryptedKey = await crypto.subtle.encrypt(
-      { name: this.ALGORITHM, iv },
-      userKey,
-      keyData
-    );
-
-    return {
-      encryptedKey: Array.from(new Uint8Array(encryptedKey), (b) =>
-        b.toString(16).padStart(2, '0')
-      ).join(''),
-      iv: Array.from(iv, (b) => b.toString(16).padStart(2, '0')).join(''),
-      keyVersion: 1,
-      createdAt: Date.now(),
-    };
-  }
-
-  /**
-   * Decrypt household key using user's auth token
-   */
-  async decryptHouseholdKeyForUser(
-    encryptedKeyInfo: HouseholdKeyInfo,
-    userToken: string,
-    householdId: string
-  ): Promise<CryptoKey> {
-    const salt = `household-${householdId}`;
-    const userKey = await this.deriveKeyFromToken(userToken, salt);
-
-    // Convert hex strings back to Uint8Array
-    const encryptedKey = new Uint8Array(
-      encryptedKeyInfo.encryptedKey
-        .match(/.{2}/g)!
-        .map((byte) => parseInt(byte, 16))
-    );
-    const iv = new Uint8Array(
-      encryptedKeyInfo.iv.match(/.{2}/g)!.map((byte) => parseInt(byte, 16))
-    );
-
-    // Decrypt the household key data
-    const keyData = await crypto.subtle.decrypt(
-      { name: this.ALGORITHM, iv },
-      userKey,
-      encryptedKey
-    );
-
-    // Import the decrypted key data back as CryptoKey (extractable for invites)
-    return await crypto.subtle.importKey(
-      'raw',
-      keyData,
-      { name: this.ALGORITHM },
-      true, // extractable for invite creation
-      ['encrypt', 'decrypt']
-    );
-  }
-
-  /**
-   * Encrypt household key with invite code (temporary)
-   */
-  async encryptHouseholdKeyForInvite(
-    householdKey: CryptoKey,
-    inviteCode: string
-  ): Promise<{ encryptedKey: string; iv: string }> {
-    // Use invite code as key material
-    const inviteKey = await crypto.subtle.importKey(
-      'raw',
-      new TextEncoder().encode(inviteCode),
-      { name: this.ALGORITHM },
-      false,
-      ['encrypt']
-    );
-
-    // Export household key as raw data
-    const keyData = await crypto.subtle.exportKey('raw', householdKey);
-
-    // Generate IV
-    const iv = crypto.getRandomValues(new Uint8Array(this.IV_LENGTH));
-
-    // Encrypt with invite code
-    const encryptedKey = await crypto.subtle.encrypt(
-      { name: this.ALGORITHM, iv },
-      inviteKey,
-      keyData
-    );
-
-    return {
-      encryptedKey: Array.from(new Uint8Array(encryptedKey), (b) =>
-        b.toString(16).padStart(2, '0')
-      ).join(''),
-      iv: Array.from(iv, (b) => b.toString(16).padStart(2, '0')).join(''),
-    };
-  }
-
-  /**
-   * Decrypt household key using invite code
-   */
-  async decryptHouseholdKeyFromInvite(
-    encryptedKey: string,
-    iv: string,
-    inviteCode: string
-  ): Promise<CryptoKey> {
-    // Use invite code as key material
-    const inviteKey = await crypto.subtle.importKey(
-      'raw',
-      new TextEncoder().encode(inviteCode),
-      { name: this.ALGORITHM },
-      false,
-      ['decrypt']
-    );
-
-    // Convert hex strings back to Uint8Array
-    const encryptedKeyBytes = new Uint8Array(
-      encryptedKey.match(/.{2}/g)!.map((byte) => parseInt(byte, 16))
-    );
-    const ivBytes = new Uint8Array(
-      iv.match(/.{2}/g)!.map((byte) => parseInt(byte, 16))
-    );
-
-    // Decrypt the household key data
-    const keyData = await crypto.subtle.decrypt(
-      { name: this.ALGORITHM, iv: ivBytes },
-      inviteKey,
-      encryptedKeyBytes
-    );
-
-    // Import the decrypted key data back as CryptoKey (extractable for user storage)
-    return await crypto.subtle.importKey(
-      'raw',
-      keyData,
-      { name: this.ALGORITHM },
-      true, // extractable for user key storage
-      ['encrypt', 'decrypt']
-    );
-  }
-
-  /**
-   * Encrypt data using household key
-   */
-  async encryptData(
-    data: any,
-    householdKey: CryptoKey
-  ): Promise<EncryptedData> {
-    const jsonString = JSON.stringify(data);
-    const dataBytes = new TextEncoder().encode(jsonString);
-
-    // Generate IV
-    const iv = crypto.getRandomValues(new Uint8Array(this.IV_LENGTH));
-
-    // Encrypt
+    // Encrypt the household data
     const encryptedBytes = await crypto.subtle.encrypt(
       { name: this.ALGORITHM, iv },
-      householdKey,
+      key,
       dataBytes
     );
 
@@ -264,32 +50,42 @@ class EncryptionService {
         b.toString(16).padStart(2, '0')
       ).join(''),
       iv: Array.from(iv, (b) => b.toString(16).padStart(2, '0')).join(''),
+      salt: Array.from(salt, (b) => b.toString(16).padStart(2, '0')).join(''),
       algorithm: this.ALGORITHM,
       keyVersion: 1,
+      members,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     };
   }
 
   /**
-   * Decrypt data using household key
+   * Decrypt household data with password
    */
-  async decryptData(
-    encryptedData: EncryptedData,
-    householdKey: CryptoKey
+  async decryptHouseholdData(
+    householdData: HouseholdData,
+    password: string
   ): Promise<any> {
+    // Convert hex salt back to Uint8Array
+    const salt = new Uint8Array(
+      householdData.salt.match(/.{2}/g)!.map((byte) => parseInt(byte, 16))
+    );
+    const key = await this.deriveKeyFromPassword(password, salt);
+
     // Convert hex strings back to Uint8Array
     const encryptedBytes = new Uint8Array(
-      encryptedData.encryptedData
+      householdData.encryptedData
         .match(/.{2}/g)!
         .map((byte) => parseInt(byte, 16))
     );
     const iv = new Uint8Array(
-      encryptedData.iv.match(/.{2}/g)!.map((byte) => parseInt(byte, 16))
+      householdData.iv.match(/.{2}/g)!.map((byte) => parseInt(byte, 16))
     );
 
-    // Decrypt
+    // Decrypt the household data
     const decryptedBytes = await crypto.subtle.decrypt(
       { name: this.ALGORITHM, iv },
-      householdKey,
+      key,
       encryptedBytes
     );
 
@@ -299,14 +95,136 @@ class EncryptionService {
   }
 
   /**
-   * Get current user's auth token
+   * Test if password can decrypt household data (for join validation)
    */
-  async getCurrentUserToken(): Promise<string> {
-    const auth = getAuth();
-    if (!auth.currentUser) {
-      throw new Error('No authenticated user');
+  async testPassword(
+    householdData: HouseholdData,
+    password: string
+  ): Promise<boolean> {
+    try {
+      await this.decryptHouseholdData(householdData, password);
+      return true;
+    } catch (error) {
+      return false;
     }
-    return await auth.currentUser.getIdToken();
+  }
+
+  /**
+   * Set password for a household (stored in memory and session storage)
+   */
+  setHouseholdPassword(householdId: string, password: string): void {
+    this.householdPasswords.set(householdId, password);
+    // Also store in session storage for page refresh persistence
+    try {
+      sessionStorage.setItem(`household_password_${householdId}`, password);
+    } catch (error) {
+      console.warn('Failed to store password in session storage:', error);
+    }
+  }
+
+  /**
+   * Check if password is available for household (memory or session storage)
+   */
+  hasHouseholdPassword(householdId: string): boolean {
+    if (this.householdPasswords.has(householdId)) {
+      return true;
+    }
+    // Check session storage as fallback
+    try {
+      return (
+        sessionStorage.getItem(`household_password_${householdId}`) !== null
+      );
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Get password for a household (from memory or session storage)
+   */
+  getHouseholdPassword(householdId: string): string | null {
+    // Try memory first
+    const memoryPassword = this.householdPasswords.get(householdId);
+    if (memoryPassword) {
+      return memoryPassword;
+    }
+
+    // Fallback to session storage
+    try {
+      const sessionPassword = sessionStorage.getItem(
+        `household_password_${householdId}`
+      );
+      if (sessionPassword) {
+        // Restore to memory for faster future access
+        this.householdPasswords.set(householdId, sessionPassword);
+        return sessionPassword;
+      }
+    } catch (error) {
+      console.warn('Failed to retrieve password from session storage:', error);
+    }
+
+    return null;
+  }
+
+  /**
+   * Clear password for a household (from memory and session storage)
+   */
+  clearHouseholdPassword(householdId: string): void {
+    this.householdPasswords.delete(householdId);
+    try {
+      sessionStorage.removeItem(`household_password_${householdId}`);
+    } catch (error) {
+      console.warn('Failed to clear password from session storage:', error);
+    }
+  }
+
+  /**
+   * Clear all stored passwords (from memory and session storage)
+   */
+  clearAllPasswords(): void {
+    this.householdPasswords.clear();
+    try {
+      // Clear all household passwords from session storage
+      const keys = Object.keys(sessionStorage);
+      keys.forEach((key) => {
+        if (key.startsWith('household_password_')) {
+          sessionStorage.removeItem(key);
+        }
+      });
+    } catch (error) {
+      console.warn('Failed to clear passwords from session storage:', error);
+    }
+  }
+
+  /**
+   * Derive encryption key from password
+   */
+  private async deriveKeyFromPassword(
+    password: string,
+    salt: Uint8Array
+  ): Promise<CryptoKey> {
+    // Import the password as key material
+    const keyMaterial = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(password),
+      'PBKDF2',
+      false,
+      ['deriveBits', 'deriveKey']
+    );
+
+    // Derive a key using PBKDF2 with proper salt
+    return await crypto.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt: salt,
+        iterations: 100000,
+        hash: 'SHA-256',
+      },
+      keyMaterial,
+      { name: this.ALGORITHM, length: this.KEY_LENGTH },
+      false, // not extractable
+      ['encrypt', 'decrypt']
+    );
   }
 }
 

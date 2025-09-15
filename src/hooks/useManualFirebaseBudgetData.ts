@@ -15,8 +15,7 @@ import { db } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import {
   encryptionService,
-  type EncryptedData,
-  type HouseholdKeyInfo,
+  type HouseholdData,
 } from '../services/encryptionService';
 import type {
   User,
@@ -61,19 +60,6 @@ interface HouseholdMember {
   municipalTaxRate: number;
 }
 
-// Helper function to convert HouseholdMember to User for component compatibility
-const memberToUser = (member: HouseholdMember, memberId: string): User => ({
-  id: memberId,
-  name: member.displayName || member.email?.split('@')[0] || 'User',
-  monthlyIncome: member.monthlyIncome ?? 0,
-  color: member.color,
-  municipalTaxRate: member.municipalTaxRate ?? getDefaultMunicipalTaxRate(),
-  firebaseUid: memberId,
-  email: member.email,
-  photoURL: member.photoURL,
-  role: member.role,
-});
-
 const getInitialState = (): AppState => {
   return {
     users: [],
@@ -93,14 +79,12 @@ export function useManualFirebaseBudgetData(householdId: string) {
   const [error, setError] = useState<string | null>(null);
 
   // Encryption state
-  const [householdKey, setHouseholdKey] = useState<CryptoKey | null>(null);
   const [encryptionReady, setEncryptionReady] = useState(false);
 
   // Data state
   const [isLoaded, setIsLoaded] = useState(false);
-  const [members, setMembers] = useState<{
-    [memberId: string]: HouseholdMember;
-  }>({});
+  const [updatingFromListener, setUpdatingFromListener] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [personalCategories, setPersonalCategories] = useState<
     PersonalExpenseCategory[]
@@ -112,253 +96,137 @@ export function useManualFirebaseBudgetData(householdId: string) {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
 
-  // Load household key from Firebase
+  // Check if password is available for encryption
   useEffect(() => {
-    const loadHouseholdKey = async () => {
-      if (authLoading || !user) {
-        return;
-      }
+    if (authLoading || !user || !householdId) {
+      return;
+    }
 
-      try {
-        console.log(`🔐 Loading household key for ${householdId}`);
-
-        // Try to get user's encrypted household key
-        const keyDocRef = doc(db, 'households', householdId, 'keys', user.uid);
-        const keySnap = await getDoc(keyDocRef);
-
-        if (keySnap.exists()) {
-          // User has access - decrypt the household key
-          const keyInfo = keySnap.data() as HouseholdKeyInfo;
-          const userToken = await encryptionService.getCurrentUserToken();
-          const decryptedKey =
-            await encryptionService.decryptHouseholdKeyForUser(
-              keyInfo,
-              userToken,
-              householdId
-            );
-
-          setHouseholdKey(decryptedKey);
-          setEncryptionReady(true);
-          console.log(`✅ Successfully loaded household key`);
-        } else {
-          // User doesn't have access to household key
-          console.log(`❌ User doesn't have access to household key`);
-          setError('No access to household encryption key');
-          setEncryptionReady(false);
-        }
-      } catch (error) {
-        console.error('Error loading household key:', error);
-        setError('Failed to load household key');
-        setEncryptionReady(false);
-      }
-    };
-
-    loadHouseholdKey();
+    // Check if we have the password in memory
+    if (encryptionService.hasHouseholdPassword(householdId)) {
+      setEncryptionReady(true);
+      console.log(`✅ Password available for household ${householdId}`);
+    } else {
+      setEncryptionReady(false);
+      console.log(`❌ No password available for household ${householdId}`);
+      setError('Household password required');
+    }
   }, [householdId, user, authLoading]);
 
-  // Load encrypted data from Firebase
+  // Real-time listener for encrypted household data
   useEffect(() => {
-    if (!encryptionReady || !householdKey || !user || authLoading) {
+    if (!encryptionReady || !user || authLoading || !householdId) {
       return;
     }
 
-    const loadEncryptedData = async () => {
-      console.log(`📥 Loading encrypted data for household: ${householdId}`);
-      setIsLoading(true);
-
-      try {
-        const householdDocRef = doc(db, 'households', householdId);
-        const docSnap = await getDoc(householdDocRef);
-
-        if (docSnap.exists()) {
-          const encryptedDoc = docSnap.data() as EncryptedHouseholdData;
-          console.log(`🔓 Decrypting household data`);
-
-          // Decrypt the data
-          const decryptedState = (await encryptionService.decryptData(
-            encryptedDoc.encryptedData,
-            householdKey
-          )) as AppState;
-
-          console.log(`✅ Successfully decrypted household data`);
-
-          // Load the decrypted state
-          setCategories(decryptedState.categories || []);
-          setPersonalCategories(decryptedState.personalCategories || []);
-          setPersonalCategoriesSectionCollapsed(
-            decryptedState.personalCategoriesSectionCollapsed || false
-          );
-          setLoans(decryptedState.loans || []);
-          setAssets(decryptedState.assets || []);
-        } else {
-          console.log(
-            `🆕 No encrypted data found for household ${householdId}, using initial state`
-          );
-
-          // No data exists yet - use initial state
-          const defaultState = getInitialState();
-          setCategories(defaultState.categories);
-          setPersonalCategories(defaultState.personalCategories);
-          setPersonalCategoriesSectionCollapsed(
-            defaultState.personalCategoriesSectionCollapsed || false
-          );
-          setLoans(defaultState.loans);
-          setAssets(defaultState.assets);
-        }
-      } catch (error) {
-        console.error(`❌ Error loading encrypted data:`, error);
-        setError(
-          `Failed to load encrypted data: ${error instanceof Error ? error.message : 'Unknown error'}`
-        );
-
-        // Fall back to initial data on error
-        const defaultState = getInitialState();
-        setCategories(defaultState.categories);
-        setPersonalCategories(defaultState.personalCategories);
-        setPersonalCategoriesSectionCollapsed(
-          defaultState.personalCategoriesSectionCollapsed || false
-        );
-        setLoans(defaultState.loans);
-        setAssets(defaultState.assets);
-      } finally {
-        setIsLoading(false);
-        setIsLoaded(true);
-      }
-    };
-
-    loadEncryptedData();
-  }, [householdId, householdKey, encryptionReady, user, authLoading]);
-
-  // Listen to household members (unencrypted)
-  useEffect(() => {
-    if (authLoading || !user) {
+    const password = encryptionService.getHouseholdPassword(householdId);
+    if (!password) {
+      setError('No password available for household');
       return;
     }
 
-    const membersCollectionRef = collection(
-      db,
-      'households',
-      householdId,
-      'members'
+    console.log(
+      `🔗 Setting up real-time encrypted listener for: ${householdId}`
     );
-
-    console.log(`🔗 Setting up household members listener for: ${householdId}`);
+    const householdDocRef = doc(db, 'households', householdId);
 
     const unsubscribe = onSnapshot(
-      membersCollectionRef,
-      async (snapshot) => {
-        console.log(`👥 Household members changed, syncing to budget users...`);
+      householdDocRef,
+      async (docSnap) => {
+        try {
+          setIsLoading(true);
+          setUpdatingFromListener(true); // Prevent save loops
 
-        const colors = [
-          '#3B82F6',
-          '#10B981',
-          '#F59E0B',
-          '#8B5CF6',
-          '#EC4899',
-          '#06B6D4',
-        ];
-        const membersData: { [memberId: string]: HouseholdMember } = {};
+          if (docSnap.exists()) {
+            const householdData = docSnap.data() as HouseholdData;
+            console.log(`📥 Received encrypted data update from Firebase`);
 
-        // Only process members if we have the household key
-        if (!householdKey) {
-          console.log('⏳ Waiting for household key to decrypt member data...');
-          return;
-        }
-
-        // Process all member documents with decryption
-        const memberPromises = snapshot.docs.map(async (doc, index) => {
-          const memberData = doc.data() as HouseholdMember;
-          const memberId = doc.id;
-
-          // Decrypt member sensitive data
-          const decryptedMemberData = await encryptionService.decryptData(
-            memberData.encryptedData,
-            householdKey
-          );
-          console.log(`🔓 Decrypted member data for ${memberId}`);
-
-          const completeMemberData: HouseholdMember = {
-            ...memberData,
-            monthlyIncome: decryptedMemberData.monthlyIncome,
-            municipalTaxRate: decryptedMemberData.municipalTaxRate,
-            color: memberData.color ?? colors[index % colors.length],
-          };
-
-          return { memberId, completeMemberData };
-        });
-
-        // Wait for all decryption to complete
-        const decryptedMembers = await Promise.all(memberPromises);
-
-        // Build the members object
-        decryptedMembers.forEach(({ memberId, completeMemberData }) => {
-          membersData[memberId] = completeMemberData;
-        });
-
-        setMembers(membersData);
-
-        // Update categories to ensure personal categories exist for all users
-        const usersFromMembers = Object.entries(membersData).map(
-          ([memberId, member]) => memberToUser(member, memberId)
-        );
-
-        setCategories((prevCategories) => {
-          const newCategories = [...prevCategories];
-
-          // Ensure shared category exists
-          if (!newCategories.find((cat) => cat.id === 'shared')) {
-            newCategories.push({
-              id: 'shared',
-              name: 'Household Expenses',
-              collapsed: false,
-              expenses: [],
-            });
-          }
-
-          // Ensure personal category exists for each user and update names
-          usersFromMembers.forEach((user) => {
-            const personalCategoryId = `personal-${user.id}`;
-            const existingCategoryIndex = newCategories.findIndex(
-              (cat) => cat.id === personalCategoryId
+            // Decrypt the data using password
+            const decryptedState = await encryptionService.decryptHouseholdData(
+              householdData,
+              password
             );
 
-            if (existingCategoryIndex >= 0) {
-              // Update existing category name in case user name changed
-              newCategories[existingCategoryIndex] = {
-                ...newCategories[existingCategoryIndex],
-                name: `Personal - ${user.name}`,
-              };
-            } else {
-              // Create new category if it doesn't exist
-              newCategories.push({
-                id: personalCategoryId,
-                name: `Personal - ${user.name}`,
-                collapsed: false,
-                expenses: [],
-              });
+            console.log(`🔓 Decrypted real-time data update`);
+            console.log(
+              `👥 Users in decrypted data:`,
+              decryptedState.users?.map((u) => ({ id: u.id, name: u.name }))
+            );
+            console.log(`🔑 Members in Firebase data:`, householdData.members);
+
+            // Check if current user exists in the users array
+            const currentUserExists = decryptedState.users?.find(
+              (u) => u.id === user.uid
+            );
+            if (!currentUserExists) {
+              console.log(
+                `🚫 Current user ${user.uid} not found in users array - clearing password and reloading`
+              );
+              encryptionService.clearHouseholdPassword(householdId);
+              // Force a page reload to trigger the password prompt
+              window.location.reload();
+              return;
             }
-          });
 
-          return newCategories;
-        });
+            // Update state from decrypted Firebase data (no saves should trigger from this)
+            setCategories(decryptedState.categories || []);
+            setPersonalCategories(decryptedState.personalCategories || []);
+            setPersonalCategoriesSectionCollapsed(
+              decryptedState.personalCategoriesSectionCollapsed || false
+            );
+            setLoans(decryptedState.loans || []);
+            setAssets(decryptedState.assets || []);
+            setUsers(decryptedState.users || []);
+          } else {
+            console.log(
+              `🆕 No encrypted data found for household ${householdId}, using initial state`
+            );
 
-        console.log(
-          `✅ Updated household members: ${Object.keys(membersData).length} members`
-        );
+            // No data exists yet - use initial state
+            const defaultState = getInitialState();
+            setCategories(defaultState.categories);
+            setPersonalCategories(defaultState.personalCategories);
+            setPersonalCategoriesSectionCollapsed(
+              defaultState.personalCategoriesSectionCollapsed || false
+            );
+            setLoans(defaultState.loans);
+            setAssets(defaultState.assets);
+            setUsers(defaultState.users);
+          }
+        } catch (error) {
+          console.error(`❌ Error processing real-time encrypted data:`, error);
+          setError(
+            `Failed to decrypt real-time data: ${error instanceof Error ? error.message : 'Unknown error'}`
+          );
+        } finally {
+          setIsLoading(false);
+          setIsLoaded(true);
+          setUpdatingFromListener(false); // Clear the flag
+        }
       },
       (error) => {
-        console.error('Error listening to household members:', error);
+        console.error(`❌ Real-time listener error:`, error);
+        setError(`Real-time sync error: ${error.message}`);
+        setIsLoading(false);
       }
     );
 
-    return unsubscribe;
-  }, [householdId, user, authLoading, householdKey]);
+    return () => {
+      console.log(`🔌 Disconnecting real-time listener for: ${householdId}`);
+      unsubscribe();
+    };
+  }, [householdId, encryptionReady, user, authLoading]);
 
   // Helper function to encrypt and save data to Firebase
   const saveEncryptedData = useCallback(
     async (dataToSave: Partial<AppState>) => {
-      if (!householdKey || !user) {
+      if (!encryptionReady || !user) {
         throw new Error('Encryption not ready');
+      }
+
+      const password = encryptionService.getHouseholdPassword(householdId);
+      if (!password) {
+        throw new Error('No password available for household');
       }
 
       console.log(`💾 Saving encrypted data to Firebase...`);
@@ -370,29 +238,34 @@ export function useManualFirebaseBudgetData(householdId: string) {
           personalCategoriesSectionCollapsed,
           loans,
           assets,
+          users,
           version: '1.0.0',
-          lastUpdated: new Date().toISOString(),
           ...dataToSave, // Override with any specific data to save
         };
 
-        // Encrypt the data
-        const encryptedData = await encryptionService.encryptData(
-          budgetData,
-          householdKey
+        // Get list of current member UIDs from the data being saved, not the state
+        const memberIds = (budgetData.users || users).map((u) => u.id);
+        console.log(
+          `💾 Saving with users:`,
+          budgetData.users?.map((u) => ({ id: u.id, name: u.name }))
         );
+        console.log(`💾 Generated memberIds:`, memberIds);
 
-        // Get list of current member IDs
-        const memberIds = Object.keys(members);
+        // Encrypt the entire household data
+        const encryptedHouseholdData =
+          await encryptionService.encryptHouseholdData(
+            budgetData,
+            password,
+            memberIds
+          );
+        console.log(
+          `💾 Encrypted data members field:`,
+          encryptedHouseholdData.members
+        );
 
         // Save to Firebase
         const householdDocRef = doc(db, 'households', householdId);
-        const encryptedDoc: EncryptedHouseholdData = {
-          encryptedData,
-          members: memberIds,
-          updatedAt: serverTimestamp() as Timestamp,
-        };
-
-        await setDoc(householdDocRef, encryptedDoc, { merge: true });
+        await setDoc(householdDocRef, encryptedHouseholdData, { merge: true });
         console.log(`✅ Successfully saved encrypted data to Firebase`);
       } catch (error) {
         console.error('❌ Error saving encrypted data:', error);
@@ -400,117 +273,65 @@ export function useManualFirebaseBudgetData(householdId: string) {
       }
     },
     [
-      householdKey,
+      encryptionReady,
       user,
       categories,
       personalCategories,
       personalCategoriesSectionCollapsed,
       loans,
       assets,
-      members,
+      users,
       householdId,
     ]
   );
 
-  // Auto-save when state changes
+  // Remove auto-save - real-time sync handles everything
   const [isAutoSaving, setIsAutoSaving] = useState(false);
-  useEffect(() => {
-    if (!householdKey || !isLoaded || isLoading) return;
-
-    const autoSave = async () => {
-      setIsAutoSaving(true);
-      try {
-        await saveEncryptedData({});
-      } catch (error) {
-        console.error('Auto-save failed:', error);
-        setError(
-          `Auto-save failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-        );
-      } finally {
-        setIsAutoSaving(false);
-      }
-    };
-
-    // Debounce auto-save
-    const timeoutId = setTimeout(autoSave, 500);
-    return () => clearTimeout(timeoutId);
-  }, [
-    categories,
-    personalCategories,
-    personalCategoriesSectionCollapsed,
-    loans,
-    assets,
-    saveEncryptedData,
-    householdKey,
-    isLoaded,
-    isLoading,
-  ]);
-
-  // Compute users from members for backward compatibility
-  const users = useMemo(() => {
-    return Object.entries(members).map(([memberId, member]) =>
-      memberToUser(member, memberId)
-    );
-  }, [members]);
 
   const updateUser = useCallback(
     async (userId: string, updates: Partial<User>) => {
-      if (!householdKey) {
-        throw new Error(
-          'Household key not available for encrypting user updates'
-        );
-      }
-
       try {
-        console.log(`🔄 Updating member ${userId} in Firebase...`);
+        console.log(`🔄 Updating user ${userId}...`);
 
-        const memberUpdates: Partial<HouseholdMember> = {};
+        // Update the local users state
+        const updatedUsers = users.map((user) =>
+          user.id === userId ? { ...user, ...updates } : user
+        );
 
-        // Non-sensitive fields can be updated directly
-        if (updates.name !== undefined)
-          memberUpdates.displayName = updates.name;
-        if (updates.color !== undefined) memberUpdates.color = updates.color;
-
-        // Sensitive fields (income, tax rate) need to be encrypted
-        if (
-          updates.monthlyIncome !== undefined ||
-          updates.municipalTaxRate !== undefined
-        ) {
-          // Get current member data to preserve existing encrypted data
-          const currentMember = members[userId];
-          if (currentMember) {
-            const sensitiveData = {
-              monthlyIncome:
-                updates.monthlyIncome ?? currentMember.monthlyIncome,
-              municipalTaxRate:
-                updates.municipalTaxRate ?? currentMember.municipalTaxRate,
-            };
-
-            const encryptedData = await encryptionService.encryptData(
-              sensitiveData,
-              householdKey
+        // If the name changed, update the personal category name too
+        let updatedCategories = categories;
+        if (updates.name) {
+          const updatedUser = updatedUsers.find((u) => u.id === userId);
+          if (updatedUser) {
+            updatedCategories = categories.map((category) => {
+              if (category.id === `personal-${userId}`) {
+                return {
+                  ...category,
+                  name: `Personal - ${updatedUser.name}`,
+                };
+              }
+              return category;
+            });
+            console.log(
+              `📝 Updated personal category name to: Personal - ${updatedUser.name}`
             );
-            memberUpdates.encryptedData = encryptedData;
-            console.log(`🔐 Encrypted sensitive data for member ${userId}`);
           }
         }
 
-        const memberDocRef = doc(
-          db,
-          'households',
-          householdId,
-          'members',
-          userId
+        // Save the updated data to Firebase - real-time listener will update local state
+        await saveEncryptedData({
+          users: updatedUsers,
+          categories: updatedCategories,
+        });
+        console.log(
+          `✅ Updated user ${userId} - real-time sync will update UI`
         );
-        await updateDoc(memberDocRef, memberUpdates);
-
-        console.log(`✅ Updated member ${userId} in Firebase`);
       } catch (error) {
-        console.error(`❌ Failed to update member ${userId}:`, error);
+        console.error(`❌ Failed to update user ${userId}:`, error);
         throw error;
       }
     },
-    [householdId, householdKey, members]
+    [users, categories, saveEncryptedData]
   );
 
   const deleteUser = useCallback(
@@ -518,25 +339,12 @@ export function useManualFirebaseBudgetData(householdId: string) {
       try {
         console.log(`🗑️ Removing member ${userId} from household...`);
 
-        // Delete member document and encryption key first
-        const memberDocRef = doc(
-          db,
-          'households',
-          householdId,
-          'members',
-          userId
-        );
-        await deleteDoc(memberDocRef);
-
-        const keyDocRef = doc(db, 'households', householdId, 'keys', userId);
-        await deleteDoc(keyDocRef);
-
-        // Clean up user data from local state after successful deletion
+        // Calculate all the updated data synchronously
         console.log(`🧹 Cleaning up data for user ${userId}...`);
 
-        setCategories((prev) => {
-          // Only remove shared expenses where this user was paying
-          const cleanedCategories = prev.map((category) => {
+        // Clean up categories (remove personal category and shared expenses paid by user)
+        const updatedCategories = categories
+          .map((category) => {
             if (category.id === 'shared') {
               const originalExpenses = category.expenses.length;
               const filteredExpenses = category.expenses.filter((expense) => {
@@ -563,35 +371,33 @@ export function useManualFirebaseBudgetData(householdId: string) {
               };
             }
             return category;
-          });
+          })
+          .filter((category) => category.id !== `personal-${userId}`);
 
-          // Remove the entire personal category for this user
-          const filtered = cleanedCategories.filter(
-            (category) => category.id !== `personal-${userId}`
-          );
+        // Clean up loans
+        const updatedLoans = loans.filter((loan) => loan.paidBy !== userId);
+        console.log(
+          `🧹 Removed ${loans.length - updatedLoans.length} loans for user ${userId}`
+        );
 
-          console.log(
-            `🧹 Removed personal category and shared expenses paid by user ${userId}`
-          );
-          return filtered;
+        // Remove the user from the users array
+        const updatedUsers = users.filter((user) => user.id !== userId);
+        console.log(
+          `🧹 Removed user ${userId} from users array (${users.length} -> ${updatedUsers.length})`
+        );
+
+        // Save the updated data to Firebase first, then update local state
+        await saveEncryptedData({
+          categories: updatedCategories,
+          loans: updatedLoans,
+          users: updatedUsers,
         });
+        console.log(`✅ Data cleanup saved to Firebase for user ${userId}`);
 
-        // DO NOT remove personalCategories - they are shared labels that should remain available
-
-        setLoans((prev) => {
-          const filtered = prev.filter((loan) => loan.paidBy !== userId);
-          console.log(
-            `🧹 Removed ${prev.length - filtered.length} loans for user ${userId}`
-          );
-          return filtered;
-        });
-
-        // Assets don't have owner fields, so we don't need to filter them
-        // They are shared resources that should remain available
-
-        // Give a moment for state updates to complete and trigger auto-save
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        console.log(`✅ Data cleanup completed for user ${userId}`);
+        // Update local state (real-time listener will also update, but this prevents UI flicker)
+        setCategories(updatedCategories);
+        setLoans(updatedLoans);
+        setUsers(updatedUsers);
 
         console.log(`✅ Removed member ${userId} from household`);
       } catch (error) {
@@ -599,7 +405,7 @@ export function useManualFirebaseBudgetData(householdId: string) {
         throw error;
       }
     },
-    [householdId]
+    [categories, loans, users, saveEncryptedData]
   );
 
   // All the other methods remain the same, but now they trigger encrypted auto-save
@@ -1373,7 +1179,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
     personalCategoriesSectionCollapsed,
     loans,
     assets,
-    householdKey, // Export the household key for invite creation
     updateUser,
     deleteUser,
     addExpense,

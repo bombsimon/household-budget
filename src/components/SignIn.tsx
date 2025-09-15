@@ -58,8 +58,8 @@ export function SignIn() {
               Authentication
             </p>
             <p className="mb-2">
-              <strong>✓ Private:</strong> Only you and invited family members
-              can access your household budget
+              <strong>✓ Private:</strong> Only you and your family members can
+              access your household budget
             </p>
           </div>
         </div>
