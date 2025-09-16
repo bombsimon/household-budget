@@ -463,12 +463,16 @@ function BudgetLine({
     <div
       className={`flex justify-between items-center ${isSubtotal ? 'font-semibold' : ''}`}
     >
-      <span className={`${color} ${isSubtotal ? 'text-base' : 'text-sm'}`}>
+      <span
+        className={`${color} ${isSubtotal ? 'text-base' : 'text-sm'} min-w-0`}
+      >
         {label}
       </span>
-      <div className="flex items-center gap-2">
-        <span className={`${color} ${isSubtotal ? 'text-base' : 'text-sm'}`}>
-          {formatMoney(Math.abs(amount))} kr
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <span
+          className={`${color} ${isSubtotal ? 'text-base' : 'text-sm'} whitespace-nowrap`}
+        >
+          {formatMoney(Math.abs(amount))}&nbsp;kr
         </span>
         {showTrend &&
           (trendUp ? (

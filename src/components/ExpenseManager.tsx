@@ -189,7 +189,8 @@ export function ExpenseManager({
                       <ExpenseList
                         expenses={category.expenses}
                         showSorting={isSharedCategory}
-                        renderExpenseItem={(expense) =>
+                        variant="card"
+                        renderExpenseItem={(expense, _index) =>
                           editingExpense === expense.id ? (
                             <ExpenseForm
                               users={users}
@@ -348,7 +349,8 @@ function GroupedPersonalExpenses({
                 <ExpenseList
                   expenses={categoryInfo.expenses}
                   showSorting={true}
-                  renderExpenseItem={(expense) =>
+                  variant="card"
+                  renderExpenseItem={(expense, _index) =>
                     editingExpense === expense.id ? (
                       <ExpenseForm
                         users={users}

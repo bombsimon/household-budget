@@ -384,7 +384,7 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
 
         {/* Page content */}
         <main className="p-3 sm:p-4 lg:p-6 flex-1 overflow-y-auto">
-          <div className="max-w-full">{renderContent()}</div>
+          <div className="max-w-full pb-6">{renderContent()}</div>
         </main>
       </div>
     </div>

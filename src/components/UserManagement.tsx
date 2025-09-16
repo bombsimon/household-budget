@@ -161,22 +161,24 @@ export function UserManagement({
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-            <UserIcon className="w-5 h-5" />
-            Household Members & Income
-          </h2>
+      <div className="mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+              <UserIcon className="w-5 h-5" />
+              Household Members & Income
+            </h2>
+          </div>
+          {onAddUser && (
+            <button
+              onClick={() => setIsAddingUser(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 w-full sm:w-auto justify-center sm:justify-start"
+            >
+              <UserIcon className="w-4 h-4" />
+              Add User
+            </button>
+          )}
         </div>
-        {onAddUser && (
-          <button
-            onClick={() => setIsAddingUser(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-          >
-            <UserIcon className="w-4 h-4" />
-            Add User
-          </button>
-        )}
       </div>
 
       {/* Household Income Summary */}

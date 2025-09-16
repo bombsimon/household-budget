@@ -316,7 +316,7 @@ function UserBudgetCard({
   ].filter((item) => item.value > 0);
 
   return (
-    <div className="border border-gray-200 rounded-lg p-6 space-y-6">
+    <div className="p-6 space-y-6">
       <div className="flex items-center gap-3 mb-4">
         <div
           className="w-4 h-4 rounded-full"
@@ -492,19 +492,22 @@ function UserBudgetCard({
 
                   {/* Expenses list */}
                   {categoryExpenses.length > 0 && (
-                    <div className="border-t border-gray-100 pt-2">
+                    <div className="border-t border-gray-200 pt-3 mt-3">
                       <ExpenseList
                         expenses={categoryExpenses}
                         showSorting={true}
-                        renderExpenseItem={(expense) => (
-                          <div
-                            className={`text-sm rounded px-2 py-1 border border-gray-300 ${
-                              expense.isBudgeted ? 'bg-orange-50' : 'bg-white'
-                            }`}
-                          >
+                        variant="list"
+                        renderExpenseItem={(expense, _index) => (
+                          <div className="text-sm px-2 py-1">
                             <div className="flex justify-between items-start sm:items-center">
                               <div className="flex items-center gap-2 text-left flex-1">
-                                <span className="font-medium text-gray-700">
+                                <span
+                                  className={`font-medium ${
+                                    expense.isBudgeted
+                                      ? 'text-orange-600'
+                                      : 'text-gray-700'
+                                  }`}
+                                >
                                   {expense.name}
                                 </span>
                               </div>
@@ -527,7 +530,7 @@ function UserBudgetCard({
                   )}
 
                   {categoryExpenses.length === 0 && (
-                    <div className="text-sm text-gray-400 italic border-t border-gray-100 pt-2">
+                    <div className="text-sm text-gray-400 italic pt-2">
                       No expenses in this category.
                     </div>
                   )}

@@ -5,14 +5,16 @@ import { getMonthlyAmount } from '../utils/expenseCalculations';
 
 interface ExpenseListProps {
   expenses: Expense[];
-  renderExpenseItem: (expense: Expense) => React.ReactNode;
+  renderExpenseItem: (expense: Expense, index: number) => React.ReactNode;
   showSorting?: boolean;
+  variant?: 'list' | 'card';
 }
 
 export function ExpenseList({
   expenses,
   renderExpenseItem,
   showSorting = true,
+  variant = 'list',
 }: ExpenseListProps) {
   const [sortBy, setSortBy] = useState<'name' | 'amount' | 'type'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -132,9 +134,20 @@ export function ExpenseList({
       )}
 
       {/* Expense List */}
-      <div className="space-y-2">
-        {sortedExpenses.map((expense) => (
-          <div key={expense.id}>{renderExpenseItem(expense)}</div>
+      <div className={variant === 'card' ? 'space-y-1' : ''}>
+        {sortedExpenses.map((expense, index) => (
+          <div
+            key={expense.id}
+            className={
+              variant === 'card'
+                ? 'rounded bg-white'
+                : index % 2 === 0
+                  ? 'bg-white'
+                  : 'bg-gray-50'
+            }
+          >
+            {renderExpenseItem(expense, index)}
+          </div>
         ))}
       </div>
     </div>
