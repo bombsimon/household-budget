@@ -1,5 +1,3 @@
-import { getAuth } from 'firebase/auth';
-
 export interface HouseholdData {
   encryptedData: string;
   iv: string;
@@ -24,8 +22,7 @@ class EncryptionService {
    */
   async encryptHouseholdData(
     data: any,
-    password: string,
-    members: string[]
+    password: string
   ): Promise<HouseholdData> {
     // Generate a random salt for this household
     const salt = crypto.getRandomValues(new Uint8Array(32));
@@ -53,7 +50,7 @@ class EncryptionService {
       salt: Array.from(salt, (b) => b.toString(16).padStart(2, '0')).join(''),
       algorithm: this.ALGORITHM,
       keyVersion: 1,
-      members,
+      members: [], // Empty array - not used in password-only system
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };

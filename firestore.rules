@@ -1,33 +1,10 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function signedIn() {
-      return request.auth != null;
-    }
-
-    function isHouseholdOwner(householdId) {
-      return exists(/databases/$(database)/documents/householdMetadata/$(householdId)) &&
-             get(/databases/$(database)/documents/householdMetadata/$(householdId)).data.ownerUid == request.auth.uid;
-    }
-
-
-    // Household metadata - safe existence checking without exposing sensitive data
-    // Only contains: ownerUid, name, createdAt - no budget data
-    match /householdMetadata/{householdId} {
-      allow read: if signedIn(); // Anyone can check if household exists
-      allow create: if signedIn() &&
-                    request.resource.data.ownerUid == request.auth.uid &&
-                    request.resource.data.keys().hasAll(['ownerUid', 'name']) &&
-                    'createdAt' in request.resource.data;
-      allow update: if isHouseholdOwner(householdId);
-      allow delete: if isHouseholdOwner(householdId);
-    }
-
-    // Main household budget data - encrypted, accessible to signed-in users for joining
-    // Security is provided by client-side encryption - data is useless without password
+    // All household data is client-side encrypted with password
+    // Security is provided by encryption, not Firebase rules
     match /households/{householdId} {
-      allow read, write: if signedIn();
+      allow read, write: if true;
     }
   }
 }

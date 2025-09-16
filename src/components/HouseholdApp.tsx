@@ -12,7 +12,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import { useManualFirebaseBudgetData } from '../hooks/useManualFirebaseBudgetData';
-import { useAuth } from '../contexts/AuthContext';
+import { encryptionService } from '../services/encryptionService';
 import { Dashboard } from './Dashboard';
 import { UserManagement } from './UserManagement';
 import { ExpenseManager } from './ExpenseManager';
@@ -38,7 +38,12 @@ interface HouseholdAppProps {
 export function HouseholdApp({ householdId }: HouseholdAppProps) {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, signOut } = useAuth();
+
+  const handleLeaveHousehold = () => {
+    // Clear the password and redirect to home
+    encryptionService.clearHouseholdPassword(householdId);
+    window.location.href = '/';
+  };
 
   const {
     users,
@@ -47,7 +52,7 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
     personalCategoriesSectionCollapsed,
     loans,
     assets,
-    householdKey,
+    addUser,
     updateUser,
     deleteUser,
     addExpense,
@@ -130,6 +135,7 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
           <div className="space-y-6">
             <UserManagement
               users={users}
+              onAddUser={addUser}
               onUpdateUser={updateUser}
               onDeleteUser={deleteUser}
             />
@@ -342,26 +348,18 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
               </div>
             </div>
 
-            {/* User info and sign out */}
+            {/* Household info and leave option */}
             <div className="text-xs text-gray-600 space-y-2">
               <div className="flex items-center gap-2">
-                {user?.photoURL && (
-                  <img
-                    src={user.photoURL}
-                    alt="Profile"
-                    className="w-6 h-6 rounded-full"
-                  />
-                )}
-                <span className="truncate">
-                  {user?.displayName || user?.email}
-                </span>
+                <Home className="w-4 h-4" />
+                <span className="truncate font-medium">{householdId}</span>
               </div>
               <button
-                onClick={signOut}
+                onClick={handleLeaveHousehold}
                 className="flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors"
               >
                 <LogOut className="w-4 h-4" />
-                Sign Out
+                Leave Household
               </button>
             </div>
           </div>

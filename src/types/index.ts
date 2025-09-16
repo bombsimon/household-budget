@@ -31,7 +31,7 @@ export interface Expense {
   categoryId?: string;
   userId?: string;
   isShared: boolean;
-  splitType: 'percentage' | 'equal' | 'fixed';
+  splitType: 'percentage' | 'equal';
   splitData?: { [userId: string]: number };
   paidBy?: string;
   isVariable?: boolean;

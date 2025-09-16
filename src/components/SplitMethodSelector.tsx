@@ -1,16 +1,14 @@
-type SplitType = 'equal' | 'percentage' | 'fixed';
+type SplitType = 'equal' | 'percentage';
 
 interface SplitMethodSelectorProps {
   value: SplitType;
   onChange: (value: SplitType) => void;
-  showFixed?: boolean;
   name?: string;
 }
 
 export function SplitMethodSelector({
   value,
   onChange,
-  showFixed = true,
   name = 'splitMethod',
 }: SplitMethodSelectorProps) {
   const options = [
@@ -25,14 +23,6 @@ export function SplitMethodSelector({
       description: 'Split proportionally by income',
     },
   ];
-
-  if (showFixed) {
-    options.push({
-      key: 'fixed' as any,
-      label: 'Fixed Amount',
-      description: 'Paid by one person only',
-    });
-  }
 
   return (
     <div>

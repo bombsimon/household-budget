@@ -46,9 +46,7 @@ export function ExpenseForm({
     initialData?.isShared ??
       (isAssetExpense ? users.length > 1 : isSharedCategory)
   );
-  const [splitType, setSplitType] = useState(
-    initialData?.splitType || (isSharedCategory ? 'equal' : 'fixed')
-  );
+  const [splitType, setSplitType] = useState(initialData?.splitType || 'equal');
   const [paidBy, setPaidBy] = useState(
     initialData?.paidBy || personalUserId || users[0]?.id || ''
   );
@@ -249,7 +247,6 @@ export function ExpenseForm({
                 setSplitData(incomeBasedSplit);
               }
             }}
-            showFixed={false}
           />
 
           {splitType === 'percentage' && (

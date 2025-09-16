@@ -1,24 +1,8 @@
 import { Routes, Route, useParams, Navigate } from 'react-router-dom';
 import { HouseholdAuth } from './HouseholdAuth';
 import { LandingPage } from './LandingPage';
-import { SignIn } from './SignIn';
-import { useAuth } from '../contexts/AuthContext';
 
 export function AppRouter() {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="h-screen bg-white flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <SignIn />;
-  }
-
   return (
     <Routes>
       {/* Landing page */}

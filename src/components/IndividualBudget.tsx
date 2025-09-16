@@ -135,7 +135,7 @@ export function IndividualBudget({
             if (!loan.isInterestShared) return total;
 
             const interestAmount =
-              (loan.currentAmount * loan.interestRate) / 100 / 12;
+              (loan.currentAmount * loan.interestRate) / 12;
 
             if (loan.interestSplitType === 'equal') {
               return total + interestAmount / users.length;
@@ -153,7 +153,7 @@ export function IndividualBudget({
 
             const mortgageAmount =
               loan.monthlyPayment -
-              (loan.currentAmount * loan.interestRate) / 100 / 12;
+              (loan.currentAmount * loan.interestRate) / 12;
 
             if (loan.mortgageSplitType === 'equal') {
               return total + mortgageAmount / users.length;

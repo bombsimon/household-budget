@@ -1,25 +1,25 @@
 import { useState, useEffect } from 'react';
-import {
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  arrayUnion,
-  serverTimestamp,
-} from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { useAuth } from '../contexts/AuthContext';
 import { HouseholdApp } from './HouseholdApp';
 import { encryptionService } from '../services/encryptionService';
-import { getDefaultMunicipalTaxRate } from '../utils/swedishTaxCalculation';
 import type { HouseholdData } from '../services/encryptionService';
 
 interface HouseholdAuthProps {
   householdId: string;
 }
 
+// Generate a simple user ID for this browser session
+const getCurrentUserId = (): string => {
+  let userId = localStorage.getItem('household_user_id');
+  if (!userId) {
+    userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem('household_user_id', userId);
+  }
+  return userId;
+};
+
 export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
-  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +38,7 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
   };
 
   const handleCreateHousehold = async () => {
-    if (!user || !password.trim()) return;
+    if (!password.trim()) return;
 
     setCreatingHousehold(true);
     setError(null);
@@ -47,17 +47,10 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
       console.log(`🏠 Creating new household: ${householdId}`);
 
       const normalizedSlug = normalizeSlug(householdId);
+      getCurrentUserId();
 
-      // 1. Create household metadata (required for security rules)
-      console.log('📋 Creating household metadata...');
-      const metadataDocRef = doc(db, 'householdMetadata', normalizedSlug);
-      await setDoc(metadataDocRef, {
-        ownerUid: user.uid,
-        name: normalizedSlug,
-        createdAt: serverTimestamp(),
-      });
-
-      // 2. Create initial household data
+      // Create initial household data with empty users array
+      // Users can be added manually in the Users page
       const initialData = {
         categories: [
           {
@@ -66,52 +59,35 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
             collapsed: false,
             expenses: [],
           },
-          {
-            id: `personal-${user.uid}`,
-            name: `Personal - ${user.displayName || user.email?.split('@')[0] || 'User'}`,
-            collapsed: false,
-            expenses: [],
-          },
         ],
         personalCategories: [],
         personalCategoriesSectionCollapsed: false,
         loans: [],
         assets: [],
-        users: [
-          {
-            id: user.uid,
-            name: user.displayName || user.email?.split('@')[0] || 'User',
-            email: user.email || '',
-            photoURL: user.photoURL || '',
-            color: '#10B981', // Owner always gets green
-            monthlyIncome: 0,
-            municipalTaxRate: getDefaultMunicipalTaxRate(),
-          },
-        ],
+        users: [], // Start with empty users - add manually in Users page
         version: '1.0.0',
         lastUpdated: new Date().toISOString(),
       };
 
-      // 3. Encrypt and store household data
+      // Encrypt and store household data
       console.log('🔒 Encrypting household data...');
       const encryptedHouseholdData =
         await encryptionService.encryptHouseholdData(
           initialData,
-          password.trim(),
-          [user.uid]
+          password.trim()
         );
 
       const householdDocRef = doc(db, 'households', normalizedSlug);
       await setDoc(householdDocRef, encryptedHouseholdData);
 
-      // 4. Store password in memory
+      // Store password in memory
       encryptionService.setHouseholdPassword(normalizedSlug, password.trim());
 
       console.log(
         `✅ Successfully created encrypted household ${normalizedSlug}`
       );
       setAuthorized(true);
-      setPassword(''); // Clear password input
+      setPassword('');
     } catch (err) {
       console.error('Error creating household:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -123,13 +99,13 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
   };
 
   const handleJoinHousehold = async () => {
-    if (!user || !password.trim()) return;
+    if (!password.trim()) return;
 
     setJoiningHousehold(true);
     setError(null);
 
     try {
-      console.log(`🎫 Joining household: ${householdId}`);
+      console.log(`🎫 Accessing household: ${householdId}`);
 
       // Get household data
       const householdDocRef = doc(db, 'households', householdId);
@@ -155,96 +131,16 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
         return;
       }
 
-      // Decrypt household data to add user if not already a member
-      const decryptedData = await encryptionService.decryptHouseholdData(
-        householdData,
-        password.trim()
-      );
-
-      // Check if user is already in the users array
-      const existingUser = decryptedData.users?.find(
-        (u: any) => u.id === user.uid
-      );
-      let needsUpdate = false;
-
-      if (!existingUser) {
-        // Add new user to the household
-        const colors = [
-          '#EF4444',
-          '#F59E0B',
-          '#10B981',
-          '#3B82F6',
-          '#8B5CF6',
-          '#EC4899',
-        ];
-        const usedColors = decryptedData.users?.map((u: any) => u.color) || [];
-        const availableColors = colors.filter(
-          (color) => !usedColors.includes(color)
-        );
-        const newUserColor = availableColors[0] || colors[0];
-
-        const newUser = {
-          id: user.uid,
-          name: user.displayName || user.email?.split('@')[0] || 'User',
-          email: user.email || '',
-          photoURL: user.photoURL || '',
-          color: newUserColor,
-          monthlyIncome: 0,
-          municipalTaxRate: getDefaultMunicipalTaxRate(),
-        };
-
-        decryptedData.users = [...(decryptedData.users || []), newUser];
-
-        // Add personal expense category for the new user
-        const personalCategoryName = `Personal - ${newUser.name}`;
-        const personalCategory = {
-          id: `personal-${user.uid}`,
-          name: personalCategoryName,
-          collapsed: false,
-          expenses: [],
-        };
-
-        decryptedData.categories = [
-          ...(decryptedData.categories || []),
-          personalCategory,
-        ];
-
-        needsUpdate = true;
-        console.log(`👤 Added new user to household: ${newUser.name}`);
-        console.log(
-          `📝 Created personal expense category: ${personalCategoryName}`
-        );
-      }
-
-      // Add user to members array if not already there
-      if (!householdData.members.includes(user.uid)) {
-        decryptedData.members = [...(householdData.members || []), user.uid];
-        needsUpdate = true;
-      }
-
-      // Save updated data if changes were made
-      if (needsUpdate) {
-        const updatedEncryptedData =
-          await encryptionService.encryptHouseholdData(
-            decryptedData,
-            password.trim(),
-            decryptedData.members || householdData.members
-          );
-
-        await setDoc(householdDocRef, updatedEncryptedData, { merge: true });
-        console.log(`💾 Updated household data with new member`);
-      }
-
       // Store password in memory
       encryptionService.setHouseholdPassword(householdId, password.trim());
 
-      console.log(`✅ Successfully joined household ${householdId}`);
+      console.log(`✅ Successfully accessed household ${householdId}`);
       setAuthorized(true);
-      setPassword(''); // Clear password input
+      setPassword('');
     } catch (error) {
-      console.error('Error joining household:', error);
+      console.error('Error accessing household:', error);
       setError(
-        `Failed to join household: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `Failed to access household: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
     } finally {
       setJoiningHousehold(false);
@@ -253,16 +149,14 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
 
   useEffect(() => {
     const checkAuthorization = async () => {
-      if (!user) return;
-
       try {
         console.log(`🔐 Checking authorization for household: ${householdId}`);
 
-        // Check if the household exists using metadata
-        const metadataDocRef = doc(db, 'householdMetadata', householdId);
-        const metadataSnap = await getDoc(metadataDocRef);
+        // Check if the household exists
+        const householdDocRef = doc(db, 'households', householdId);
+        const householdSnap = await getDoc(householdDocRef);
 
-        if (!metadataSnap.exists()) {
+        if (!householdSnap.exists()) {
           console.log(`🏠 Household ${householdId} does not exist`);
           setHouseholdExists(false);
           setAuthorized(false);
@@ -272,38 +166,41 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
         }
 
         setHouseholdExists(true);
-
-        // Check if user is a member by checking household data
-        const householdDocRef = doc(db, 'households', householdId);
-        const householdSnap = await getDoc(householdDocRef);
-
-        if (!householdSnap.exists()) {
-          setError('Household data not found');
-          setLoading(false);
-          return;
-        }
-
         const householdData = householdSnap.data() as HouseholdData;
+        const userId = getCurrentUserId();
 
         // Check if we have the password in memory
         if (encryptionService.hasHouseholdPassword(householdId)) {
           console.log(
-            `✅ User ${user.uid} has password for household ${householdId}`
+            `✅ User ${userId} has password for household ${householdId}`
           );
-          setAuthorized(true);
+
+          // Verify user still exists in household data
+          try {
+            await encryptionService.decryptHouseholdData(
+              householdData,
+              encryptionService.getHouseholdPassword(householdId)!
+            );
+
+            // Just check if password works - no need to verify user exists
+            setAuthorized(true);
+          } catch (decryptError) {
+            console.error(
+              'Failed to decrypt with stored password:',
+              decryptError
+            );
+            encryptionService.clearHouseholdPassword(householdId);
+            setShowPasswordPrompt(true);
+            setAuthorized(false);
+            setError('Please re-enter the household password.');
+          }
         } else {
           // Need password to access household
           console.log(`🔑 Password needed for ${householdId}`);
           setShowPasswordPrompt(true);
           setAuthorized(false);
 
-          if (householdData.members.includes(user.uid)) {
-            setError('Enter the household password to access your data.');
-          } else {
-            setError(
-              'You are not a member of this household. Enter the household password to join.'
-            );
-          }
+          setError('Enter the household password to access this household.');
         }
       } catch (err) {
         console.error('Error checking authorization:', err);
@@ -314,7 +211,7 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
     };
 
     checkAuthorization();
-  }, [householdId, user]);
+  }, [householdId]);
 
   if (loading) {
     return (
@@ -518,6 +415,10 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
             <p className="mb-2">
               <strong>🏠 Simple Sharing:</strong> Share household ID + password
               with family members.
+            </p>
+            <p className="mb-2">
+              <strong>👥 Manual Users:</strong> Add household members in the
+              Users page after accessing.
             </p>
             <p>
               <strong>🔐 Secure:</strong> Even we cannot read your data without

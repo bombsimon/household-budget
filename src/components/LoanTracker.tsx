@@ -663,7 +663,6 @@ function LoanForm({ users, initialData, onSubmit, onCancel }: LoanFormProps) {
                     onChange={(value) =>
                       setInterestSplitType(value as 'percentage' | 'equal')
                     }
-                    showFixed={false}
                     name="interestSplitMethod"
                   />
                 )}
@@ -726,7 +725,6 @@ function LoanForm({ users, initialData, onSubmit, onCancel }: LoanFormProps) {
                     onChange={(value) =>
                       setMortgageSplitType(value as 'percentage' | 'equal')
                     }
-                    showFixed={false}
                     name="mortgageSplitMethod"
                   />
                 )}

@@ -1,5 +1,60 @@
 import React, { useState } from 'react';
-import { Edit2, User as UserIcon, DollarSign, Trash2 } from 'lucide-react';
+import {
+  Edit2,
+  User as UserIcon,
+  DollarSign,
+  Trash2,
+  Palette,
+} from 'lucide-react';
+
+const USER_COLORS = [
+  '#EF4444',
+  '#F59E0B',
+  '#10B981',
+  '#3B82F6',
+  '#8B5CF6',
+  '#EC4899',
+];
+
+// Color picker component
+function ColorPicker({
+  selectedColor,
+  onColorChange,
+  usedColors = [],
+}: {
+  selectedColor: string;
+  onColorChange: (color: string) => void;
+  usedColors?: string[];
+}) {
+  return (
+    <div className="flex gap-2 flex-wrap">
+      {USER_COLORS.map((color) => {
+        const isUsed = usedColors.includes(color);
+        const isSelected = selectedColor === color;
+        return (
+          <button
+            key={color}
+            type="button"
+            onClick={() => onColorChange(color)}
+            className={`w-8 h-8 rounded-full border-2 transition-all ${
+              isSelected
+                ? 'border-gray-900 scale-110'
+                : 'border-gray-300 hover:border-gray-400'
+            } ${isUsed && !isSelected ? 'opacity-50' : ''}`}
+            style={{ backgroundColor: color }}
+            title={isUsed ? 'Color already in use' : `Select ${color}`}
+          >
+            {isSelected && (
+              <div className="w-full h-full rounded-full flex items-center justify-center">
+                <div className="w-2 h-2 bg-white rounded-full" />
+              </div>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 import {
   PieChart,
   Pie,
@@ -18,29 +73,40 @@ import {
 
 interface UserManagementProps {
   users: User[];
+  onAddUser?: (userData: Omit<User, 'id'>) => Promise<void>;
   onUpdateUser: (userId: string, updates: Partial<User>) => void;
   onDeleteUser?: (userId: string) => Promise<void>;
 }
 
 export function UserManagement({
   users,
+  onAddUser,
   onUpdateUser,
   onDeleteUser,
 }: UserManagementProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isAddingUser, setIsAddingUser] = useState(false);
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserIncome, setNewUserIncome] = useState('');
+  const [newUserTaxRate, setNewUserTaxRate] = useState(
+    formatTaxRate(getDefaultMunicipalTaxRate())
+  );
+  const [newUserColor, setNewUserColor] = useState(USER_COLORS[0]);
 
   const handleUpdateUser = (
     userId: string,
     name: string,
     income: string,
-    taxRate: string
+    taxRate: string,
+    color: string
   ) => {
     if (name.trim() && income.trim()) {
       onUpdateUser(userId, {
         name: name.trim(),
         monthlyIncome: parseFloat(income),
         municipalTaxRate: parseFloat(taxRate) / 100,
+        color: color,
       });
       setEditingId(null);
     }
@@ -68,6 +134,31 @@ export function UserManagement({
     }
   };
 
+  const handleAddUser = async () => {
+    if (!onAddUser || !newUserName.trim() || !newUserIncome.trim()) return;
+
+    try {
+      await onAddUser({
+        name: newUserName.trim(),
+        email: '',
+        photoURL: '',
+        color: newUserColor,
+        monthlyIncome: parseFloat(newUserIncome),
+        municipalTaxRate: parseFloat(newUserTaxRate) / 100,
+      });
+
+      // Reset form
+      setNewUserName('');
+      setNewUserIncome('');
+      setNewUserTaxRate(formatTaxRate(getDefaultMunicipalTaxRate()));
+      setNewUserColor(USER_COLORS[0]);
+      setIsAddingUser(false);
+    } catch (error) {
+      console.error('Failed to add user:', error);
+      alert('Failed to add user. Please try again.');
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
       <div className="flex items-center justify-between mb-6">
@@ -77,6 +168,15 @@ export function UserManagement({
             Household Members & Income
           </h2>
         </div>
+        {onAddUser && (
+          <button
+            onClick={() => setIsAddingUser(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+          >
+            <UserIcon className="w-4 h-4" />
+            Add User
+          </button>
+        )}
       </div>
 
       {/* Household Income Summary */}
@@ -211,6 +311,89 @@ export function UserManagement({
           );
         })()}
 
+      {/* Add User Form */}
+      {isAddingUser && (
+        <div className="mb-6 p-4 border border-blue-200 bg-blue-50 rounded-lg">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">
+            Add New User
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Name
+              </label>
+              <input
+                type="text"
+                value={newUserName}
+                onChange={(e) => setNewUserName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter name"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Monthly Income (kr)
+              </label>
+              <input
+                type="number"
+                value={newUserIncome}
+                onChange={(e) => setNewUserIncome(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tax Rate (%)
+              </label>
+              <input
+                type="text"
+                value={newUserTaxRate}
+                onChange={(e) => setNewUserTaxRate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="32.0"
+              />
+            </div>
+          </div>
+
+          {/* Color picker */}
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <Palette className="w-4 h-4 inline mr-1" />
+              Choose Color
+            </label>
+            <ColorPicker
+              selectedColor={newUserColor}
+              onColorChange={setNewUserColor}
+              usedColors={users.map((u) => u.color)}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 mt-4">
+            <button
+              onClick={() => {
+                setIsAddingUser(false);
+                setNewUserName('');
+                setNewUserIncome('');
+                setNewUserTaxRate(formatTaxRate(getDefaultMunicipalTaxRate()));
+                setNewUserColor(USER_COLORS[0]);
+              }}
+              className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleAddUser}
+              disabled={!newUserName.trim() || !newUserIncome.trim()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              Add User
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
         {users.map((user) => (
           <div key={user.id} className="p-4 border border-gray-200 rounded-lg">
@@ -310,7 +493,8 @@ interface EditUserFormProps {
     userId: string,
     name: string,
     income: string,
-    taxRate: string
+    taxRate: string,
+    color: string
   ) => void;
   onCancel: () => void;
 }
@@ -321,10 +505,11 @@ function EditUserForm({ user, onSave, onCancel }: EditUserFormProps) {
   const [taxRate, setTaxRate] = useState(
     ((user.municipalTaxRate || getDefaultMunicipalTaxRate()) * 100).toString()
   );
+  const [color, setColor] = useState(user.color);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(user.id, name, income, taxRate);
+    onSave(user.id, name, income, taxRate, color);
   };
 
   return (
@@ -366,6 +551,16 @@ function EditUserForm({ user, onSave, onCancel }: EditUserFormProps) {
           />
         </div>
       </div>
+
+      {/* Color picker for editing */}
+      <div className="mt-4">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          <Palette className="w-4 h-4 inline mr-1" />
+          Choose Color
+        </label>
+        <ColorPicker selectedColor={color} onColorChange={setColor} />
+      </div>
+
       <div className="flex gap-2 mt-4">
         <button
           type="submit"
