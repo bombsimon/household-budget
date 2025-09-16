@@ -76,10 +76,8 @@ export function useManualFirebaseBudgetData(householdId: string) {
     // Check if we have the password in memory
     if (encryptionService.hasHouseholdPassword(householdId)) {
       setEncryptionReady(true);
-      console.log(`✅ Password available for household ${householdId}`);
     } else {
       setEncryptionReady(false);
-      console.log(`❌ No password available for household ${householdId}`);
       setError('Household password required');
     }
   }, [householdId]);
@@ -96,9 +94,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
       return;
     }
 
-    console.log(
-      `🔗 Setting up real-time encrypted listener for: ${householdId}`
-    );
     const householdDocRef = doc(db, 'households', householdId);
 
     const unsubscribe = onSnapshot(
@@ -109,21 +104,11 @@ export function useManualFirebaseBudgetData(householdId: string) {
 
           if (docSnap.exists()) {
             const householdData = docSnap.data() as HouseholdData;
-            console.log(`📥 Received encrypted data update from Firebase`);
 
             // Decrypt the data using password
             const decryptedState = await encryptionService.decryptHouseholdData(
               householdData,
               password
-            );
-
-            console.log(`🔓 Decrypted real-time data update`);
-            console.log(
-              `👥 Users in decrypted data:`,
-              decryptedState.users?.map((u: User) => ({
-                id: u.id,
-                name: u.name,
-              }))
             );
 
             // In password-only system, we don't need to verify user exists in users array
@@ -139,10 +124,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
             setAssets(decryptedState.assets || []);
             setUsers(decryptedState.users || []);
           } else {
-            console.log(
-              `🆕 No encrypted data found for household ${householdId}, using initial state`
-            );
-
             // No data exists yet - use initial state
             const defaultState = getInitialState();
             setCategories(defaultState.categories);
@@ -172,7 +153,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
     );
 
     return () => {
-      console.log(`🔌 Disconnecting real-time listener for: ${householdId}`);
       unsubscribe();
     };
   }, [householdId, encryptionReady]);
@@ -189,8 +169,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
         throw new Error('No password available for household');
       }
 
-      console.log(`💾 Saving encrypted data to Firebase...`);
-
       try {
         const budgetData = {
           categories,
@@ -203,11 +181,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
           ...dataToSave, // Override with any specific data to save
         };
 
-        console.log(
-          `💾 Saving with users:`,
-          budgetData.users?.map((u) => ({ id: u.id, name: u.name }))
-        );
-
         // Encrypt the entire household data
         const encryptedHouseholdData =
           await encryptionService.encryptHouseholdData(budgetData, password);
@@ -215,7 +188,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
         // Save to Firebase
         const householdDocRef = doc(db, 'households', householdId);
         await setDoc(householdDocRef, encryptedHouseholdData, { merge: true });
-        console.log(`✅ Successfully saved encrypted data to Firebase`);
       } catch (error) {
         console.error('❌ Error saving encrypted data:', error);
         throw error;
@@ -237,8 +209,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
   const updateUser = useCallback(
     async (userId: string, updates: Partial<User>) => {
       try {
-        console.log(`🔄 Updating user ${userId}...`);
-
         // Update the local users state
         const updatedUsers = users.map((user) =>
           user.id === userId ? { ...user, ...updates } : user
@@ -258,9 +228,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
               }
               return category;
             });
-            console.log(
-              `📝 Updated personal category name to: Personal - ${updatedUser.name}`
-            );
           }
         }
 
@@ -269,9 +236,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
           users: updatedUsers,
           categories: updatedCategories,
         });
-        console.log(
-          `✅ Updated user ${userId} - real-time sync will update UI`
-        );
       } catch (error) {
         console.error(`❌ Failed to update user ${userId}:`, error);
         throw error;
@@ -283,33 +247,19 @@ export function useManualFirebaseBudgetData(householdId: string) {
   const deleteUser = useCallback(
     async (userId: string) => {
       try {
-        console.log(`🗑️ Removing member ${userId} from household...`);
-
         // Calculate all the updated data synchronously
-        console.log(`🧹 Cleaning up data for user ${userId}...`);
 
         // Clean up categories (remove personal category and shared expenses paid by user)
         const updatedCategories = categories
           .map((category) => {
             if (category.id === 'shared') {
-              const originalExpenses = category.expenses.length;
               const filteredExpenses = category.expenses.filter((expense) => {
                 const shouldRemove = expense.paidBy === userId;
                 if (shouldRemove) {
-                  console.log(
-                    `🗑️ Removing shared expense "${expense.name}" (paidBy: ${expense.paidBy})`
-                  );
                 } else {
-                  console.log(
-                    `✅ Keeping shared expense "${expense.name}" (paidBy: ${expense.paidBy})`
-                  );
                 }
                 return !shouldRemove;
               });
-
-              console.log(
-                `📊 Shared expenses: ${originalExpenses} -> ${filteredExpenses.length}`
-              );
 
               return {
                 ...category,
@@ -322,15 +272,9 @@ export function useManualFirebaseBudgetData(householdId: string) {
 
         // Clean up loans
         const updatedLoans = loans.filter((loan) => loan.paidBy !== userId);
-        console.log(
-          `🧹 Removed ${loans.length - updatedLoans.length} loans for user ${userId}`
-        );
 
         // Remove the user from the users array
         const updatedUsers = users.filter((user) => user.id !== userId);
-        console.log(
-          `🧹 Removed user ${userId} from users array (${users.length} -> ${updatedUsers.length})`
-        );
 
         // Save the updated data to Firebase first, then update local state
         await saveEncryptedData({
@@ -338,14 +282,11 @@ export function useManualFirebaseBudgetData(householdId: string) {
           loans: updatedLoans,
           users: updatedUsers,
         });
-        console.log(`✅ Data cleanup saved to Firebase for user ${userId}`);
 
         // Update local state (real-time listener will also update, but this prevents UI flicker)
         setCategories(updatedCategories);
         setLoans(updatedLoans);
         setUsers(updatedUsers);
-
-        console.log(`✅ Removed member ${userId} from household`);
       } catch (error) {
         console.error(`❌ Failed to remove member ${userId}:`, error);
         throw error;
@@ -385,8 +326,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
           users: updatedUsers,
           categories: updatedCategories,
         });
-
-        console.log(`✅ Added user ${newUser.name} to household`);
       } catch (error) {
         console.error(`❌ Failed to add user:`, error);
         throw error;

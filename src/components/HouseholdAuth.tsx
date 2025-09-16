@@ -44,8 +44,6 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
     setError(null);
 
     try {
-      console.log(`🏠 Creating new household: ${householdId}`);
-
       const normalizedSlug = normalizeSlug(householdId);
       getCurrentUserId();
 
@@ -70,7 +68,6 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
       };
 
       // Encrypt and store household data
-      console.log('🔒 Encrypting household data...');
       const encryptedHouseholdData =
         await encryptionService.encryptHouseholdData(
           initialData,
@@ -83,9 +80,6 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
       // Store password in memory
       encryptionService.setHouseholdPassword(normalizedSlug, password.trim());
 
-      console.log(
-        `✅ Successfully created encrypted household ${normalizedSlug}`
-      );
       setAuthorized(true);
       setPassword('');
     } catch (err) {
@@ -105,8 +99,6 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
     setError(null);
 
     try {
-      console.log(`🎫 Accessing household: ${householdId}`);
-
       // Get household data
       const householdDocRef = doc(db, 'households', householdId);
       const householdSnap = await getDoc(householdDocRef);
@@ -134,7 +126,6 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
       // Store password in memory
       encryptionService.setHouseholdPassword(householdId, password.trim());
 
-      console.log(`✅ Successfully accessed household ${householdId}`);
       setAuthorized(true);
       setPassword('');
     } catch (error) {
@@ -150,14 +141,11 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
   useEffect(() => {
     const checkAuthorization = async () => {
       try {
-        console.log(`🔐 Checking authorization for household: ${householdId}`);
-
         // Check if the household exists
         const householdDocRef = doc(db, 'households', householdId);
         const householdSnap = await getDoc(householdDocRef);
 
         if (!householdSnap.exists()) {
-          console.log(`🏠 Household ${householdId} does not exist`);
           setHouseholdExists(false);
           setAuthorized(false);
           setError(null);
@@ -167,14 +155,10 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
 
         setHouseholdExists(true);
         const householdData = householdSnap.data() as HouseholdData;
-        const userId = getCurrentUserId();
+        getCurrentUserId();
 
         // Check if we have the password in memory
         if (encryptionService.hasHouseholdPassword(householdId)) {
-          console.log(
-            `✅ User ${userId} has password for household ${householdId}`
-          );
-
           // Verify user still exists in household data
           try {
             await encryptionService.decryptHouseholdData(
@@ -196,7 +180,6 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
           }
         } else {
           // Need password to access household
-          console.log(`🔑 Password needed for ${householdId}`);
           setShowPasswordPrompt(true);
           setAuthorized(false);
 
