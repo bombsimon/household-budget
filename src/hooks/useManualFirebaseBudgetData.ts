@@ -29,7 +29,7 @@ import type {
   PersonalExpenseBreakdown,
   AppState,
 } from '../types';
-import { calculateMonthlyAfterTaxIncome } from '../utils/swedishTaxCalculation';
+import { calculateAfterTaxIncomeWithTablesSync } from '../services/taxService';
 import { getMonthlyAmount } from '../utils/expenseCalculations';
 
 const getInitialState = (): AppState => {
@@ -933,15 +933,16 @@ export function useManualFirebaseBudgetData(householdId: string) {
       return sum + monthlyInterest + loan.monthlyPayment;
     }, 0);
 
-    const afterTaxIncome = users.reduce(
-      (sum, user) =>
-        sum +
-        calculateMonthlyAfterTaxIncome(
+    const afterTaxIncome = users.reduce((sum, user) => {
+      if (user.municipalityCode) {
+        const result = calculateAfterTaxIncomeWithTablesSync(
           user.monthlyIncome * 12,
-          user.municipalTaxRate
-        ),
-      0
-    );
+          user.municipalityCode
+        );
+        return sum + result.monthlyAfterTax;
+      }
+      return sum;
+    }, 0);
     // Calculate total household expenses (shared expenses + asset costs + loan costs)
     const totalHouseholdExpenses =
       totalSharedExpenses + totalAssetExpenses + totalLoanCosts;
@@ -969,10 +970,12 @@ export function useManualFirebaseBudgetData(householdId: string) {
 
   const calculateUserBreakdowns = useCallback((): UserBudgetBreakdown[] => {
     return users.map((user) => {
-      const income = calculateMonthlyAfterTaxIncome(
-        user.monthlyIncome * 12,
-        user.municipalTaxRate
-      );
+      const income = user.municipalityCode
+        ? calculateAfterTaxIncomeWithTablesSync(
+            user.monthlyIncome * 12,
+            user.municipalityCode
+          ).monthlyAfterTax
+        : 0;
 
       const sharedExpenses = categories
         .flatMap((cat) => cat.expenses)

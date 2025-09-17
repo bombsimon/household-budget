@@ -26,10 +26,6 @@ const migrateAssetData = (asset: Asset): Asset => {
     expenses: asset.expenses || [],
   };
 };
-import {
-  formatTaxRate,
-  getDefaultMunicipalTaxRate,
-} from '../utils/swedishTaxCalculation';
 import type {
   User,
   UserBudgetBreakdown,
@@ -296,7 +292,7 @@ export function BudgetBreakdownSummary({
       />
 
       <BudgetLine
-        label={`After Tax (${formatTaxRate(user.municipalTaxRate || getDefaultMunicipalTaxRate())} municipal)`}
+        label="After Tax"
         amount={breakdown.income}
         isSubtotal={true}
         color="text-blue-600"

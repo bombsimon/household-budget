@@ -3,7 +3,8 @@ export interface User {
   name: string;
   monthlyIncome: number;
   color: string;
-  municipalTaxRate?: number; // Combined municipal + county tax rate (default: 32%)
+  municipalityCode: string; // Swedish municipality code for tax calculation
+  municipalityName: string; // Swedish municipality name for display
   // Firebase integration fields
   firebaseUid?: string;
   email?: string;

@@ -65,11 +65,9 @@ import {
 } from 'recharts';
 import type { User } from '../types';
 import { formatMoney } from '../utils/expenseCalculations';
-import {
-  calculateMonthlyAfterTaxIncome,
-  getDefaultMunicipalTaxRate,
-  formatTaxRate,
-} from '../utils/swedishTaxCalculation';
+import { calculateAfterTaxIncomeWithTablesSync } from '../services/taxService';
+import { MunicipalitySelector } from './MunicipalitySelector';
+import { UserTaxInfo } from './UserTaxInfo';
 
 interface UserManagementProps {
   users: User[];
@@ -89,23 +87,24 @@ export function UserManagement({
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [newUserName, setNewUserName] = useState('');
   const [newUserIncome, setNewUserIncome] = useState('');
-  const [newUserTaxRate, setNewUserTaxRate] = useState(
-    formatTaxRate(getDefaultMunicipalTaxRate())
-  );
+  const [newUserMunicipalityCode, setNewUserMunicipalityCode] = useState('');
+  const [newUserMunicipalityName, setNewUserMunicipalityName] = useState('');
   const [newUserColor, setNewUserColor] = useState(USER_COLORS[0]);
 
   const handleUpdateUser = (
     userId: string,
     name: string,
     income: string,
-    taxRate: string,
+    municipalityCode: string,
+    municipalityName: string,
     color: string
   ) => {
     if (name.trim() && income.trim()) {
       onUpdateUser(userId, {
         name: name.trim(),
         monthlyIncome: parseFloat(income),
-        municipalTaxRate: parseFloat(taxRate) / 100,
+        municipalityCode: municipalityCode || undefined,
+        municipalityName: municipalityName || undefined,
         color: color,
       });
       setEditingId(null);
@@ -144,13 +143,15 @@ export function UserManagement({
         photoURL: '',
         color: newUserColor,
         monthlyIncome: parseFloat(newUserIncome),
-        municipalTaxRate: parseFloat(newUserTaxRate) / 100,
+        municipalityCode: newUserMunicipalityCode || '',
+        municipalityName: newUserMunicipalityName || '',
       });
 
       // Reset form
       setNewUserName('');
       setNewUserIncome('');
-      setNewUserTaxRate(formatTaxRate(getDefaultMunicipalTaxRate()));
+      setNewUserMunicipalityCode('');
+      setNewUserMunicipalityName('');
       setNewUserColor(USER_COLORS[0]);
       setIsAddingUser(false);
     } catch (error) {
@@ -188,15 +189,16 @@ export function UserManagement({
             (sum, user) => sum + user.monthlyIncome,
             0
           );
-          const totalAfterTax = users.reduce(
-            (sum, user) =>
-              sum +
-              calculateMonthlyAfterTaxIncome(
+          const totalAfterTax = users.reduce((sum, user) => {
+            if (user.municipalityCode) {
+              const result = calculateAfterTaxIncomeWithTablesSync(
                 user.monthlyIncome * 12,
-                user.municipalTaxRate
-              ),
-            0
-          );
+                user.municipalityCode
+              );
+              return sum + result.monthlyAfterTax;
+            }
+            return sum;
+          }, 0);
 
           const chartData = users.map((user) => ({
             name: user.name,
@@ -347,14 +349,15 @@ export function UserManagement({
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tax Rate (%)
+                Municipality
               </label>
-              <input
-                type="text"
-                value={newUserTaxRate}
-                onChange={(e) => setNewUserTaxRate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="32.0"
+              <MunicipalitySelector
+                selectedMunicipalityCode={newUserMunicipalityCode}
+                selectedMunicipalityName={newUserMunicipalityName}
+                onMunicipalityChange={(code, name) => {
+                  setNewUserMunicipalityCode(code);
+                  setNewUserMunicipalityName(name);
+                }}
               />
             </div>
           </div>
@@ -378,7 +381,8 @@ export function UserManagement({
                 setIsAddingUser(false);
                 setNewUserName('');
                 setNewUserIncome('');
-                setNewUserTaxRate(formatTaxRate(getDefaultMunicipalTaxRate()));
+                setNewUserMunicipalityCode('');
+                setNewUserMunicipalityName('');
                 setNewUserColor(USER_COLORS[0]);
               }}
               className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
@@ -443,23 +447,7 @@ export function UserManagement({
                   </div>
                 </div>
 
-                <div className="text-sm text-gray-500 space-y-1 text-left">
-                  <p>Monthly Income: {formatMoney(user.monthlyIncome)} kr</p>
-                  <p>
-                    After Tax (
-                    {formatTaxRate(
-                      user.municipalTaxRate || getDefaultMunicipalTaxRate()
-                    )}{' '}
-                    municipal):{' '}
-                    {formatMoney(
-                      calculateMonthlyAfterTaxIncome(
-                        user.monthlyIncome * 12,
-                        user.municipalTaxRate
-                      )
-                    )}{' '}
-                    kr
-                  </p>
-                </div>
+                <UserTaxInfo user={user} />
 
                 <div className="flex gap-2 justify-start pt-2">
                   <button
@@ -495,7 +483,8 @@ interface EditUserFormProps {
     userId: string,
     name: string,
     income: string,
-    taxRate: string,
+    municipalityCode: string,
+    municipalityName: string,
     color: string
   ) => void;
   onCancel: () => void;
@@ -504,14 +493,17 @@ interface EditUserFormProps {
 function EditUserForm({ user, onSave, onCancel }: EditUserFormProps) {
   const [name, setName] = useState(user.name);
   const [income, setIncome] = useState(user.monthlyIncome.toString());
-  const [taxRate, setTaxRate] = useState(
-    ((user.municipalTaxRate || getDefaultMunicipalTaxRate()) * 100).toString()
+  const [municipalityCode, setMunicipalityCode] = useState(
+    user.municipalityCode || ''
+  );
+  const [municipalityName, setMunicipalityName] = useState(
+    user.municipalityName || ''
   );
   const [color, setColor] = useState(user.color);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(user.id, name, income, taxRate, color);
+    onSave(user.id, name, income, municipalityCode, municipalityName, color);
   };
 
   return (
@@ -540,16 +532,13 @@ function EditUserForm({ user, onSave, onCancel }: EditUserFormProps) {
           />
         </div>
         <div>
-          <input
-            type="number"
-            value={taxRate}
-            onChange={(e) => setTaxRate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Tax rate (%)"
-            required
-            min="0"
-            max="60"
-            step="0.1"
+          <MunicipalitySelector
+            selectedMunicipalityCode={municipalityCode}
+            selectedMunicipalityName={municipalityName}
+            onMunicipalityChange={(code, name) => {
+              setMunicipalityCode(code);
+              setMunicipalityName(name);
+            }}
           />
         </div>
       </div>

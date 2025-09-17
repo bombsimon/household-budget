@@ -13,7 +13,8 @@
     "firebase:emulators": "firebase emulators:start",
     "firebase:deploy": "npm run build && firebase deploy",
     "firebase:deploy:hosting": "npm run build && firebase deploy --only hosting",
-    "firebase:deploy:rules": "firebase deploy --only firestore:rules"
+    "firebase:deploy:rules": "firebase deploy --only firestore:rules",
+    "update-municipalities": "node scripts/update-municipality-data.js"
   },
   "dependencies": {
     "@types/uuid": "^10.0.0",
