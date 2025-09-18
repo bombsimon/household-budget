@@ -11,7 +11,7 @@ interface SettlementVisualizerProps {
       sharedExpenses: number;
       assets: { [assetName: string]: number };
       loanInterests: number;
-      loanMortgages: number;
+      loanRepayments: number;
     };
   };
 }
@@ -163,18 +163,18 @@ export function SettlementVisualizer({
                     </div>
                   )}
 
-                  {Math.abs(balance.loanMortgages) > 0.01 && (
+                  {Math.abs(balance.loanRepayments) > 0.01 && (
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Loan Principal:</span>
+                      <span className="text-gray-600">Loan Repayment:</span>
                       <span
                         className={
-                          balance.loanMortgages > 0
+                          balance.loanRepayments > 0
                             ? 'text-green-600'
                             : 'text-red-600'
                         }
                       >
-                        {balance.loanMortgages > 0 ? '+' : ''}
-                        {formatMoney(balance.loanMortgages)} kr
+                        {balance.loanRepayments > 0 ? '+' : ''}
+                        {formatMoney(balance.loanRepayments)} kr
                       </span>
                     </div>
                   )}

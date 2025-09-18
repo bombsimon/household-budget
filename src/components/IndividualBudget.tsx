@@ -80,31 +80,25 @@ export function IndividualBudget({
             .flatMap((cat) => cat.expenses)
             .filter((exp) => exp.userId === user.id && !exp.isShared);
 
-          // Calculate shared expenses from categories
-          const categorySharedExpenses = categories.reduce(
-            (total, category) => {
-              return (
-                total +
-                category.expenses
-                  .filter((exp) => exp.isShared)
-                  .reduce((expTotal, exp) => {
-                    if (exp.splitType === 'equal') {
-                      return expTotal + getMonthlyAmount(exp) / users.length;
-                    } else if (
-                      exp.splitType === 'percentage' &&
-                      exp.splitData?.[user.id]
-                    ) {
-                      return (
-                        expTotal +
-                        getMonthlyAmount(exp) * exp.splitData[user.id]
-                      );
-                    }
-                    return expTotal;
-                  }, 0)
-              );
-            },
-            0
-          );
+          // Calculate shared expenses from categories - match table calculation exactly
+          const sharedCategory = categories.find((cat) => cat.id === 'shared');
+          const categorySharedExpenses = sharedCategory
+            ? sharedCategory.expenses
+                .filter((exp) => exp.isShared && !exp.isBudgeted)
+                .reduce((total, exp) => {
+                  if (exp.splitType === 'equal') {
+                    return total + getMonthlyAmount(exp) / users.length;
+                  } else if (
+                    exp.splitType === 'percentage' &&
+                    exp.splitData?.[user.id]
+                  ) {
+                    return (
+                      total + getMonthlyAmount(exp) * exp.splitData[user.id]
+                    );
+                  }
+                  return total;
+                }, 0)
+            : 0;
 
           // Calculate individual asset allocations (fixed costs)
           const assetAllocations = assets
@@ -148,27 +142,27 @@ export function IndividualBudget({
             return total;
           }, 0);
 
-          const totalMortgageAllocation = loans.reduce((total, loan) => {
-            if (!loan.isMortgageShared) return total;
+          const totalRepaymentAllocation = loans.reduce((total, loan) => {
+            if (!loan.isRepaymentShared) return total;
 
-            const mortgageAmount =
-              loan.monthlyPayment -
-              (loan.currentAmount * loan.interestRate) / 12;
+            const monthlyAmortering = loan.monthlyPayment; // Fixed monthly debt repayment (amortering)
 
-            if (loan.mortgageSplitType === 'equal') {
-              return total + mortgageAmount / users.length;
+            if (loan.repaymentSplitType === 'equal') {
+              return total + monthlyAmortering / users.length;
             } else if (
-              loan.mortgageSplitType === 'percentage' &&
-              loan.mortgageSplitData?.[user.id]
+              loan.repaymentSplitType === 'percentage' &&
+              loan.repaymentSplitData?.[user.id]
             ) {
-              return total + mortgageAmount * loan.mortgageSplitData[user.id];
+              return (
+                total + monthlyAmortering * loan.repaymentSplitData[user.id]
+              );
             }
             return total;
           }, 0);
 
           const loanAllocations = [
             { name: 'Loan interests', amount: totalInterestAllocation },
-            { name: 'Loan principal', amount: totalMortgageAllocation },
+            { name: 'Loan repayment', amount: totalRepaymentAllocation },
           ];
 
           return (
@@ -260,9 +254,9 @@ function UserBudgetCard({
     0
   );
 
-  // Create pie chart data for expense breakdown - split shared expenses into components
+  // Create pie chart data for expense breakdown - match table structure exactly
   const chartData = [
-    // Split shared expenses into subcategories
+    // Household Expenses (only shared category expenses, matching table)
     ...(categorySharedExpenses > 0
       ? [
           {
@@ -273,24 +267,25 @@ function UserBudgetCard({
           },
         ]
       : []),
-    // Individual assets (fixed)
+    // Individual assets - show each asset separately (matching table structure)
     ...assetAllocations
       .filter((asset) => asset.amount > 0)
       .map((asset, index) => ({
-        name: asset.name,
+        name: `${asset.name} (asset)`,
         value: (asset.amount / breakdown.income) * 100,
         amount: asset.amount,
         color: `hsl(${(index * 45 + 120) % 360}, 70%, 50%)`,
-        type: 'fixed',
+        type: 'asset',
       })),
-    // Individual loans - separate interest and principal
+    // Individual loans - separate interest and repayment (matching table)
     ...loanAllocations
-      .filter((loan) => loan.amount > 0)
+      .filter((loan) => Math.abs(loan.amount) > 0) // Show both positive and negative amounts
       .map((loan) => ({
         name: loan.name,
-        value: (loan.amount / breakdown.income) * 100,
-        amount: loan.amount,
+        value: (Math.abs(loan.amount) / breakdown.income) * 100, // Use absolute value for percentage
+        amount: Math.abs(loan.amount), // Display absolute value in chart
         color: loan.name === 'Loan interests' ? '#F59E0B' : '#8B5CF6',
+        type: 'loan',
       })),
     // Personal expenses - only show categories with significant amounts (>1% or >500 kr)
     ...breakdown.personalExpenseBreakdown

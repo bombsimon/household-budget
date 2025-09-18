@@ -58,7 +58,7 @@ export function LoanTracker({
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h2 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center gap-2">
             <Calculator className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span className="hidden xs:inline">Loans & Mortgages</span>
+            <span className="hidden xs:inline">Loans & Debt</span>
             <span className="xs:hidden">Loans</span>
           </h2>
 
@@ -74,8 +74,7 @@ export function LoanTracker({
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-2">
           <p className="text-sm text-gray-600">
-            Track loans, mortgages, and other debt obligations with payment
-            schedules.
+            Track loans and other debt obligations with payment schedules.
           </p>
 
           {/* Mobile: separate row button */}
@@ -216,14 +215,14 @@ function LoanCard({
   const paidOffAmount = loan.originalAmount - loan.currentAmount;
   const paidOffPercentage = (paidOffAmount / loan.originalAmount) * 100;
   const monthlyInterest = (loan.currentAmount * loan.interestRate) / 12;
-  const monthlyPrincipal = loan.monthlyPayment - monthlyInterest;
-  const monthsToPayOff = loan.currentAmount / monthlyPrincipal;
+  const monthlyRepayment = loan.monthlyPayment; // Fixed repayment amount (amortering)
+  const monthsToPayOff = loan.currentAmount / monthlyRepayment;
 
   const testMonthlyInterest = loan.testInterestRate
     ? (loan.currentAmount * loan.testInterestRate) / 12
     : null;
   const testMonthlyPayment = loan.testInterestRate
-    ? testMonthlyInterest! + monthlyPrincipal
+    ? testMonthlyInterest! + monthlyRepayment
     : null;
   const testDifference = testMonthlyPayment
     ? testMonthlyPayment - loan.monthlyPayment
@@ -322,9 +321,9 @@ function LoanCard({
               </span>
             </div>
             <div className="flex justify-between">
-              <span>Principal:</span>
+              <span>Repayment:</span>
               <span className="text-green-600">
-                {monthlyPrincipal.toFixed(0)} kr
+                {monthlyRepayment.toFixed(0)} kr
               </span>
             </div>
             <div className="flex justify-between text-xs text-gray-500">
@@ -427,13 +426,13 @@ function LoanForm({ users, initialData, onSubmit, onCancel }: LoanFormProps) {
     'percentage' | 'equal'
   >(initialData?.interestSplitType || 'percentage');
 
-  // Mortgage splitting
-  const [isMortgageShared, setIsMortgageShared] = useState(
-    initialData?.isMortgageShared ?? true
+  // Repayment splitting
+  const [isRepaymentShared, setIsRepaymentShared] = useState(
+    initialData?.isRepaymentShared ?? true
   );
-  const [mortgageSplitType, setMortgageSplitType] = useState<
+  const [repaymentSplitType, setRepaymentSplitType] = useState<
     'percentage' | 'equal'
-  >(initialData?.mortgageSplitType || 'equal');
+  >(initialData?.repaymentSplitType || 'equal');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -470,19 +469,19 @@ function LoanForm({ users, initialData, onSubmit, onCancel }: LoanFormProps) {
       }
     }
 
-    // Mortgage split data
-    const mortgageSplitData: { [userId: string]: number } = {};
-    if (isMortgageShared) {
-      if (mortgageSplitType === 'percentage') {
+    // Repayment split data
+    const repaymentSplitData: { [userId: string]: number } = {};
+    if (isRepaymentShared) {
+      if (repaymentSplitType === 'percentage') {
         users.forEach((user) => {
-          mortgageSplitData[user.id] =
+          repaymentSplitData[user.id] =
             totalIncome > 0
               ? user.monthlyIncome / totalIncome
               : 1 / users.length;
         });
       } else {
         users.forEach((user) => {
-          mortgageSplitData[user.id] = 1 / users.length;
+          repaymentSplitData[user.id] = 1 / users.length;
         });
       }
     }
@@ -503,10 +502,10 @@ function LoanForm({ users, initialData, onSubmit, onCancel }: LoanFormProps) {
       interestSplitType,
       interestSplitData: isInterestShared ? interestSplitData : undefined,
 
-      // Mortgage splitting
-      isMortgageShared,
-      mortgageSplitType,
-      mortgageSplitData: isMortgageShared ? mortgageSplitData : undefined,
+      // Repayment splitting
+      isRepaymentShared,
+      repaymentSplitType,
+      repaymentSplitData: isRepaymentShared ? repaymentSplitData : undefined,
     });
   };
 
@@ -525,7 +524,7 @@ function LoanForm({ users, initialData, onSubmit, onCancel }: LoanFormProps) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="e.g., Mortgage Part 1"
+            placeholder="e.g., Home Loan Part 1"
             required
           />
         </div>
@@ -633,7 +632,7 @@ function LoanForm({ users, initialData, onSubmit, onCancel }: LoanFormProps) {
             </select>
           </div>
 
-          {/* Interest and Mortgage Splitting - Side by Side */}
+          {/* Interest and Repayment Splitting - Side by Side */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Interest Splitting */}
             <div className="border border-gray-200 rounded-md p-4">
@@ -697,20 +696,20 @@ function LoanForm({ users, initialData, onSubmit, onCancel }: LoanFormProps) {
                 })()}
             </div>
 
-            {/* Mortgage/Principal Splitting */}
+            {/* Repayment Splitting */}
             <div className="border border-gray-200 rounded-md p-4">
               <h5 className="font-medium text-gray-800 mb-3">
-                Mortgage Principal Splitting
+                Repayment Splitting
               </h5>
               <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Mortgage Sharing
+                    Repayment Sharing
                   </label>
                   <select
-                    value={isMortgageShared ? 'shared' : 'personal'}
+                    value={isRepaymentShared ? 'shared' : 'personal'}
                     onChange={(e) =>
-                      setIsMortgageShared(e.target.value === 'shared')
+                      setIsRepaymentShared(e.target.value === 'shared')
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
@@ -719,19 +718,19 @@ function LoanForm({ users, initialData, onSubmit, onCancel }: LoanFormProps) {
                   </select>
                 </div>
 
-                {isMortgageShared && (
+                {isRepaymentShared && (
                   <SplitMethodSelector
-                    value={mortgageSplitType as any}
+                    value={repaymentSplitType as any}
                     onChange={(value) =>
-                      setMortgageSplitType(value as 'percentage' | 'equal')
+                      setRepaymentSplitType(value as 'percentage' | 'equal')
                     }
-                    name="mortgageSplitMethod"
+                    name="repaymentSplitMethod"
                   />
                 )}
               </div>
 
-              {isMortgageShared &&
-                mortgageSplitType === 'percentage' &&
+              {isRepaymentShared &&
+                repaymentSplitType === 'percentage' &&
                 (() => {
                   const totalIncome = users.reduce(
                     (sum, u) => sum + u.monthlyIncome,

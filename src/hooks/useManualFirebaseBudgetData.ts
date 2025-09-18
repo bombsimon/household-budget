@@ -595,11 +595,11 @@ export function useManualFirebaseBudgetData(householdId: string) {
         });
     });
 
-    // Handle loan settlements - separate interest and mortgage
+    // Handle loan settlements - separate interest and repayment
     loans.forEach((loan) => {
       const paidBy = loan.paidBy || users[0]?.id;
       const monthlyInterest = (loan.currentAmount * loan.interestRate) / 12;
-      const monthlyPrincipal = loan.monthlyPayment;
+      const monthlyRepayment = loan.monthlyPayment;
 
       // Fallback for old loan structure
       const isInterestShared =
@@ -611,14 +611,14 @@ export function useManualFirebaseBudgetData(householdId: string) {
       const interestSplitData =
         loan.interestSplitData || (loan as any).splitData;
 
-      const isMortgageShared =
-        loan.isMortgageShared !== undefined
-          ? loan.isMortgageShared
+      const isRepaymentShared =
+        loan.isRepaymentShared !== undefined
+          ? loan.isRepaymentShared
           : (loan as any).isShared;
-      const mortgageSplitType =
-        loan.mortgageSplitType || (loan as any).splitType || 'equal';
-      const mortgageSplitData =
-        loan.mortgageSplitData || (loan as any).splitData;
+      const repaymentSplitType =
+        loan.repaymentSplitType || (loan as any).splitType || 'equal';
+      const repaymentSplitData =
+        loan.repaymentSplitData || (loan as any).splitData;
 
       // Add interest + monthly payment to payer (treating them as separate costs)
       userBalances[paidBy] =
@@ -646,26 +646,26 @@ export function useManualFirebaseBudgetData(householdId: string) {
         userBalances[paidBy] = (userBalances[paidBy] || 0) - monthlyInterest;
       }
 
-      // Subtract mortgage portion based on mortgage splitting
-      if (isMortgageShared) {
-        if (mortgageSplitType === 'equal') {
-          const perPerson = monthlyPrincipal / users.length;
+      // Subtract repayment portion based on repayment splitting
+      if (isRepaymentShared) {
+        if (repaymentSplitType === 'equal') {
+          const perPerson = monthlyRepayment / users.length;
           users.forEach((user) => {
             userBalances[user.id] = (userBalances[user.id] || 0) - perPerson;
           });
-        } else if (mortgageSplitType === 'percentage' && mortgageSplitData) {
-          Object.entries(mortgageSplitData).forEach(([userId, percentage]) => {
+        } else if (repaymentSplitType === 'percentage' && repaymentSplitData) {
+          Object.entries(repaymentSplitData).forEach(([userId, percentage]) => {
             if (userBalances[userId] !== undefined) {
               // Only process if user still exists
               userBalances[userId] =
                 (userBalances[userId] || 0) -
-                monthlyPrincipal * (percentage as number);
+                monthlyRepayment * (percentage as number);
             }
           });
         }
       } else {
-        // Mortgage is personal to the payer
-        userBalances[paidBy] = (userBalances[paidBy] || 0) - monthlyPrincipal;
+        // Repayment is personal to the payer
+        userBalances[paidBy] = (userBalances[paidBy] || 0) - monthlyRepayment;
       }
     });
 
@@ -704,7 +704,7 @@ export function useManualFirebaseBudgetData(householdId: string) {
         sharedExpenses: number;
         assets: { [assetName: string]: number };
         loanInterests: number;
-        loanMortgages: number;
+        loanRepayments: number;
       };
     } = {};
 
@@ -714,7 +714,7 @@ export function useManualFirebaseBudgetData(householdId: string) {
         sharedExpenses: 0,
         assets: {},
         loanInterests: 0,
-        loanMortgages: 0,
+        loanRepayments: 0,
       };
     });
 
@@ -798,11 +798,11 @@ export function useManualFirebaseBudgetData(householdId: string) {
         });
     });
 
-    // Calculate loan costs - separate interest and mortgage components
+    // Calculate loan costs - separate interest and repayment components
     loans.forEach((loan) => {
       const paidBy = loan.paidBy || users[0]?.id;
       const monthlyInterest = (loan.currentAmount * loan.interestRate) / 12;
-      const monthlyPrincipal = loan.monthlyPayment;
+      const monthlyRepayment = loan.monthlyPayment;
 
       // Fallback for old loan structure
       const isInterestShared =
@@ -814,14 +814,14 @@ export function useManualFirebaseBudgetData(householdId: string) {
       const interestSplitData =
         loan.interestSplitData || (loan as any).splitData;
 
-      const isMortgageShared =
-        loan.isMortgageShared !== undefined
-          ? loan.isMortgageShared
+      const isRepaymentShared =
+        loan.isRepaymentShared !== undefined
+          ? loan.isRepaymentShared
           : (loan as any).isShared;
-      const mortgageSplitType =
-        loan.mortgageSplitType || (loan as any).splitType || 'equal';
-      const mortgageSplitData =
-        loan.mortgageSplitData || (loan as any).splitData;
+      const repaymentSplitType =
+        loan.repaymentSplitType || (loan as any).splitType || 'equal';
+      const repaymentSplitData =
+        loan.repaymentSplitData || (loan as any).splitData;
 
       // Add interest + monthly payment to payer first
       if (userBalances[paidBy]) {
@@ -852,24 +852,27 @@ export function useManualFirebaseBudgetData(householdId: string) {
           }
         }
 
-        // Handle principal portion splitting
-        if (isMortgageShared) {
-          userBalances[paidBy].loanMortgages += monthlyPrincipal;
+        // Handle repayment portion splitting
+        if (isRepaymentShared) {
+          userBalances[paidBy].loanRepayments += monthlyRepayment;
 
-          if (mortgageSplitType === 'equal') {
-            const perPerson = monthlyPrincipal / users.length;
+          if (repaymentSplitType === 'equal') {
+            const perPerson = monthlyRepayment / users.length;
             users.forEach((user) => {
               userBalances[user.id].total -= perPerson;
-              userBalances[user.id].loanMortgages -= perPerson;
+              userBalances[user.id].loanRepayments -= perPerson;
             });
-          } else if (mortgageSplitType === 'percentage' && mortgageSplitData) {
-            Object.entries(mortgageSplitData).forEach(
+          } else if (
+            repaymentSplitType === 'percentage' &&
+            repaymentSplitData
+          ) {
+            Object.entries(repaymentSplitData).forEach(
               ([userId, percentage]) => {
                 if (userBalances[userId]) {
                   // Only process if user still exists
-                  const userAmount = monthlyPrincipal * (percentage as number);
+                  const userAmount = monthlyRepayment * (percentage as number);
                   userBalances[userId].total -= userAmount;
-                  userBalances[userId].loanMortgages -= userAmount;
+                  userBalances[userId].loanRepayments -= userAmount;
                 }
               }
             );
@@ -927,7 +930,7 @@ export function useManualFirebaseBudgetData(householdId: string) {
       0
     );
 
-    // Calculate total loan costs (interest + principal payments)
+    // Calculate total loan costs (interest + repayment payments)
     const totalLoanCosts = loans.reduce((sum, loan) => {
       const monthlyInterest = (loan.currentAmount * loan.interestRate) / 12;
       return sum + monthlyInterest + loan.monthlyPayment;
@@ -1013,16 +1016,16 @@ export function useManualFirebaseBudgetData(householdId: string) {
       // Add loan expenses
       loans.forEach((loan) => {
         const monthlyInterest = (loan.currentAmount * loan.interestRate) / 12;
-        const monthlyPrincipal = loan.monthlyPayment;
+        const monthlyRepayment = loan.monthlyPayment;
 
         // Interest allocation (shared equally for now)
         if (loan.isInterestShared) {
           sharedExpensesOwed += monthlyInterest / users.length;
         }
 
-        // Mortgage allocation (shared equally for now)
-        if (loan.isMortgageShared) {
-          sharedExpensesOwed += monthlyPrincipal / users.length;
+        // Repayment allocation (shared equally for now)
+        if (loan.isRepaymentShared) {
+          sharedExpensesOwed += monthlyRepayment / users.length;
         }
       });
 

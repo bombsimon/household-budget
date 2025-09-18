@@ -87,13 +87,13 @@ export function BudgetBreakdownSummary({
     return { name: asset.name, amount: allocation };
   });
 
-  // Calculate loan allocations - separate interest and mortgage
+  // Calculate loan allocations - separate interest and repayment
   let totalInterestAllocation = 0;
-  let totalMortgageAllocation = 0;
+  let totalRepaymentAllocation = 0;
 
   loans.forEach((loan) => {
     const monthlyInterest = (loan.currentAmount * loan.interestRate) / 12;
-    const monthlyPrincipal = loan.monthlyPayment;
+    const monthlyRepayment = loan.monthlyPayment;
 
     // Fallback for old loan structure - if new properties don't exist, use old properties
     const isInterestShared =
@@ -104,13 +104,9 @@ export function BudgetBreakdownSummary({
       loan.interestSplitType || (loan as any).splitType || 'percentage';
     const interestSplitData = loan.interestSplitData || (loan as any).splitData;
 
-    const isMortgageShared =
-      loan.isMortgageShared !== undefined
-        ? loan.isMortgageShared
-        : (loan as any).isShared;
-    const mortgageSplitType =
-      loan.mortgageSplitType || (loan as any).splitType || 'equal';
-    const mortgageSplitData = loan.mortgageSplitData || (loan as any).splitData;
+    const isRepaymentShared = loan.isRepaymentShared;
+    const repaymentSplitType = loan.repaymentSplitType || 'equal';
+    const repaymentSplitData = loan.repaymentSplitData;
 
     // Interest allocation
     if (isInterestShared) {
@@ -124,23 +120,23 @@ export function BudgetBreakdownSummary({
       }
     }
 
-    // Mortgage allocation
-    if (isMortgageShared) {
-      if (mortgageSplitType === 'equal') {
-        totalMortgageAllocation += monthlyPrincipal / users.length;
+    // Repayment allocation
+    if (isRepaymentShared) {
+      if (repaymentSplitType === 'equal') {
+        totalRepaymentAllocation += monthlyRepayment / users.length;
       } else if (
-        mortgageSplitType === 'percentage' &&
-        mortgageSplitData?.[user.id]
+        repaymentSplitType === 'percentage' &&
+        repaymentSplitData?.[user.id]
       ) {
-        totalMortgageAllocation +=
-          monthlyPrincipal * mortgageSplitData[user.id];
+        totalRepaymentAllocation +=
+          monthlyRepayment * repaymentSplitData[user.id];
       }
     }
   });
 
   const loanAllocations = [
     { name: 'Loan interests', amount: totalInterestAllocation },
-    { name: 'Loan principal', amount: totalMortgageAllocation },
+    { name: 'Loan repayment', amount: totalRepaymentAllocation },
   ];
 
   const percentageLeft =

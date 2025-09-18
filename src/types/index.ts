@@ -56,10 +56,10 @@ export interface Loan {
   interestSplitType: 'percentage' | 'equal';
   interestSplitData?: { [userId: string]: number };
 
-  // Principal/mortgage splitting
-  isMortgageShared: boolean;
-  mortgageSplitType: 'percentage' | 'equal';
-  mortgageSplitData?: { [userId: string]: number };
+  // Repayment splitting
+  isRepaymentShared: boolean;
+  repaymentSplitType: 'percentage' | 'equal';
+  repaymentSplitData?: { [userId: string]: number };
 }
 
 export interface Asset {
