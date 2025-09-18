@@ -18,7 +18,10 @@ export async function loadTaxTableData(): Promise<TaxTableRow[]> {
 
   loadingPromise = (async () => {
     try {
-      const response = await fetch('/tax_table.csv');
+      // Use the correct base path for GitHub Pages
+      const basePath = import.meta.env.BASE_URL || '/';
+      const csvPath = `${basePath}tax_table.csv`.replace('//', '/');
+      const response = await fetch(csvPath);
       if (!response.ok) {
         throw new Error(`Failed to load tax table: ${response.statusText}`);
       }
