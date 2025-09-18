@@ -13,7 +13,7 @@ export interface Municipality {
 
 export interface TaxRates {
   kommunalskatt: number;
-  regionskatt: number;
+  regionskatt?: number;
   begravningsavgift: number;
   lan?: {
     regionskatt: number;
@@ -37,16 +37,21 @@ export function fetchMunicipalityTaxRates(municipalityCode: string): TaxRates {
     throw new Error(`Municipality ${municipalityCode} not found in data`);
   }
 
-  return {
+  const taxRates: TaxRates = {
     kommunalskatt: staticMunicipality.kommunalskatt,
-    regionskatt: staticMunicipality.regionskatt,
     begravningsavgift: staticMunicipality.begravningsavgift,
   };
+
+  if (staticMunicipality.regionskatt !== undefined) {
+    taxRates.regionskatt = staticMunicipality.regionskatt;
+  }
+
+  return taxRates;
 }
 
 export function guessTaxTable(
   kommunalskatt: number,
-  regionskatt: number,
+  regionskatt: number = 0,
   begravningsavgift: number
 ): number {
   const total = kommunalskatt + regionskatt + begravningsavgift;
@@ -71,7 +76,7 @@ export function calculateAfterTaxIncomeWithTablesSync(
   // Guess the tax table number
   const tableNumber = guessTaxTable(
     taxRates.kommunalskatt,
-    taxRates.regionskatt,
+    taxRates.regionskatt || 0,
     taxRates.begravningsavgift
   );
 

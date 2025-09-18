@@ -11,14 +11,27 @@ https://www7.skatteverket.se/portal/apier-och-oppna-data/utvecklarportalen/oppet
 
 ## How to Update with Real Data
 
-### Method 1: Using the Node.js Script (Recommended)
+### Using the Node.js Script (Recommended)
 
-1. Run the update script:
-   ```bash
-   npm run update-municipalities
-   ```
+The script now supports two modes:
 
-This will fetch current tax data from Skatteverket API and generate an updated `municipalities.ts` file.
+#### Quick Update (Major Municipalities)
+```bash
+npm run update-municipalities
+```
+- Fetches data for 24 major municipalities
+- Faster execution (~30 seconds)
+- Good for testing or development
+
+#### Full Update (All Municipalities)
+```bash
+node scripts/update-municipality-data.js --full
+```
+- Fetches data for all 290 Swedish municipalities
+- Complete coverage (~5 minutes)
+- Recommended for production deployments
+
+Both commands fetch current tax data directly from Skatteverket API and generate an updated `municipalities.ts` file.
 
 ## Why We Use Static Data
 

@@ -35,7 +35,8 @@ This text was cleaned up a little with ChatGPT...
 ### 🏠 Asset & Loan Tracking
 
 - **Asset Management**: Track cars, boats, and other household assets with associated costs
-- **Loan Management**: Monitor mortgages and loans with interest rate calculations
+- **Loan Management**: Monitor loans and debt with interest rate calculations and repayment tracking
+- **Swedish Banking Terms**: Uses accurate terminology (amortering for repayment) aligned with Swedish banking
 - **Payment Tracking**: See monthly payment breakdowns and remaining balances
 - **Progress Visualization**: Visual progress bars for loan payoff
 
@@ -55,7 +56,10 @@ This text was cleaned up a little with ChatGPT...
 
 ### 💡 Smart Features
 
-- **Swedish Tax Integration**: Accurate after-tax income calculations
+- **Swedish Tax Integration**: Accurate after-tax income calculations using official Skatteverket data
+  - Current tax rates for all 290 Swedish municipalities
+  - Municipal tax, regional tax, and state tax calculations
+  - Automatic tax table lookup based on income and municipality
 - **Cloud Persistence**: Automatic syncing across devices with Firebase Firestore
 - **Multi-Tenant Support**: Share household budgets with family members via unique URLs
 - **Export/Import**: Backup and restore your financial data
@@ -110,16 +114,36 @@ npm run firebase:deploy:hosting
 ### Development Commands
 
 ```bash
-npm run dev                    # Start development server
-npm run build                  # Build for production
-npm run preview                # Preview production build
-npm run lint                   # Run ESLint
-npm run prettify               # Format code with Prettier
-npm run firebase:emulators     # Start Firebase emulators
-npm run firebase:deploy        # Build and deploy to Firebase
-npm run firebase:deploy:hosting # Deploy only frontend
-npm run firebase:deploy:rules  # Deploy only Firestore rules
+npm run dev                       # Start development server
+npm run build                     # Build for production
+npm run build:github              # Build for GitHub Pages deployment
+npm run preview                   # Preview production build
+npm run lint                      # Run ESLint
+npm run prettify                  # Format code with Prettier
+npm run firebase:emulators        # Start Firebase emulators
+npm run firebase:deploy           # Build and deploy to Firebase
+npm run firebase:deploy:hosting   # Deploy only frontend
+npm run firebase:deploy:rules     # Deploy only Firestore rules
+npm run update-municipalities     # Update Swedish municipality tax data
 ```
+
+### Maintenance Commands
+
+#### Updating Swedish Tax Data
+
+The application includes current Swedish municipality tax rates for accurate after-tax income calculations. To update this data:
+
+```bash
+# Update major municipalities only (faster, for testing)
+npm run update-municipalities
+
+# Update all 290 municipalities (comprehensive, for production)
+node scripts/update-municipality-data.js --full
+```
+
+This script fetches current tax rates directly from Skatteverket's official API and updates the static fallback data used when the API is unavailable.
+
+For detailed information about Swedish tax data integration, see [MUNICIPALITY_DATA.md](MUNICIPALITY_DATA.md).
 
 ## Technology Stack
 
