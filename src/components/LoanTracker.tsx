@@ -47,10 +47,21 @@ export function LoanTracker({
   const totalMonthlyInterest = loans.reduce((sum, loan) => {
     return sum + (loan.currentAmount * loan.interestRate) / 12;
   }, 0);
-  // const averageInterestRate =
-  //   loans.length > 0
-  //     ? loans.reduce((sum, loan) => sum + loan.interestRate, 0) / loans.length
-  //     : 0;
+
+  // Test interest calculations
+  const loansWithTestRates = loans.filter((loan) => loan.testInterestRate);
+  const totalTestMonthlyInterest = loansWithTestRates.reduce((sum, loan) => {
+    return sum + (loan.currentAmount * loan.testInterestRate!) / 12;
+  }, 0);
+  const totalCurrentInterestForTestLoans = loansWithTestRates.reduce(
+    (sum, loan) => {
+      return sum + (loan.currentAmount * loan.interestRate) / 12;
+    },
+    0
+  );
+  const totalTestDifference =
+    totalTestMonthlyInterest - totalCurrentInterestForTestLoans;
+  const hasTestRates = loansWithTestRates.length > 0;
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-3 sm:p-6">
@@ -113,6 +124,66 @@ export function LoanTracker({
             amount={totalMonthlyInterest}
             color="text-orange-600"
           />
+        </div>
+      )}
+
+      {/* Test Interest Rate Comparison Summary */}
+      {hasTestRates && (
+        <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Calculator className="w-5 h-5 text-blue-600" />
+              Interest Rate Comparison Summary
+            </h3>
+            <span className="text-sm text-gray-600">
+              {loansWithTestRates.length} loan
+              {loansWithTestRates.length !== 1 ? 's' : ''} with test rates
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="text-center p-3 bg-white rounded-lg border">
+              <div className="text-sm text-gray-600 mb-1">
+                Current Monthly Interest
+              </div>
+              <div className="text-lg font-semibold text-red-600">
+                {formatMoney(totalCurrentInterestForTestLoans)} kr
+              </div>
+            </div>
+
+            <div className="text-center p-3 bg-white rounded-lg border">
+              <div className="text-sm text-gray-600 mb-1">
+                Test Rate Monthly Interest
+              </div>
+              <div className="text-lg font-semibold text-blue-600">
+                {formatMoney(totalTestMonthlyInterest)} kr
+              </div>
+            </div>
+
+            <div className="text-center p-3 bg-white rounded-lg border">
+              <div className="text-sm text-gray-600 mb-1">
+                Monthly Difference
+              </div>
+              <div
+                className={`text-lg font-semibold ${totalTestDifference > 0 ? 'text-red-600' : 'text-green-600'}`}
+              >
+                {totalTestDifference > 0 ? '+' : ''}
+                {formatMoney(totalTestDifference)} kr
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                {totalTestDifference > 0 ? 'More expensive' : 'Savings'} of{' '}
+                {formatMoney(Math.abs(totalTestDifference * 12))} kr/year
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 text-center">
+            <p className="text-sm text-gray-600">
+              {totalTestDifference > 0
+                ? `Switching to the test rates would cost an additional ${formatMoney(Math.abs(totalTestDifference * 12))} kr per year.`
+                : `Switching to the test rates would save ${formatMoney(Math.abs(totalTestDifference * 12))} kr per year.`}
+            </p>
+          </div>
         </div>
       )}
 
@@ -224,8 +295,8 @@ function LoanCard({
   const testMonthlyPayment = loan.testInterestRate
     ? testMonthlyInterest! + monthlyRepayment
     : null;
-  const testDifference = testMonthlyPayment
-    ? testMonthlyPayment - loan.monthlyPayment
+  const testDifference = testMonthlyInterest
+    ? testMonthlyInterest - monthlyInterest
     : 0;
 
   if (isEditing) {
@@ -334,8 +405,9 @@ function LoanCard({
         </div>
 
         {loan.testInterestRate && (
-          <div>
-            <h4 className="text-sm font-medium text-gray-500 mb-3">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <h4 className="text-sm font-medium text-blue-700 mb-3 flex items-center gap-1">
+              <Calculator className="w-3 h-3" />
               Test Rate ({(loan.testInterestRate * 100).toFixed(2)}%)
             </h4>
             <div className="space-y-2 text-sm">
@@ -351,8 +423,8 @@ function LoanCard({
                   {testMonthlyInterest!.toFixed(0)} kr
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span>Difference:</span>
+              <div className="flex justify-between font-medium">
+                <span>Monthly Difference:</span>
                 <span
                   className={
                     testDifference > 0 ? 'text-red-600' : 'text-green-600'
@@ -362,8 +434,11 @@ function LoanCard({
                   {testDifference.toFixed(0)} kr
                 </span>
               </div>
-              <div className="text-xs text-gray-500">
-                {testDifference > 0 ? 'More expensive' : 'Cheaper'} by{' '}
+              <div
+                className={`text-xs p-2 rounded ${testDifference > 0 ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}
+              >
+                {testDifference > 0 ? '🔺' : '🔻'}{' '}
+                {testDifference > 0 ? 'More expensive' : 'Savings'} of{' '}
                 {Math.abs(testDifference * 12).toFixed(0)} kr/year
               </div>
             </div>
