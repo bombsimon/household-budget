@@ -57,8 +57,6 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
     updateExpense,
     deleteExpense,
     addPersonalCategory,
-    updatePersonalCategory,
-    deletePersonalCategory,
     addLoan,
     updateLoan,
     deleteLoan,
@@ -93,8 +91,8 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
 
   const allTabs = [
     { id: 'dashboard', name: 'Dashboard', icon: Home },
+    { id: 'expenses', name: 'Household Expenses', icon: Receipt },
     { id: 'users', name: 'Users', icon: Users },
-    { id: 'expenses', name: 'Expenses', icon: Receipt },
     { id: 'loans', name: 'Loans', icon: Calculator },
     { id: 'assets', name: 'Assets', icon: Car },
     { id: 'settlements', name: 'Settlements', icon: ArrowRightLeft },
@@ -179,8 +177,6 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
             onUpdateExpense={updateExpense}
             onDeleteExpense={deleteExpense}
             onAddPersonalCategory={addPersonalCategory}
-            onUpdatePersonalCategory={updatePersonalCategory}
-            onDeletePersonalCategory={deletePersonalCategory}
           />
         );
       case 'loans':
@@ -226,6 +222,10 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
                 personalCategories={personalCategories}
                 assets={assets}
                 loans={loans}
+                onAddExpense={addExpense}
+                onUpdateExpense={updateExpense}
+                onDeleteExpense={deleteExpense}
+                onAddPersonalCategory={addPersonalCategory}
               />
             );
           }

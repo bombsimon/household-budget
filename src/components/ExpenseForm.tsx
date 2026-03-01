@@ -8,6 +8,7 @@ import type {
 import { FormActionButtons } from './FormActionButtons';
 import { SplitMethodSelector } from './SplitMethodSelector';
 import { SplitInfoBox } from './SplitInfoBox';
+import { CategoryAutocomplete } from './CategoryAutocomplete';
 
 interface ExpenseFormProps {
   users: User[];
@@ -18,7 +19,8 @@ interface ExpenseFormProps {
   onSubmit: (expense: Omit<Expense, 'id'>) => void;
   onCancel: () => void;
   showCategorySelector?: boolean;
-  isAssetExpense?: boolean; // New prop to handle asset expenses differently
+  isAssetExpense?: boolean;
+  onCreateCategory?: (name: string) => Promise<string>;
 }
 
 export function ExpenseForm({
@@ -31,6 +33,7 @@ export function ExpenseForm({
   onCancel,
   showCategorySelector = true,
   isAssetExpense = false,
+  onCreateCategory,
 }: ExpenseFormProps) {
   const [name, setName] = useState(initialData?.name || '');
   const [amount, setAmount] = useState(initialData?.amount?.toString() || '');
@@ -215,24 +218,32 @@ export function ExpenseForm({
         )}
       </div>
 
-      {/* Category selection - available for all expense types */}
       {showCategorySelector && (
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Category (optional)
           </label>
-          <select
-            value={personalCategoryId}
-            onChange={(e) => setPersonalCategoryId(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Uncategorized</option>
-            {personalCategories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
+          {onCreateCategory ? (
+            <CategoryAutocomplete
+              personalCategories={personalCategories}
+              value={personalCategoryId}
+              onChange={setPersonalCategoryId}
+              onCreateCategory={onCreateCategory}
+            />
+          ) : (
+            <select
+              value={personalCategoryId}
+              onChange={(e) => setPersonalCategoryId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Uncategorized</option>
+              {personalCategories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       )}
 

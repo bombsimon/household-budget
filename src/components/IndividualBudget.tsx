@@ -1,5 +1,6 @@
 import type {
   User,
+  Expense,
   UserBudgetBreakdown,
   ExpenseCategory,
   Asset,
@@ -7,7 +8,7 @@ import type {
   PersonalExpenseCategory,
 } from '../types';
 import { useState } from 'react';
-import { PieChart, Eye, EyeOff } from 'lucide-react';
+import { PieChart, Eye, EyeOff, Plus } from 'lucide-react';
 import {
   PieChart as RechartsPieChart,
   Pie,
@@ -22,8 +23,8 @@ import {
 } from '../utils/expenseCalculations';
 import { BudgetBreakdownSummary } from './BudgetBreakdownSummary';
 import { ExpenseList } from './ExpenseList';
+import { InlineExpenseForm } from './InlineExpenseForm';
 
-// Helper function to migrate legacy asset data structure
 const migrateAssetData = (asset: Asset): Asset => {
   if (
     !asset.expenses &&
@@ -57,6 +58,10 @@ interface UserBudgetPageProps {
   personalCategories: PersonalExpenseCategory[];
   assets: Asset[];
   loans: Loan[];
+  onAddExpense: (categoryId: string, expense: Omit<Expense, 'id'>) => void;
+  onUpdateExpense: (expenseId: string, updates: Partial<Expense>) => void;
+  onDeleteExpense: (expenseId: string) => void;
+  onAddPersonalCategory: (name: string) => Promise<string>;
 }
 
 export function UserBudgetPage({
@@ -67,6 +72,10 @@ export function UserBudgetPage({
   personalCategories,
   assets,
   loans,
+  onAddExpense,
+  onUpdateExpense,
+  onDeleteExpense,
+  onAddPersonalCategory,
 }: UserBudgetPageProps) {
   const [blurSensitive, setBlurSensitive] = useState(false);
 
@@ -177,6 +186,10 @@ export function UserBudgetPage({
         loans={loans}
         users={users}
         blurSensitive={blurSensitive}
+        onAddExpense={onAddExpense}
+        onUpdateExpense={onUpdateExpense}
+        onDeleteExpense={onDeleteExpense}
+        onAddPersonalCategory={onAddPersonalCategory}
       />
     </div>
   );
@@ -195,6 +208,10 @@ interface UserBudgetCardProps {
   loans: Loan[];
   users: User[];
   blurSensitive: boolean;
+  onAddExpense: (categoryId: string, expense: Omit<Expense, 'id'>) => void;
+  onUpdateExpense: (expenseId: string, updates: Partial<Expense>) => void;
+  onDeleteExpense: (expenseId: string) => void;
+  onAddPersonalCategory: (name: string) => Promise<string>;
 }
 
 function UserBudgetCard({
@@ -210,18 +227,22 @@ function UserBudgetCard({
   loans,
   users,
   blurSensitive,
+  onAddExpense,
+  onUpdateExpense,
+  onDeleteExpense,
+  onAddPersonalCategory,
 }: UserBudgetCardProps) {
-  // Filter out uncategorized from breakdown since we'll handle it separately
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  const [isAddingExpense, setIsAddingExpense] = useState(false);
+
   const sortedCategories = [...breakdown.personalExpenseBreakdown]
     .filter((cat) => cat.categoryId !== 'uncategorized')
     .sort((a, b) => a.categoryName.localeCompare(b.categoryName));
 
-  // Add Uncategorized category if there are uncategorized expenses
   const uncategorizedExpenses = personalExpenses.filter(
     (exp) => !exp.personalCategoryId
   );
 
-  // Calculate user's share of household (shared) expenses
   const sharedCategory = categories.find((cat) => cat.id === 'shared');
   const householdExpensesWithShare = sharedCategory
     ? sharedCategory.expenses
@@ -241,7 +262,6 @@ function UserBudgetCard({
         .filter((exp) => exp.userShareAmount > 0)
     : [];
 
-  // Group household expenses by personalCategoryId
   const householdByCategory = householdExpensesWithShare.reduce(
     (groups, exp) => {
       const catId = exp.personalCategoryId || 'uncategorized';
@@ -252,7 +272,6 @@ function UserBudgetCard({
     {} as Record<string, typeof householdExpensesWithShare>
   );
 
-  // Collect all category IDs from both personal and household expenses
   const allCategoryIds = new Set<string>();
   personalExpenses.forEach((exp) => {
     allCategoryIds.add(exp.personalCategoryId || 'uncategorized');
@@ -261,7 +280,6 @@ function UserBudgetCard({
     allCategoryIds.add(exp.personalCategoryId || 'uncategorized');
   });
 
-  // Build merged category list
   const personalCategoryList = categories
     .flatMap((cat) => cat.expenses)
     .filter((exp) => exp.userId === user.id && !exp.isShared);
@@ -287,14 +305,12 @@ function UserBudgetCard({
       );
       const totalAmount = personalAmount + householdAmount;
 
-      // Find category name from personalCategories or breakdown
       const personalCat = sortedCategories.find((c) => c.categoryId === catId);
       let categoryName =
         existing?.categoryName ||
         personalCat?.categoryName ||
         (catId === 'uncategorized' ? 'Uncategorized' : catId);
 
-      // Try to find name from the personal categories passed to the component
       if (categoryName === catId && catId !== 'uncategorized') {
         const found = personalCategories.find((pc) => pc.id === catId);
         if (found) categoryName = found.name;
@@ -316,7 +332,6 @@ function UserBudgetCard({
       return a.categoryName.localeCompare(b.categoryName);
     });
 
-  // Separate small categories for grouping
   const smallCategories = breakdown.personalExpenseBreakdown.filter(
     (category) => category.percentage <= 1 && category.amount <= 500
   );
@@ -326,9 +341,7 @@ function UserBudgetCard({
     0
   );
 
-  // Create pie chart data for expense breakdown - match table structure exactly
   const chartData = [
-    // Household Expenses (only shared category expenses, matching table)
     ...(categorySharedExpenses > 0
       ? [
           {
@@ -339,7 +352,6 @@ function UserBudgetCard({
           },
         ]
       : []),
-    // Individual assets - show each asset separately (matching table structure)
     ...assetAllocations
       .filter((asset) => asset.amount > 0)
       .map((asset, index) => ({
@@ -349,17 +361,15 @@ function UserBudgetCard({
         color: `hsl(${(index * 45 + 120) % 360}, 70%, 50%)`,
         type: 'asset',
       })),
-    // Individual loans - separate interest and repayment (matching table)
     ...loanAllocations
-      .filter((loan) => Math.abs(loan.amount) > 0) // Show both positive and negative amounts
+      .filter((loan) => Math.abs(loan.amount) > 0)
       .map((loan) => ({
         name: loan.name,
-        value: (Math.abs(loan.amount) / breakdown.income) * 100, // Use absolute value for percentage
-        amount: Math.abs(loan.amount), // Display absolute value in chart
+        value: (Math.abs(loan.amount) / breakdown.income) * 100,
+        amount: Math.abs(loan.amount),
         color: loan.name === 'Loan interests' ? '#F59E0B' : '#8B5CF6',
         type: 'loan',
       })),
-    // Personal expenses - only show categories with significant amounts (>1% or >500 kr)
     ...breakdown.personalExpenseBreakdown
       .filter((category) => category.percentage > 1 || category.amount > 500)
       .map((category, index) => ({
@@ -368,7 +378,6 @@ function UserBudgetCard({
         amount: category.amount,
         color: `hsl(${(index * 30 + 200) % 360}, 65%, 55%)`,
       })),
-    // Group small personal expenses into "Other Personal"
     ...(otherPersonalAmount > 0
       ? [
           {
@@ -376,11 +385,15 @@ function UserBudgetCard({
             value: (otherPersonalAmount / breakdown.income) * 100,
             amount: otherPersonalAmount,
             color: '#9CA3AF',
-            includedCategories: smallCategories, // Track what's included
+            includedCategories: smallCategories,
           },
         ]
       : []),
   ].filter((item) => item.value > 0);
+
+  const householdExpenseIds = new Set(
+    householdExpensesWithShare.map((e) => e.id)
+  );
 
   return (
     <div className="p-6 space-y-6">
@@ -402,7 +415,6 @@ function UserBudgetCard({
         blurSensitive={blurSensitive}
       />
 
-      {/* Expense Breakdown Visualization */}
       {chartData.length > 1 && (
         <div>
           <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
@@ -410,7 +422,6 @@ function UserBudgetCard({
             Expense Breakdown by Category
           </h4>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Chart */}
             <div className="lg:col-span-2">
               <div className="h-64 sm:h-72 lg:h-80">
                 <ResponsiveContainer width="100%" height="100%">
@@ -445,7 +456,6 @@ function UserBudgetCard({
               </div>
             </div>
 
-            {/* Custom Legend */}
             <div className="space-y-2">
               <h5 className="text-sm font-medium text-gray-700 mb-3">
                 Categories
@@ -474,7 +484,6 @@ function UserBudgetCard({
                         </div>
                       </div>
                     </div>
-                    {/* Show included categories for "Other Personal" */}
                     {item.name === 'Other Personal' &&
                       'includedCategories' in item &&
                       item.includedCategories &&
@@ -505,7 +514,38 @@ function UserBudgetCard({
             <h4 className="text-sm font-medium text-gray-700">
               Expense Details
             </h4>
+            <button
+              onClick={() => {
+                setIsAddingExpense(true);
+                setEditingExpenseId(null);
+              }}
+              className="flex items-center gap-1 px-2.5 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add
+            </button>
           </div>
+
+          {isAddingExpense && (
+            <div className="mb-3">
+              <InlineExpenseForm
+                personalCategories={personalCategories}
+                onCreateCategory={onAddPersonalCategory}
+                onSave={(data) => {
+                  onAddExpense(`personal-${user.id}`, {
+                    ...data,
+                    isShared: false,
+                    userId: user.id,
+                    paidBy: user.id,
+                    splitType: 'equal',
+                  });
+                  setIsAddingExpense(false);
+                }}
+                onCancel={() => setIsAddingExpense(false)}
+              />
+            </div>
+          )}
+
           <div className="space-y-3">
             {categoriesWithUncategorized.map((category) => {
               const categoryPersonalExpenses =
@@ -529,11 +569,6 @@ function UserBudgetCard({
                 0
               );
 
-              // Build a combined list: personal expenses keep their amount,
-              // household expenses use the user's share as amount so sorting works.
-              const householdExpenseIds = new Set(
-                categoryHouseholdExpenses.map((e) => e.id)
-              );
               const combinedExpenses: Expense[] = [
                 ...categoryPersonalExpenses,
                 ...categoryHouseholdExpenses.map((exp) => ({
@@ -607,8 +642,38 @@ function UserBudgetCard({
                           const isHousehold = householdExpenseIds.has(
                             expense.id
                           );
+
+                          if (editingExpenseId === expense.id && !isHousehold) {
+                            return (
+                              <InlineExpenseForm
+                                expense={expense}
+                                personalCategories={personalCategories}
+                                onCreateCategory={onAddPersonalCategory}
+                                onSave={(data) => {
+                                  onUpdateExpense(expense.id, data);
+                                  setEditingExpenseId(null);
+                                }}
+                                onCancel={() => setEditingExpenseId(null)}
+                                onDelete={() => {
+                                  onDeleteExpense(expense.id);
+                                  setEditingExpenseId(null);
+                                }}
+                              />
+                            );
+                          }
+
                           return (
-                            <div className="text-sm px-2 py-1">
+                            <div
+                              className={`text-sm px-2 py-1 ${!isHousehold ? 'cursor-pointer hover:bg-gray-50 rounded' : ''}`}
+                              onClick={
+                                !isHousehold
+                                  ? () => {
+                                      setEditingExpenseId(expense.id);
+                                      setIsAddingExpense(false);
+                                    }
+                                  : undefined
+                              }
+                            >
                               <div className="flex justify-between items-start sm:items-center">
                                 <div className="flex items-center gap-2 text-left flex-1 min-w-0">
                                   <span className="font-medium truncate text-gray-700">
@@ -652,6 +717,46 @@ function UserBudgetCard({
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Show add button even when no categories exist yet */}
+      {categoriesWithUncategorized.length === 0 && (
+        <div>
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="text-sm font-medium text-gray-700">
+              Expense Details
+            </h4>
+            <button
+              onClick={() => setIsAddingExpense(true)}
+              className="flex items-center gap-1 px-2.5 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add
+            </button>
+          </div>
+          {isAddingExpense && (
+            <div className="mb-3">
+              <InlineExpenseForm
+                personalCategories={personalCategories}
+                onCreateCategory={onAddPersonalCategory}
+                onSave={(data) => {
+                  onAddExpense(`personal-${user.id}`, {
+                    ...data,
+                    isShared: false,
+                    userId: user.id,
+                    paidBy: user.id,
+                    splitType: 'equal',
+                  });
+                  setIsAddingExpense(false);
+                }}
+                onCancel={() => setIsAddingExpense(false)}
+              />
+            </div>
+          )}
+          <div className="text-center py-6 text-gray-400 text-sm">
+            No expenses yet. Click "Add" to create your first expense.
           </div>
         </div>
       )}

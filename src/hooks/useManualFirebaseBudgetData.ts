@@ -446,41 +446,57 @@ export function useManualFirebaseBudgetData(householdId: string) {
     [assets, saveEncryptedData]
   );
 
-  const addPersonalCategory = useCallback((name: string) => {
-    const newCategory: PersonalExpenseCategory = {
-      id: uuidv4(),
-      name,
-    };
-    setPersonalCategories((prev) => [...prev, newCategory]);
-  }, []);
-
-  const updatePersonalCategory = useCallback(
-    (categoryId: string, updates: Partial<PersonalExpenseCategory>) => {
-      setPersonalCategories((prev) =>
-        prev.map((category) =>
-          category.id === categoryId ? { ...category, ...updates } : category
-        )
-      );
+  const addPersonalCategory = useCallback(
+    async (name: string): Promise<string> => {
+      const newCategory: PersonalExpenseCategory = {
+        id: uuidv4(),
+        name,
+      };
+      const updatedPersonalCategories = [...personalCategories, newCategory];
+      setPersonalCategories(updatedPersonalCategories);
+      await saveEncryptedData({
+        personalCategories: updatedPersonalCategories,
+      });
+      return newCategory.id;
     },
-    []
+    [personalCategories, saveEncryptedData]
   );
 
-  const deletePersonalCategory = useCallback((categoryId: string) => {
-    setPersonalCategories((prev) =>
-      prev.filter((category) => category.id !== categoryId)
-    );
-    // Also remove the personalCategoryId from any expenses that reference it
-    setCategories((prev) =>
-      prev.map((cat) => ({
+  const updatePersonalCategory = useCallback(
+    async (categoryId: string, updates: Partial<PersonalExpenseCategory>) => {
+      const updatedPersonalCategories = personalCategories.map((category) =>
+        category.id === categoryId ? { ...category, ...updates } : category
+      );
+      setPersonalCategories(updatedPersonalCategories);
+      await saveEncryptedData({
+        personalCategories: updatedPersonalCategories,
+      });
+    },
+    [personalCategories, saveEncryptedData]
+  );
+
+  const deletePersonalCategory = useCallback(
+    async (categoryId: string) => {
+      const updatedPersonalCategories = personalCategories.filter(
+        (category) => category.id !== categoryId
+      );
+      const updatedCategories = categories.map((cat) => ({
         ...cat,
         expenses: cat.expenses.map((exp) =>
           exp.personalCategoryId === categoryId
             ? { ...exp, personalCategoryId: undefined }
             : exp
         ),
-      }))
-    );
-  }, []);
+      }));
+      setPersonalCategories(updatedPersonalCategories);
+      setCategories(updatedCategories);
+      await saveEncryptedData({
+        personalCategories: updatedPersonalCategories,
+        categories: updatedCategories,
+      });
+    },
+    [personalCategories, categories, saveEncryptedData]
+  );
 
   // Calculation methods remain the same...
   const calculateSettlements = useCallback((): Settlement[] => {
