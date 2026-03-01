@@ -6,7 +6,6 @@ import {
   Calculator,
   Car,
   ArrowRightLeft,
-  BarChart3,
   Menu,
   X,
   LogOut,
@@ -16,7 +15,7 @@ import { encryptionService } from '../services/encryptionService';
 import { Dashboard } from './Dashboard';
 import { UserManagement } from './UserManagement';
 import { ExpenseManager } from './ExpenseManager';
-import { IndividualBudget } from './IndividualBudget';
+import { UserBudgetPage } from './IndividualBudget';
 import { LoanTracker } from './LoanTracker';
 import { AssetManager } from './AssetManager';
 import { SettlementVisualizer } from './SettlementVisualizer';
@@ -26,7 +25,7 @@ type TabType =
   | 'dashboard'
   | 'users'
   | 'expenses'
-  | 'individual'
+  | `individual-${string}`
   | 'loans'
   | 'assets'
   | 'settlements';
@@ -96,7 +95,6 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
     { id: 'dashboard', name: 'Dashboard', icon: Home },
     { id: 'users', name: 'Users', icon: Users },
     { id: 'expenses', name: 'Expenses', icon: Receipt },
-    { id: 'individual', name: 'Individual', icon: BarChart3 },
     { id: 'loans', name: 'Loans', icon: Calculator },
     { id: 'assets', name: 'Assets', icon: Car },
     { id: 'settlements', name: 'Settlements', icon: ArrowRightLeft },
@@ -185,17 +183,6 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
             onDeletePersonalCategory={deletePersonalCategory}
           />
         );
-      case 'individual':
-        return (
-          <IndividualBudget
-            users={users}
-            breakdowns={userBreakdowns}
-            categories={categories}
-            personalCategories={personalCategories}
-            assets={assets}
-            loans={loans}
-          />
-        );
       case 'loans':
         return (
           <LoanTracker
@@ -224,8 +211,27 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
             detailedBalances={detailedBalances}
           />
         );
-      default:
+      default: {
+        if (activeTab.startsWith('individual-')) {
+          const userId = activeTab.replace('individual-', '');
+          const user = users.find((u) => u.id === userId);
+          const breakdown = userBreakdowns.find((b) => b.userId === userId);
+          if (user && breakdown) {
+            return (
+              <UserBudgetPage
+                user={user}
+                breakdown={breakdown}
+                users={users}
+                categories={categories}
+                personalCategories={personalCategories}
+                assets={assets}
+                loans={loans}
+              />
+            );
+          }
+        }
         return <div>Page not found</div>;
+      }
     }
   };
 
@@ -270,27 +276,58 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
             <div className="px-3">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
+                const isActive =
+                  activeTab === tab.id ||
+                  (tab.id === 'users' && activeTab.startsWith('individual-'));
 
                 return (
-                  <button
-                    key={tab.id}
-                    onClick={() => {
-                      setActiveTab(tab.id as TabType);
-                      setSidebarOpen(false);
-                    }}
-                    className={`
-                      w-full flex items-center px-3 py-2 mt-1 text-sm font-medium rounded-md transition-colors duration-150
-                      ${
-                        isActive
-                          ? 'bg-blue-100 text-blue-900'
-                          : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                      }
-                    `}
-                  >
-                    <Icon className="w-5 h-5 mr-3" />
-                    {tab.name}
-                  </button>
+                  <div key={tab.id}>
+                    <button
+                      onClick={() => {
+                        setActiveTab(tab.id as TabType);
+                        setSidebarOpen(false);
+                      }}
+                      className={`
+                        w-full flex items-center px-3 py-2 mt-1 text-sm font-medium rounded-md transition-colors duration-150
+                        ${
+                          activeTab === tab.id
+                            ? 'bg-blue-100 text-blue-900'
+                            : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                        }
+                      `}
+                    >
+                      <Icon className="w-5 h-5 mr-3" />
+                      {tab.name}
+                    </button>
+                    {tab.id === 'users' &&
+                      users.map((user) => {
+                        const userTab = `individual-${user.id}`;
+                        const isUserActive = activeTab === userTab;
+                        return (
+                          <button
+                            key={user.id}
+                            onClick={() => {
+                              setActiveTab(userTab as TabType);
+                              setSidebarOpen(false);
+                            }}
+                            className={`
+                              w-full flex items-center pl-9 pr-3 py-1.5 mt-0.5 text-sm rounded-md transition-colors duration-150
+                              ${
+                                isUserActive
+                                  ? 'bg-blue-100 text-blue-900 font-medium'
+                                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                              }
+                            `}
+                          >
+                            <div
+                              className="w-3 h-3 rounded-full mr-3 flex-shrink-0"
+                              style={{ backgroundColor: user.color }}
+                            />
+                            {user.name.split(' ')[0]}
+                          </button>
+                        );
+                      })}
+                  </div>
                 );
               })}
 
@@ -365,7 +402,11 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
             <Menu className="w-5 h-5" />
           </button>
           <h1 className="text-base font-semibold text-gray-900 truncate px-2">
-            {tabs.find((tab) => tab.id === activeTab)?.name}
+            {activeTab.startsWith('individual-')
+              ? (users
+                  .find((u) => u.id === activeTab.replace('individual-', ''))
+                  ?.name.split(' ')[0] ?? 'User')
+              : tabs.find((tab) => tab.id === activeTab)?.name}
           </h1>
           <div className="w-9" />
         </div>
