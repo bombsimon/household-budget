@@ -126,9 +126,7 @@ class EncryptionService {
       return true;
     }
     try {
-      return (
-        localStorage.getItem(`household_password_${householdId}`) !== null
-      );
+      return localStorage.getItem(`household_password_${householdId}`) !== null;
     } catch (error) {
       return false;
     }

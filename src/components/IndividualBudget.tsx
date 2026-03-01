@@ -6,7 +6,8 @@ import type {
   Loan,
   PersonalExpenseCategory,
 } from '../types';
-import { PieChart } from 'lucide-react';
+import { useState } from 'react';
+import { PieChart, Eye, EyeOff } from 'lucide-react';
 import {
   PieChart as RechartsPieChart,
   Pie,
@@ -65,11 +66,27 @@ export function IndividualBudget({
   assets,
   loans,
 }: IndividualBudgetProps) {
+  const [blurSensitive, setBlurSensitive] = useState(false);
+
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
-      <h2 className="text-xl font-semibold text-gray-900 mb-6">
-        Individual Budget Breakdown
-      </h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-semibold text-gray-900">
+          Individual Budget Breakdown
+        </h2>
+        <button
+          onClick={() => setBlurSensitive(!blurSensitive)}
+          className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          title={blurSensitive ? 'Show sensitive data' : 'Hide sensitive data'}
+        >
+          {blurSensitive ? (
+            <EyeOff className="w-4 h-4" />
+          ) : (
+            <Eye className="w-4 h-4" />
+          )}
+          {blurSensitive ? 'Show income' : 'Hide income'}
+        </button>
+      </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {users.map((user) => {
@@ -179,6 +196,7 @@ export function IndividualBudget({
               assets={assets}
               loans={loans}
               users={users}
+              blurSensitive={blurSensitive}
             />
           );
         })}
@@ -199,6 +217,7 @@ interface UserBudgetCardProps {
   assets: Asset[];
   loans: Loan[];
   users: User[];
+  blurSensitive: boolean;
 }
 
 function UserBudgetCard({
@@ -213,6 +232,7 @@ function UserBudgetCard({
   assets,
   loans,
   users,
+  blurSensitive,
 }: UserBudgetCardProps) {
   // Filter out uncategorized from breakdown since we'll handle it separately
   const sortedCategories = [...breakdown.personalExpenseBreakdown]
@@ -291,19 +311,14 @@ function UserBudgetCard({
       const totalAmount = personalAmount + householdAmount;
 
       // Find category name from personalCategories or breakdown
-      const personalCat = sortedCategories.find(
-        (c) => c.categoryId === catId
-      );
+      const personalCat = sortedCategories.find((c) => c.categoryId === catId);
       let categoryName =
         existing?.categoryName ||
         personalCat?.categoryName ||
         (catId === 'uncategorized' ? 'Uncategorized' : catId);
 
       // Try to find name from the personal categories passed to the component
-      if (
-        categoryName === catId &&
-        catId !== 'uncategorized'
-      ) {
+      if (categoryName === catId && catId !== 'uncategorized') {
         const found = personalCategories.find((pc) => pc.id === catId);
         if (found) categoryName = found.name;
       }
@@ -317,15 +332,9 @@ function UserBudgetCard({
       };
     })
     .sort((a, b) => {
-      if (
-        a.categoryId === 'uncategorized' &&
-        b.categoryId !== 'uncategorized'
-      )
+      if (a.categoryId === 'uncategorized' && b.categoryId !== 'uncategorized')
         return 1;
-      if (
-        b.categoryId === 'uncategorized' &&
-        a.categoryId !== 'uncategorized'
-      )
+      if (b.categoryId === 'uncategorized' && a.categoryId !== 'uncategorized')
         return -1;
       return a.categoryName.localeCompare(b.categoryName);
     });
@@ -413,6 +422,7 @@ function UserBudgetCard({
         assets={assets}
         loans={loans}
         users={users}
+        blurSensitive={blurSensitive}
       />
 
       {/* Expense Breakdown Visualization */}
@@ -444,6 +454,9 @@ function UserBudgetCard({
                     <Tooltip
                       formatter={(value, name) => {
                         const item = chartData.find((d) => d.name === name);
+                        if (blurSensitive) {
+                          return [`${formatMoney(item?.amount || 0)} kr`, name];
+                        }
                         return [
                           `${formatMoney(item?.amount || 0)} kr (${typeof value === 'number' ? value.toFixed(1) : value}%)`,
                           name,
@@ -477,7 +490,9 @@ function UserBudgetCard({
                         <div className="text-gray-900 font-medium whitespace-nowrap">
                           {formatMoney(item.amount)}&nbsp;kr
                         </div>
-                        <div className="text-gray-500 text-xs">
+                        <div
+                          className={`text-gray-500 text-xs ${blurSensitive ? 'blur-md select-none' : ''}`}
+                        >
                           {item.value.toFixed(1)}%
                         </div>
                       </div>
@@ -520,8 +535,7 @@ function UserBudgetCard({
                 category.categoryId === 'uncategorized'
                   ? uncategorizedExpenses
                   : personalExpenses.filter(
-                      (exp) =>
-                        exp.personalCategoryId === category.categoryId
+                      (exp) => exp.personalCategoryId === category.categoryId
                     );
 
               const categoryHouseholdExpenses =
@@ -596,7 +610,9 @@ function UserBudgetCard({
                             </span>
                           )}
                       </div>
-                      <div className="text-sm text-gray-500">
+                      <div
+                        className={`text-sm text-gray-500 ${blurSensitive ? 'blur-md select-none' : ''}`}
+                      >
                         {category.percentage > 0
                           ? `${category.percentage.toFixed(1)}% of income`
                           : ''}
@@ -639,9 +655,7 @@ function UserBudgetCard({
                                     </span>
                                   )}
                                   <span className="text-gray-500 whitespace-nowrap text-right w-20 flex-shrink-0">
-                                    {formatMoney(
-                                      getMonthlyAmount(expense)
-                                    )}
+                                    {formatMoney(getMonthlyAmount(expense))}
                                     &nbsp;kr
                                   </span>
                                 </div>

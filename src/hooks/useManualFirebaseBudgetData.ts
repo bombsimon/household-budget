@@ -1077,13 +1077,7 @@ export function useManualFirebaseBudgetData(householdId: string) {
       version: '1.0.0',
       lastUpdated: new Date().toISOString(),
     };
-  }, [
-    users,
-    categories,
-    personalCategories,
-    loans,
-    assets,
-  ]);
+  }, [users, categories, personalCategories, loans, assets]);
 
   const importAppState = useCallback((state: AppState) => {
     setCategories(state.categories);

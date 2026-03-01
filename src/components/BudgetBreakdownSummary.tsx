@@ -42,6 +42,7 @@ interface BudgetBreakdownSummaryProps {
   loans: Loan[];
   users: User[];
   compact?: boolean;
+  blurSensitive?: boolean;
 }
 
 export function BudgetBreakdownSummary({
@@ -52,6 +53,7 @@ export function BudgetBreakdownSummary({
   loans,
   users,
   compact = false,
+  blurSensitive = false,
 }: BudgetBreakdownSummaryProps) {
   // Calculate shared expenses from the single shared category
   const sharedCategory = categories.find((cat) => cat.id === 'shared');
@@ -285,6 +287,7 @@ export function BudgetBreakdownSummary({
         label={`Gross Income (${householdIncomePercentage}% of household)`}
         amount={user.monthlyIncome}
         isSubtotal={false}
+        blurSensitive={blurSensitive}
       />
 
       <BudgetLine
@@ -292,6 +295,7 @@ export function BudgetBreakdownSummary({
         amount={breakdown.income}
         isSubtotal={true}
         color="text-blue-600"
+        blurSensitive={blurSensitive}
       />
 
       <div className="pl-4 border-l-2 border-gray-200 space-y-2">
@@ -348,9 +352,12 @@ export function BudgetBreakdownSummary({
           color={isPositive ? 'text-green-600' : 'text-red-600'}
           showTrend={true}
           trendUp={isPositive}
+          blurSensitive={blurSensitive}
         />
 
-        <div className="text-sm text-gray-500 mt-1">
+        <div
+          className={`text-sm text-gray-500 mt-1 ${blurSensitive ? 'blur-md select-none' : ''}`}
+        >
           {percentageLeft.toFixed(1)}% of after-tax income
         </div>
       </div>
@@ -404,7 +411,9 @@ export function BudgetBreakdownSummary({
               color="text-orange-600"
             />
 
-            <div className="text-sm text-gray-500 mt-1">
+            <div
+              className={`text-sm text-gray-500 mt-1 ${blurSensitive ? 'blur-md select-none' : ''}`}
+            >
               {budgetedPercentage.toFixed(1)}% of after-tax income
             </div>
           </div>
@@ -419,9 +428,12 @@ export function BudgetBreakdownSummary({
               }
               showTrend={true}
               trendUp={remainingAfterBudgeted > 0}
+              blurSensitive={blurSensitive}
             />
 
-            <div className="text-sm text-gray-500 mt-1">
+            <div
+              className={`text-sm text-gray-500 mt-1 ${blurSensitive ? 'blur-md select-none' : ''}`}
+            >
               {breakdown.income > 0
                 ? ((remainingAfterBudgeted / breakdown.income) * 100).toFixed(1)
                 : '0'}
@@ -441,6 +453,7 @@ interface BudgetLineProps {
   color?: string;
   showTrend?: boolean;
   trendUp?: boolean;
+  blurSensitive?: boolean;
 }
 
 function BudgetLine({
@@ -450,6 +463,7 @@ function BudgetLine({
   color = 'text-gray-900',
   showTrend = false,
   trendUp = true,
+  blurSensitive = false,
 }: BudgetLineProps) {
   return (
     <div
@@ -462,7 +476,7 @@ function BudgetLine({
       </span>
       <div className="flex items-center gap-2 flex-shrink-0">
         <span
-          className={`${color} ${isSubtotal ? 'text-base' : 'text-sm'} whitespace-nowrap`}
+          className={`${color} ${isSubtotal ? 'text-base' : 'text-sm'} whitespace-nowrap ${blurSensitive ? 'blur-md select-none' : ''}`}
         >
           {formatMoney(Math.abs(amount))}&nbsp;kr
         </span>

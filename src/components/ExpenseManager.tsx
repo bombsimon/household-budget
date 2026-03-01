@@ -43,8 +43,10 @@ export function ExpenseManager({
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(
     new Set()
   );
-  const [personalCategoriesSectionCollapsed, setPersonalCategoriesSectionCollapsed] =
-    useState(false);
+  const [
+    personalCategoriesSectionCollapsed,
+    setPersonalCategoriesSectionCollapsed,
+  ] = useState(false);
 
   return (
     <div className="space-y-6">
