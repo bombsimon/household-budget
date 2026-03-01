@@ -73,7 +73,6 @@ export function ExpenseManager({
           })
           .map((category) => {
             const isSharedCategory = category.id === 'shared';
-            const isPersonalCategory = category.id.startsWith('personal-');
             const fixedExpenses = category.expenses
               .filter((expense) => !expense.isBudgeted)
               .reduce((sum, expense) => sum + getMonthlyAmount(expense), 0);
@@ -174,52 +173,18 @@ export function ExpenseManager({
                           Click "Add" to create your first expense
                         </p>
                       </div>
-                    ) : isPersonalCategory ? (
-                      <GroupedPersonalExpenses
+                    ) : (
+                      <GroupedExpenses
                         expenses={category.expenses}
                         users={users}
                         personalCategories={personalCategories}
+                        isSharedCategory={isSharedCategory}
+                        category={category}
                         editingExpense={editingExpense}
                         onStartEdit={setEditingExpense}
                         onStopEdit={() => setEditingExpense(null)}
                         onUpdateExpense={onUpdateExpense}
                         onDeleteExpense={onDeleteExpense}
-                      />
-                    ) : (
-                      <ExpenseList
-                        expenses={category.expenses}
-                        showSorting={isSharedCategory}
-                        variant="card"
-                        renderExpenseItem={(expense, _index) =>
-                          editingExpense === expense.id ? (
-                            <ExpenseForm
-                              users={users}
-                              personalCategories={personalCategories}
-                              isSharedCategory={isSharedCategory}
-                              category={category}
-                              initialData={expense}
-                              onSubmit={(updates) => {
-                                onUpdateExpense(expense.id, updates);
-                                setEditingExpense(null);
-                              }}
-                              onCancel={() => setEditingExpense(null)}
-                            />
-                          ) : (
-                            <ExpenseItem
-                              expense={expense}
-                              users={users}
-                              personalCategories={personalCategories}
-                              isEditing={false}
-                              isSharedCategory={isSharedCategory}
-                              onUpdate={(updates) =>
-                                onUpdateExpense(expense.id, updates)
-                              }
-                              onDelete={() => onDeleteExpense(expense.id)}
-                              onStartEdit={() => setEditingExpense(expense.id)}
-                              onStopEdit={() => setEditingExpense(null)}
-                            />
-                          )
-                        }
                       />
                     )}
                   </div>
@@ -232,10 +197,12 @@ export function ExpenseManager({
   );
 }
 
-interface GroupedPersonalExpensesProps {
+interface GroupedExpensesProps {
   expenses: Expense[];
   users: User[];
   personalCategories: PersonalExpenseCategory[];
+  isSharedCategory: boolean;
+  category: ExpenseCategory | null;
   editingExpense: string | null;
   onStartEdit: (expenseId: string) => void;
   onStopEdit: () => void;
@@ -243,16 +210,18 @@ interface GroupedPersonalExpensesProps {
   onDeleteExpense: (expenseId: string) => void;
 }
 
-function GroupedPersonalExpenses({
+function GroupedExpenses({
   expenses,
   users,
   personalCategories,
+  isSharedCategory,
+  category,
   editingExpense,
   onStartEdit,
   onStopEdit,
   onUpdateExpense,
   onDeleteExpense,
-}: GroupedPersonalExpensesProps) {
+}: GroupedExpensesProps) {
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(
     new Set()
   );
@@ -355,8 +324,8 @@ function GroupedPersonalExpenses({
                       <ExpenseForm
                         users={users}
                         personalCategories={personalCategories}
-                        isSharedCategory={false}
-                        category={null}
+                        isSharedCategory={isSharedCategory}
+                        category={category}
                         initialData={expense}
                         onSubmit={(updates) => {
                           onUpdateExpense(expense.id, updates);
@@ -370,7 +339,7 @@ function GroupedPersonalExpenses({
                         users={users}
                         personalCategories={personalCategories}
                         isEditing={false}
-                        isSharedCategory={false}
+                        isSharedCategory={isSharedCategory}
                         onUpdate={(updates) =>
                           onUpdateExpense(expense.id, updates)
                         }

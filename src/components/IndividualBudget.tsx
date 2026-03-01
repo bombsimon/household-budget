@@ -61,7 +61,7 @@ export function IndividualBudget({
   users,
   breakdowns,
   categories,
-  personalCategories: _personalCategories,
+  personalCategories,
   assets,
   loans,
 }: IndividualBudgetProps) {
@@ -171,6 +171,7 @@ export function IndividualBudget({
               user={user}
               breakdown={breakdown}
               personalExpenses={personalExpenses}
+              personalCategories={personalCategories}
               categorySharedExpenses={categorySharedExpenses}
               assetAllocations={assetAllocations}
               loanAllocations={loanAllocations}
@@ -190,6 +191,7 @@ interface UserBudgetCardProps {
   user: User;
   breakdown: UserBudgetBreakdown;
   personalExpenses: any[];
+  personalCategories: PersonalExpenseCategory[];
   categorySharedExpenses: number;
   assetAllocations: { name: string; amount: number; type: string }[];
   loanAllocations: { name: string; amount: number }[];
@@ -203,6 +205,7 @@ function UserBudgetCard({
   user,
   breakdown,
   personalExpenses,
+  personalCategories,
   categorySharedExpenses,
   assetAllocations,
   loanAllocations,
@@ -220,29 +223,112 @@ function UserBudgetCard({
   const uncategorizedExpenses = personalExpenses.filter(
     (exp) => !exp.personalCategoryId
   );
-  const categoriesWithUncategorized =
-    uncategorizedExpenses.length > 0
-      ? [
-          {
-            categoryId: 'uncategorized',
-            categoryName: 'Uncategorized',
-            amount: uncategorizedExpenses.reduce(
-              (sum, exp) => sum + getMonthlyAmount(exp),
-              0
-            ),
-            percentage:
-              breakdown.income > 0
-                ? (uncategorizedExpenses.reduce(
-                    (sum, exp) => sum + getMonthlyAmount(exp),
-                    0
-                  ) /
-                    breakdown.income) *
-                  100
-                : 0,
-          },
-          ...sortedCategories,
-        ]
-      : sortedCategories;
+
+  // Calculate user's share of household (shared) expenses
+  const sharedCategory = categories.find((cat) => cat.id === 'shared');
+  const householdExpensesWithShare = sharedCategory
+    ? sharedCategory.expenses
+        .filter((exp) => exp.isShared)
+        .map((exp) => {
+          let userShare = 0;
+          if (exp.splitType === 'equal') {
+            userShare = getMonthlyAmount(exp) / users.length;
+          } else if (
+            exp.splitType === 'percentage' &&
+            exp.splitData?.[user.id]
+          ) {
+            userShare = getMonthlyAmount(exp) * exp.splitData[user.id];
+          }
+          return { ...exp, userShareAmount: userShare };
+        })
+        .filter((exp) => exp.userShareAmount > 0)
+    : [];
+
+  // Group household expenses by personalCategoryId
+  const householdByCategory = householdExpensesWithShare.reduce(
+    (groups, exp) => {
+      const catId = exp.personalCategoryId || 'uncategorized';
+      if (!groups[catId]) groups[catId] = [];
+      groups[catId].push(exp);
+      return groups;
+    },
+    {} as Record<string, typeof householdExpensesWithShare>
+  );
+
+  // Collect all category IDs from both personal and household expenses
+  const allCategoryIds = new Set<string>();
+  personalExpenses.forEach((exp) => {
+    allCategoryIds.add(exp.personalCategoryId || 'uncategorized');
+  });
+  householdExpensesWithShare.forEach((exp) => {
+    allCategoryIds.add(exp.personalCategoryId || 'uncategorized');
+  });
+
+  // Build merged category list
+  const personalCategoryList = categories
+    .flatMap((cat) => cat.expenses)
+    .filter((exp) => exp.userId === user.id && !exp.isShared);
+
+  const categoriesWithUncategorized = Array.from(allCategoryIds)
+    .map((catId) => {
+      const existing = breakdown.personalExpenseBreakdown.find(
+        (c) => c.categoryId === catId
+      );
+      const catPersonalExpenses =
+        catId === 'uncategorized'
+          ? personalCategoryList.filter((exp) => !exp.personalCategoryId)
+          : personalCategoryList.filter(
+              (exp) => exp.personalCategoryId === catId
+            );
+      const personalAmount = catPersonalExpenses.reduce(
+        (sum, exp) => sum + getMonthlyAmount(exp),
+        0
+      );
+      const householdAmount = (householdByCategory[catId] || []).reduce(
+        (sum, exp) => sum + exp.userShareAmount,
+        0
+      );
+      const totalAmount = personalAmount + householdAmount;
+
+      // Find category name from personalCategories or breakdown
+      const personalCat = sortedCategories.find(
+        (c) => c.categoryId === catId
+      );
+      let categoryName =
+        existing?.categoryName ||
+        personalCat?.categoryName ||
+        (catId === 'uncategorized' ? 'Uncategorized' : catId);
+
+      // Try to find name from the personal categories passed to the component
+      if (
+        categoryName === catId &&
+        catId !== 'uncategorized'
+      ) {
+        const found = personalCategories.find((pc) => pc.id === catId);
+        if (found) categoryName = found.name;
+      }
+
+      return {
+        categoryId: catId,
+        categoryName,
+        amount: totalAmount,
+        percentage:
+          breakdown.income > 0 ? (totalAmount / breakdown.income) * 100 : 0,
+      };
+    })
+    .sort((a, b) => {
+      if (
+        a.categoryId === 'uncategorized' &&
+        b.categoryId !== 'uncategorized'
+      )
+        return 1;
+      if (
+        b.categoryId === 'uncategorized' &&
+        a.categoryId !== 'uncategorized'
+      )
+        return -1;
+      return a.categoryName.localeCompare(b.categoryName);
+    });
 
   // Separate small categories for grouping
   const smallCategories = breakdown.personalExpenseBreakdown.filter(
@@ -425,25 +511,46 @@ function UserBudgetCard({
         <div>
           <div className="flex justify-between items-center mb-3">
             <h4 className="text-sm font-medium text-gray-700">
-              Personal Expense Details
+              Expense Details
             </h4>
           </div>
           <div className="space-y-3">
             {categoriesWithUncategorized.map((category) => {
-              const categoryExpenses =
+              const categoryPersonalExpenses =
                 category.categoryId === 'uncategorized'
                   ? uncategorizedExpenses
                   : personalExpenses.filter(
-                      (exp) => exp.personalCategoryId === category.categoryId
+                      (exp) =>
+                        exp.personalCategoryId === category.categoryId
                     );
 
-              // Calculate fixed vs budgeted totals for this category
-              const fixedTotal = categoryExpenses
+              const categoryHouseholdExpenses =
+                householdByCategory[category.categoryId] || [];
+
+              const fixedTotal = categoryPersonalExpenses
                 .filter((exp) => !exp.isBudgeted)
                 .reduce((sum, exp) => sum + getMonthlyAmount(exp), 0);
-              const budgetedTotal = categoryExpenses
+              const budgetedTotal = categoryPersonalExpenses
                 .filter((exp) => exp.isBudgeted)
                 .reduce((sum, exp) => sum + getMonthlyAmount(exp), 0);
+              const householdTotal = categoryHouseholdExpenses.reduce(
+                (sum, exp) => sum + exp.userShareAmount,
+                0
+              );
+
+              // Build a combined list: personal expenses keep their amount,
+              // household expenses use the user's share as amount so sorting works.
+              const householdExpenseIds = new Set(
+                categoryHouseholdExpenses.map((e) => e.id)
+              );
+              const combinedExpenses: Expense[] = [
+                ...categoryPersonalExpenses,
+                ...categoryHouseholdExpenses.map((exp) => ({
+                  ...exp,
+                  amount: exp.userShareAmount,
+                  isYearly: false,
+                })),
+              ];
 
               return (
                 <div
@@ -471,11 +578,23 @@ function UserBudgetCard({
                             </span>
                           </>
                         )}
-                        {fixedTotal === 0 && budgetedTotal === 0 && (
-                          <span className="text-lg font-semibold text-gray-900 whitespace-nowrap">
-                            {formatMoney(category.amount)}&nbsp;kr
-                          </span>
+                        {householdTotal > 0 && (
+                          <>
+                            {(fixedTotal > 0 || budgetedTotal > 0) && (
+                              <span className="text-gray-400"> + </span>
+                            )}
+                            <span className="text-green-600">
+                              {formatMoney(householdTotal)} kr household
+                            </span>
+                          </>
                         )}
+                        {fixedTotal === 0 &&
+                          budgetedTotal === 0 &&
+                          householdTotal === 0 && (
+                            <span className="text-lg font-semibold text-gray-900 whitespace-nowrap">
+                              {formatMoney(category.amount)}&nbsp;kr
+                            </span>
+                          )}
                       </div>
                       <div className="text-sm text-gray-500">
                         {category.percentage > 0
@@ -485,46 +604,56 @@ function UserBudgetCard({
                     </div>
                   </div>
 
-                  {/* Expenses list */}
-                  {categoryExpenses.length > 0 && (
+                  {combinedExpenses.length > 0 && (
                     <div className="border-t border-gray-200 pt-3 mt-3">
                       <ExpenseList
-                        expenses={categoryExpenses}
-                        showSorting={true}
+                        expenses={combinedExpenses}
+                        showSorting={combinedExpenses.length > 1}
                         variant="list"
-                        renderExpenseItem={(expense, _index) => (
-                          <div className="text-sm px-2 py-1">
-                            <div className="flex justify-between items-start sm:items-center">
-                              <div className="flex items-center gap-2 text-left flex-1">
-                                <span
-                                  className={`font-medium ${
-                                    expense.isBudgeted
-                                      ? 'text-orange-600'
-                                      : 'text-gray-700'
-                                  }`}
-                                >
-                                  {expense.name}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2 flex-shrink-0">
-                                {expense.isYearly && (
-                                  <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full whitespace-nowrap">
-                                    {getFrequencyText(expense)}
+                        renderExpenseItem={(expense, _index) => {
+                          const isHousehold = householdExpenseIds.has(
+                            expense.id
+                          );
+                          return (
+                            <div className="text-sm px-2 py-1">
+                              <div className="flex justify-between items-start sm:items-center">
+                                <div className="flex items-center gap-2 text-left flex-1 min-w-0">
+                                  <span className="font-medium truncate text-gray-700">
+                                    {expense.name}
                                   </span>
-                                )}
-                                <span className="text-gray-500 whitespace-nowrap">
-                                  {formatMoney(getMonthlyAmount(expense))}
-                                  &nbsp;kr
-                                </span>
+                                </div>
+                                <div className="flex items-center justify-end gap-2 w-48 flex-shrink-0">
+                                  {isHousehold && (
+                                    <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full whitespace-nowrap">
+                                      household
+                                    </span>
+                                  )}
+                                  {expense.isBudgeted && (
+                                    <span className="px-2 py-0.5 text-xs bg-orange-100 text-orange-700 rounded-full whitespace-nowrap">
+                                      budgeted
+                                    </span>
+                                  )}
+                                  {!isHousehold && expense.isYearly && (
+                                    <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full whitespace-nowrap">
+                                      {getFrequencyText(expense)}
+                                    </span>
+                                  )}
+                                  <span className="text-gray-500 whitespace-nowrap text-right w-20 flex-shrink-0">
+                                    {formatMoney(
+                                      getMonthlyAmount(expense)
+                                    )}
+                                    &nbsp;kr
+                                  </span>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        )}
+                          );
+                        }}
                       />
                     </div>
                   )}
 
-                  {categoryExpenses.length === 0 && (
+                  {combinedExpenses.length === 0 && (
                     <div className="text-sm text-gray-400 italic pt-2">
                       No expenses in this category.
                     </div>
