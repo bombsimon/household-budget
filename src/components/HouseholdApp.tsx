@@ -49,7 +49,6 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
     users,
     categories,
     personalCategories,
-    personalCategoriesSectionCollapsed,
     loans,
     assets,
     addUser,
@@ -58,12 +57,9 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
     addExpense,
     updateExpense,
     deleteExpense,
-    toggleCategoryCollapse,
     addPersonalCategory,
     updatePersonalCategory,
     deletePersonalCategory,
-    togglePersonalCategoryCollapse,
-    togglePersonalCategoriesSectionCollapse,
     addLoan,
     updateLoan,
     deleteLoan,
@@ -181,20 +177,12 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
             users={users}
             categories={categories}
             personalCategories={personalCategories}
-            personalCategoriesSectionCollapsed={
-              personalCategoriesSectionCollapsed
-            }
             onAddExpense={addExpense}
             onUpdateExpense={updateExpense}
             onDeleteExpense={deleteExpense}
-            onToggleCategoryCollapse={toggleCategoryCollapse}
             onAddPersonalCategory={addPersonalCategory}
             onUpdatePersonalCategory={updatePersonalCategory}
             onDeletePersonalCategory={deletePersonalCategory}
-            onTogglePersonalCategoryCollapse={togglePersonalCategoryCollapse}
-            onTogglePersonalCategoriesSectionCollapse={
-              togglePersonalCategoriesSectionCollapse
-            }
           />
         );
       case 'individual':

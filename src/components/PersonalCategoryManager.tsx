@@ -11,7 +11,6 @@ interface PersonalCategoryManagerProps {
     updates: Partial<PersonalExpenseCategory>
   ) => void;
   onDeletePersonalCategory: (categoryId: string) => void;
-  onTogglePersonalCategoryCollapse: (categoryId: string) => void;
   onTogglePersonalCategoriesSectionCollapse: () => void;
 }
 

@@ -37,7 +37,6 @@ const getInitialState = (): AppState => {
     users: [],
     categories: [],
     personalCategories: [],
-    personalCategoriesSectionCollapsed: false,
     loans: [],
     assets: [],
     version: '1.0.0',
@@ -60,10 +59,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
   const [personalCategories, setPersonalCategories] = useState<
     PersonalExpenseCategory[]
   >([]);
-  const [
-    personalCategoriesSectionCollapsed,
-    setPersonalCategoriesSectionCollapsed,
-  ] = useState(false);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
 
@@ -117,9 +112,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
             // Update state from decrypted Firebase data (no saves should trigger from this)
             setCategories(decryptedState.categories || []);
             setPersonalCategories(decryptedState.personalCategories || []);
-            setPersonalCategoriesSectionCollapsed(
-              decryptedState.personalCategoriesSectionCollapsed || false
-            );
             setLoans(decryptedState.loans || []);
             setAssets(decryptedState.assets || []);
             setUsers(decryptedState.users || []);
@@ -128,9 +120,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
             const defaultState = getInitialState();
             setCategories(defaultState.categories);
             setPersonalCategories(defaultState.personalCategories);
-            setPersonalCategoriesSectionCollapsed(
-              defaultState.personalCategoriesSectionCollapsed || false
-            );
             setLoans(defaultState.loans);
             setAssets(defaultState.assets);
             setUsers(defaultState.users);
@@ -173,7 +162,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
         const budgetData = {
           categories,
           personalCategories,
-          personalCategoriesSectionCollapsed,
           loans,
           assets,
           users,
@@ -198,7 +186,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
       currentUserId,
       categories,
       personalCategories,
-      personalCategoriesSectionCollapsed,
       loans,
       assets,
       users,
@@ -393,14 +380,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
     [categories, saveEncryptedData]
   );
 
-  const toggleCategoryCollapse = useCallback((categoryId: string) => {
-    setCategories((prev) =>
-      prev.map((cat) =>
-        cat.id === categoryId ? { ...cat, collapsed: !cat.collapsed } : cat
-      )
-    );
-  }, []);
-
   const addLoan = useCallback(
     async (loan: Omit<Loan, 'id'>) => {
       const newLoan: Loan = {
@@ -471,7 +450,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
     const newCategory: PersonalExpenseCategory = {
       id: uuidv4(),
       name,
-      collapsed: false,
     };
     setPersonalCategories((prev) => [...prev, newCategory]);
   }, []);
@@ -502,20 +480,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
         ),
       }))
     );
-  }, []);
-
-  const togglePersonalCategoryCollapse = useCallback((categoryId: string) => {
-    setPersonalCategories((prev) =>
-      prev.map((category) =>
-        category.id === categoryId
-          ? { ...category, collapsed: !category.collapsed }
-          : category
-      )
-    );
-  }, []);
-
-  const togglePersonalCategoriesSectionCollapse = useCallback(() => {
-    setPersonalCategoriesSectionCollapsed((prev) => !prev);
   }, []);
 
   // Calculation methods remain the same...
@@ -1108,7 +1072,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
       users,
       categories,
       personalCategories,
-      personalCategoriesSectionCollapsed,
       loans,
       assets,
       version: '1.0.0',
@@ -1118,7 +1081,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
     users,
     categories,
     personalCategories,
-    personalCategoriesSectionCollapsed,
     loans,
     assets,
   ]);
@@ -1126,9 +1088,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
   const importAppState = useCallback((state: AppState) => {
     setCategories(state.categories);
     setPersonalCategories(state.personalCategories);
-    setPersonalCategoriesSectionCollapsed(
-      state.personalCategoriesSectionCollapsed || false
-    );
     setLoans(state.loans);
     setAssets(state.assets);
   }, []);
@@ -1137,7 +1096,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
     users,
     categories,
     personalCategories,
-    personalCategoriesSectionCollapsed,
     loans,
     assets,
     addUser,
@@ -1146,12 +1104,9 @@ export function useManualFirebaseBudgetData(householdId: string) {
     addExpense,
     updateExpense,
     deleteExpense,
-    toggleCategoryCollapse,
     addPersonalCategory,
     updatePersonalCategory,
     deletePersonalCategory,
-    togglePersonalCategoryCollapse,
-    togglePersonalCategoriesSectionCollapse,
     addLoan,
     updateLoan,
     deleteLoan,

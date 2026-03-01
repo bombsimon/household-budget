@@ -15,14 +15,12 @@ export interface User {
 export interface ExpenseCategory {
   id: string;
   name: string;
-  collapsed: boolean;
   expenses: Expense[];
 }
 
 export interface PersonalExpenseCategory {
   id: string;
   name: string;
-  collapsed: boolean;
 }
 
 export interface Expense {
@@ -109,7 +107,6 @@ export interface AppState {
   users: User[];
   categories: ExpenseCategory[];
   personalCategories: PersonalExpenseCategory[];
-  personalCategoriesSectionCollapsed?: boolean;
   loans: Loan[];
   assets: Asset[];
   version: string;

@@ -16,38 +16,35 @@ interface ExpenseManagerProps {
   users: User[];
   categories: ExpenseCategory[];
   personalCategories: PersonalExpenseCategory[];
-  personalCategoriesSectionCollapsed: boolean;
   onAddExpense: (categoryId: string, expense: Omit<Expense, 'id'>) => void;
   onUpdateExpense: (expenseId: string, updates: Partial<Expense>) => void;
   onDeleteExpense: (expenseId: string) => void;
-  onToggleCategoryCollapse: (categoryId: string) => void;
   onAddPersonalCategory: (name: string) => void;
   onUpdatePersonalCategory: (
     categoryId: string,
     updates: Partial<PersonalExpenseCategory>
   ) => void;
   onDeletePersonalCategory: (categoryId: string) => void;
-  onTogglePersonalCategoryCollapse: (categoryId: string) => void;
-  onTogglePersonalCategoriesSectionCollapse: () => void;
 }
 
 export function ExpenseManager({
   users,
   categories,
   personalCategories,
-  personalCategoriesSectionCollapsed,
   onAddExpense,
   onUpdateExpense,
   onDeleteExpense,
-  onToggleCategoryCollapse,
   onAddPersonalCategory,
   onUpdatePersonalCategory,
   onDeletePersonalCategory,
-  onTogglePersonalCategoryCollapse,
-  onTogglePersonalCategoriesSectionCollapse,
 }: ExpenseManagerProps) {
   const [addingToCategory, setAddingToCategory] = useState<string | null>(null);
   const [editingExpense, setEditingExpense] = useState<string | null>(null);
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(
+    new Set()
+  );
+  const [personalCategoriesSectionCollapsed, setPersonalCategoriesSectionCollapsed] =
+    useState(false);
 
   return (
     <div className="space-y-6">
@@ -57,9 +54,8 @@ export function ExpenseManager({
         onAddPersonalCategory={onAddPersonalCategory}
         onUpdatePersonalCategory={onUpdatePersonalCategory}
         onDeletePersonalCategory={onDeletePersonalCategory}
-        onTogglePersonalCategoryCollapse={onTogglePersonalCategoryCollapse}
-        onTogglePersonalCategoriesSectionCollapse={
-          onTogglePersonalCategoriesSectionCollapse
+        onTogglePersonalCategoriesSectionCollapse={() =>
+          setPersonalCategoriesSectionCollapsed((prev) => !prev)
         }
       />
 
@@ -87,10 +83,15 @@ export function ExpenseManager({
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     {/* Mobile: 3-row layout, Desktop: single row */}
                     <button
-                      onClick={() => onToggleCategoryCollapse(category.id)}
+                      onClick={() => {
+                        const next = new Set(collapsedCategories);
+                        if (next.has(category.id)) next.delete(category.id);
+                        else next.add(category.id);
+                        setCollapsedCategories(next);
+                      }}
                       className="flex items-center gap-2 text-left flex-1 min-w-0"
                     >
-                      {category.collapsed ? (
+                      {collapsedCategories.has(category.id) ? (
                         <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
                       ) : (
                         <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
@@ -134,7 +135,7 @@ export function ExpenseManager({
                   </div>
 
                   {/* Mobile: Add button on separate row - hide when collapsed */}
-                  {!category.collapsed && (
+                  {!collapsedCategories.has(category.id) && (
                     <div className="sm:hidden mt-2">
                       <button
                         onClick={() => setAddingToCategory(category.id)}
@@ -147,7 +148,7 @@ export function ExpenseManager({
                   )}
                 </div>
 
-                {!category.collapsed && (
+                {!collapsedCategories.has(category.id) && (
                   <div className="p-4">
                     {addingToCategory === category.id && (
                       <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
