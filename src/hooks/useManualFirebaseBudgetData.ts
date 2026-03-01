@@ -342,7 +342,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
         const newCategory: ExpenseCategory = {
           id: categoryId,
           name: categoryId === 'shared' ? 'Household Expenses' : 'New Category',
-          collapsed: false,
           expenses: [newExpense],
         };
         updatedCategories = [...categories, newCategory];

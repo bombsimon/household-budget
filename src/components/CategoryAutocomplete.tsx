@@ -21,7 +21,7 @@ export function CategoryAutocomplete({
   const [isCreating, setIsCreating] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const blurTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const blurTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     const cat = personalCategories.find((c) => c.id === value);

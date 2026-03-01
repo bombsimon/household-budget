@@ -276,10 +276,6 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
             <div className="px-3">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
-                const isActive =
-                  activeTab === tab.id ||
-                  (tab.id === 'users' && activeTab.startsWith('individual-'));
-
                 return (
                   <div key={tab.id}>
                     <button
