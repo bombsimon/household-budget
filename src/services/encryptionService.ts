@@ -111,11 +111,10 @@ class EncryptionService {
    */
   setHouseholdPassword(householdId: string, password: string): void {
     this.householdPasswords.set(householdId, password);
-    // Also store in session storage for page refresh persistence
     try {
-      sessionStorage.setItem(`household_password_${householdId}`, password);
+      localStorage.setItem(`household_password_${householdId}`, password);
     } catch (error) {
-      console.warn('Failed to store password in session storage:', error);
+      console.warn('Failed to store password in localStorage:', error);
     }
   }
 
@@ -126,10 +125,9 @@ class EncryptionService {
     if (this.householdPasswords.has(householdId)) {
       return true;
     }
-    // Check session storage as fallback
     try {
       return (
-        sessionStorage.getItem(`household_password_${householdId}`) !== null
+        localStorage.getItem(`household_password_${householdId}`) !== null
       );
     } catch (error) {
       return false;
@@ -146,18 +144,16 @@ class EncryptionService {
       return memoryPassword;
     }
 
-    // Fallback to session storage
     try {
-      const sessionPassword = sessionStorage.getItem(
+      const storedPassword = localStorage.getItem(
         `household_password_${householdId}`
       );
-      if (sessionPassword) {
-        // Restore to memory for faster future access
-        this.householdPasswords.set(householdId, sessionPassword);
-        return sessionPassword;
+      if (storedPassword) {
+        this.householdPasswords.set(householdId, storedPassword);
+        return storedPassword;
       }
     } catch (error) {
-      console.warn('Failed to retrieve password from session storage:', error);
+      console.warn('Failed to retrieve password from localStorage:', error);
     }
 
     return null;
@@ -169,9 +165,9 @@ class EncryptionService {
   clearHouseholdPassword(householdId: string): void {
     this.householdPasswords.delete(householdId);
     try {
-      sessionStorage.removeItem(`household_password_${householdId}`);
+      localStorage.removeItem(`household_password_${householdId}`);
     } catch (error) {
-      console.warn('Failed to clear password from session storage:', error);
+      console.warn('Failed to clear password from localStorage:', error);
     }
   }
 
@@ -181,15 +177,14 @@ class EncryptionService {
   clearAllPasswords(): void {
     this.householdPasswords.clear();
     try {
-      // Clear all household passwords from session storage
-      const keys = Object.keys(sessionStorage);
+      const keys = Object.keys(localStorage);
       keys.forEach((key) => {
         if (key.startsWith('household_password_')) {
-          sessionStorage.removeItem(key);
+          localStorage.removeItem(key);
         }
       });
     } catch (error) {
-      console.warn('Failed to clear passwords from session storage:', error);
+      console.warn('Failed to clear passwords from localStorage:', error);
     }
   }
 
