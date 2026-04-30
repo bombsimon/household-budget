@@ -382,7 +382,7 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
                 className="flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors"
               >
                 <LogOut className="w-4 h-4" />
-                Leave Household
+                Log out
               </button>
             </div>
           </div>
