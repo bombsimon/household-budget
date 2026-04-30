@@ -668,7 +668,7 @@ function UserBudgetCard({
 
                           return (
                             <div
-                              className={`text-sm px-2 py-1 ${!isHousehold ? 'cursor-pointer hover:bg-gray-50 rounded' : ''}`}
+                              className={`text-sm px-2 py-1 ${!isHousehold ? 'cursor-pointer hover:bg-blue-50 rounded' : ''}`}
                               onClick={
                                 !isHousehold
                                   ? () => {
