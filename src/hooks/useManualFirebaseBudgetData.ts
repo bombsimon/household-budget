@@ -403,6 +403,19 @@ export function useManualFirebaseBudgetData(householdId: string) {
     [loans, saveEncryptedData]
   );
 
+  const updateLoans = useCallback(
+    async (updatesByLoanId: Record<string, Partial<Loan>>) => {
+      const updatedLoans = loans.map((loan) =>
+        updatesByLoanId[loan.id]
+          ? { ...loan, ...updatesByLoanId[loan.id] }
+          : loan
+      );
+      setLoans(updatedLoans);
+      await saveEncryptedData({ loans: updatedLoans });
+    },
+    [loans, saveEncryptedData]
+  );
+
   const deleteLoan = useCallback(
     async (loanId: string) => {
       const updatedLoans = loans.filter((loan) => loan.id !== loanId);
@@ -578,7 +591,12 @@ export function useManualFirebaseBudgetData(householdId: string) {
     loans.forEach((loan) => {
       const paidBy = loan.paidBy || users[0]?.id;
       const monthlyInterest = (loan.currentAmount * loan.interestRate) / 12;
-      const monthlyRepayment = loan.monthlyPayment;
+      // Clamp the repayment at the remaining balance — fully paid-off loans
+      // contribute 0, and a near-final payment can't exceed what's still owed.
+      const monthlyRepayment = Math.min(
+        loan.monthlyPayment,
+        Math.max(0, loan.currentAmount)
+      );
 
       // Fallback for old loan structure
       const isInterestShared =
@@ -601,7 +619,7 @@ export function useManualFirebaseBudgetData(householdId: string) {
 
       // Add interest + monthly payment to payer (treating them as separate costs)
       userBalances[paidBy] =
-        (userBalances[paidBy] || 0) + monthlyInterest + loan.monthlyPayment;
+        (userBalances[paidBy] || 0) + monthlyInterest + monthlyRepayment;
 
       // Subtract interest portion based on interest splitting
       if (isInterestShared) {
@@ -781,7 +799,12 @@ export function useManualFirebaseBudgetData(householdId: string) {
     loans.forEach((loan) => {
       const paidBy = loan.paidBy || users[0]?.id;
       const monthlyInterest = (loan.currentAmount * loan.interestRate) / 12;
-      const monthlyRepayment = loan.monthlyPayment;
+      // Clamp the repayment at the remaining balance — fully paid-off loans
+      // contribute 0, and a near-final payment can't exceed what's still owed.
+      const monthlyRepayment = Math.min(
+        loan.monthlyPayment,
+        Math.max(0, loan.currentAmount)
+      );
 
       // Fallback for old loan structure
       const isInterestShared =
@@ -805,7 +828,7 @@ export function useManualFirebaseBudgetData(householdId: string) {
       // Add interest + monthly payment to payer first
       if (userBalances[paidBy]) {
         // Only process if payer still exists
-        userBalances[paidBy].total += monthlyInterest + loan.monthlyPayment;
+        userBalances[paidBy].total += monthlyInterest + monthlyRepayment;
 
         // Handle interest portion splitting
         if (isInterestShared) {
@@ -1118,6 +1141,7 @@ export function useManualFirebaseBudgetData(householdId: string) {
     deletePersonalCategory,
     addLoan,
     updateLoan,
+    updateLoans,
     deleteLoan,
     addAsset,
     updateAsset,

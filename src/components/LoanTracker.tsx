@@ -6,6 +6,7 @@ import {
   Calculator,
   TrendingUp,
   TrendingDown,
+  CheckCircle2,
 } from 'lucide-react';
 import type { Loan, User } from '../types';
 import { formatMoney } from '../utils/expenseCalculations';
@@ -18,6 +19,7 @@ interface LoanTrackerProps {
   loans: Loan[];
   onAddLoan: (loan: Omit<Loan, 'id'>) => void;
   onUpdateLoan: (loanId: string, updates: Partial<Loan>) => void;
+  onUpdateLoans: (updatesByLoanId: Record<string, Partial<Loan>>) => void;
   onDeleteLoan: (loanId: string) => void;
 }
 
@@ -26,27 +28,20 @@ export function LoanTracker({
   loans,
   onAddLoan,
   onUpdateLoan,
+  onUpdateLoans,
   onDeleteLoan,
 }: LoanTrackerProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const totalOriginalAmount = loans.reduce(
-    (sum, loan) => sum + loan.originalAmount,
-    0
-  );
-  const totalCurrentAmount = loans.reduce(
-    (sum, loan) => sum + loan.currentAmount,
-    0
-  );
-  const totalMonthlyPayment = loans.reduce(
-    (sum, loan) => sum + loan.monthlyPayment,
-    0
-  );
-  const totalPaidOff = totalOriginalAmount - totalCurrentAmount;
-  const totalMonthlyInterest = loans.reduce((sum, loan) => {
-    return sum + (loan.currentAmount * loan.interestRate) / 12;
-  }, 0);
+  const {
+    totalOriginalAmount,
+    totalCurrentAmount,
+    totalMonthlyPayment,
+    totalPaidOff,
+    totalMonthlyInterest,
+    totalMonthlyCost,
+  } = computeLoanTotals(loans);
 
   // Test interest calculations
   const loansWithTestRates = loans.filter((loan) => loan.testInterestRate);
@@ -62,6 +57,17 @@ export function LoanTracker({
   const totalTestDifference =
     totalTestMonthlyInterest - totalCurrentInterestForTestLoans;
   const hasTestRates = loansWithTestRates.length > 0;
+
+  const existingCategories = Array.from(
+    new Set(
+      loans
+        .map((loan) => loan.category?.trim())
+        .filter((category): category is string => !!category)
+    )
+  ).sort((a, b) => a.localeCompare(b));
+
+  const groupedLoans = groupLoansByCategory(loans);
+  const hasCategorizedLoans = existingCategories.length > 0;
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-3 sm:p-6">
@@ -100,7 +106,7 @@ export function LoanTracker({
       </div>
 
       {loans.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
           <SummaryCard
             title="Total Debt"
             amount={totalCurrentAmount}
@@ -123,6 +129,12 @@ export function LoanTracker({
             title="Monthly Interest"
             amount={totalMonthlyInterest}
             color="text-orange-600"
+          />
+          <SummaryCard
+            title="Total Monthly Cost"
+            amount={totalMonthlyCost}
+            color="text-purple-600"
+            subtitle="Payment + interest"
           />
         </div>
       )}
@@ -190,6 +202,7 @@ export function LoanTracker({
       {isAdding && (
         <LoanForm
           users={users}
+          existingCategories={existingCategories}
           onSubmit={(loan) => {
             onAddLoan(loan);
             setIsAdding(false);
@@ -198,23 +211,126 @@ export function LoanTracker({
         />
       )}
 
-      <div className="space-y-4">
-        {loans.map((loan) => (
-          <LoanCard
-            key={loan.id}
-            users={users}
-            loan={loan}
-            isEditing={editingId === loan.id}
-            onUpdate={(updates) => {
-              onUpdateLoan(loan.id, updates);
-              setEditingId(null);
-            }}
-            onDelete={() => onDeleteLoan(loan.id)}
-            onStartEdit={() => setEditingId(loan.id)}
-            onStopEdit={() => setEditingId(null)}
-          />
-        ))}
-      </div>
+      {hasCategorizedLoans ? (
+        <div className="space-y-6">
+          {groupedLoans.map(({ key, label, loans: groupLoans }) => {
+            const groupTotals = computeLoanTotals(groupLoans);
+            const applicableLoans = groupLoans.filter(
+              (loan) => loan.monthlyPayment > 0 && loan.currentAmount > 0
+            );
+            const groupRepaymentSum = applicableLoans.reduce(
+              (sum, loan) =>
+                sum + Math.min(loan.monthlyPayment, loan.currentAmount),
+              0
+            );
+            const canApplyGroup = applicableLoans.length > 0;
+            const handleApplyGroupRepayments = () => {
+              if (!canApplyGroup) return;
+              const updates: Record<string, Partial<Loan>> = {};
+              applicableLoans.forEach((loan) => {
+                updates[loan.id] = {
+                  currentAmount: Math.max(
+                    0,
+                    loan.currentAmount - loan.monthlyPayment
+                  ),
+                };
+              });
+              onUpdateLoans(updates);
+            };
+
+            return (
+              <div key={key}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-md font-semibold text-gray-900">
+                      {label}
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={handleApplyGroupRepayments}
+                      disabled={!canApplyGroup}
+                      title={
+                        canApplyGroup
+                          ? `Apply this month's repayment to all ${applicableLoans.length} loan${applicableLoans.length !== 1 ? 's' : ''} in "${label}" (-${formatMoney(groupRepaymentSum)} kr total)`
+                          : 'No loans in this category have a remaining balance'
+                      }
+                      aria-label={`Apply this month's repayment to all loans in ${label}`}
+                      className="text-gray-400 hover:text-green-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-gray-400"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <span className="text-xs text-gray-500">
+                    {groupLoans.length} loan
+                    {groupLoans.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                  <CategorySummaryStat
+                    title="Total Debt"
+                    amount={groupTotals.totalCurrentAmount}
+                    color="text-red-600"
+                  />
+                  <CategorySummaryStat
+                    title="Monthly Payment"
+                    amount={groupTotals.totalMonthlyPayment}
+                    color="text-blue-600"
+                  />
+                  <CategorySummaryStat
+                    title="Monthly Interest"
+                    amount={groupTotals.totalMonthlyInterest}
+                    color="text-orange-600"
+                  />
+                  <CategorySummaryStat
+                    title="Total Monthly Cost"
+                    amount={groupTotals.totalMonthlyCost}
+                    color="text-purple-600"
+                  />
+                </div>
+
+                <div className="space-y-4">
+                  {groupLoans.map((loan) => (
+                    <LoanCard
+                      key={loan.id}
+                      users={users}
+                      loan={loan}
+                      existingCategories={existingCategories}
+                      isEditing={editingId === loan.id}
+                      onUpdate={(updates) => {
+                        onUpdateLoan(loan.id, updates);
+                        setEditingId(null);
+                      }}
+                      onDelete={() => onDeleteLoan(loan.id)}
+                      onStartEdit={() => setEditingId(loan.id)}
+                      onStopEdit={() => setEditingId(null)}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {loans.map((loan) => (
+            <LoanCard
+              key={loan.id}
+              users={users}
+              loan={loan}
+              existingCategories={existingCategories}
+              isEditing={editingId === loan.id}
+              onUpdate={(updates) => {
+                onUpdateLoan(loan.id, updates);
+                setEditingId(null);
+              }}
+              onDelete={() => onDeleteLoan(loan.id)}
+              onStartEdit={() => setEditingId(loan.id)}
+              onStopEdit={() => setEditingId(null)}
+            />
+          ))}
+        </div>
+      )}
 
       {loans.length === 0 && !isAdding && (
         <div className="text-center py-12 text-gray-500">
@@ -222,6 +338,97 @@ export function LoanTracker({
           <p>No loans added yet. Click "Add Loan" to get started.</p>
         </div>
       )}
+    </div>
+  );
+}
+
+interface LoanTotals {
+  totalOriginalAmount: number;
+  totalCurrentAmount: number;
+  totalMonthlyPayment: number;
+  totalPaidOff: number;
+  totalMonthlyInterest: number;
+  totalMonthlyCost: number;
+}
+
+function computeLoanTotals(loans: Loan[]): LoanTotals {
+  const totalOriginalAmount = loans.reduce(
+    (sum, loan) => sum + loan.originalAmount,
+    0
+  );
+  const totalCurrentAmount = loans.reduce(
+    (sum, loan) => sum + loan.currentAmount,
+    0
+  );
+  // Clamp each loan's payment at its remaining balance so a paid-off loan contributes 0
+  // and a near-final payment can never exceed what's still owed.
+  const totalMonthlyPayment = loans.reduce(
+    (sum, loan) =>
+      sum + Math.min(loan.monthlyPayment, Math.max(0, loan.currentAmount)),
+    0
+  );
+  const totalMonthlyInterest = loans.reduce(
+    (sum, loan) => sum + (loan.currentAmount * loan.interestRate) / 12,
+    0
+  );
+
+  return {
+    totalOriginalAmount,
+    totalCurrentAmount,
+    totalMonthlyPayment,
+    totalPaidOff: totalOriginalAmount - totalCurrentAmount,
+    totalMonthlyInterest,
+    totalMonthlyCost: totalMonthlyPayment + totalMonthlyInterest,
+  };
+}
+
+interface LoanGroup {
+  key: string;
+  label: string;
+  loans: Loan[];
+}
+
+const UNCATEGORIZED_KEY = '__uncategorized__';
+
+function groupLoansByCategory(loans: Loan[]): LoanGroup[] {
+  const groups = new Map<string, LoanGroup>();
+
+  loans.forEach((loan) => {
+    const trimmed = loan.category?.trim();
+    const key = trimmed || UNCATEGORIZED_KEY;
+    const label = trimmed || 'Uncategorized';
+    const existing = groups.get(key);
+    if (existing) {
+      existing.loans.push(loan);
+    } else {
+      groups.set(key, { key, label, loans: [loan] });
+    }
+  });
+
+  return Array.from(groups.values()).sort((a, b) => {
+    if (a.key === UNCATEGORIZED_KEY) return 1;
+    if (b.key === UNCATEGORIZED_KEY) return -1;
+    return a.label.localeCompare(b.label);
+  });
+}
+
+interface CategorySummaryStatProps {
+  title: string;
+  amount: number;
+  color: string;
+}
+
+function CategorySummaryStat({
+  title,
+  amount,
+  color,
+}: CategorySummaryStatProps) {
+  return (
+    <div className="bg-gray-50 rounded-md p-3">
+      <div className="text-xs font-medium text-gray-500 mb-1">{title}</div>
+      <div className={`text-lg font-semibold ${color}`}>
+        {formatMoney(amount)} kr
+      </div>
     </div>
   );
 }
@@ -267,6 +474,7 @@ function SummaryCard({
 interface LoanCardProps {
   users: User[];
   loan: Loan;
+  existingCategories: string[];
   isEditing: boolean;
   onUpdate: (updates: Partial<Loan>) => void;
   onDelete: () => void;
@@ -277,6 +485,7 @@ interface LoanCardProps {
 function LoanCard({
   users,
   loan,
+  existingCategories,
   isEditing,
   onUpdate,
   onDelete,
@@ -288,6 +497,13 @@ function LoanCard({
   const monthlyInterest = (loan.currentAmount * loan.interestRate) / 12;
   const monthlyRepayment = loan.monthlyPayment; // Fixed repayment amount (amortering)
   const monthsToPayOff = loan.currentAmount / monthlyRepayment;
+
+  const canApplyRepayment = monthlyRepayment > 0 && loan.currentAmount > 0;
+  const handleApplyRepayment = () => {
+    onUpdate({
+      currentAmount: Math.max(0, loan.currentAmount - monthlyRepayment),
+    });
+  };
 
   const testMonthlyInterest = loan.testInterestRate
     ? (loan.currentAmount * loan.testInterestRate) / 12
@@ -304,6 +520,7 @@ function LoanCard({
       <LoanForm
         users={users}
         initialData={loan}
+        existingCategories={existingCategories}
         onSubmit={onUpdate}
         onCancel={onStopEdit}
       />
@@ -382,19 +599,31 @@ function LoanCard({
             <div className="flex justify-between">
               <span>Total Payment:</span>
               <span className="font-medium">
-                {formatMoney(loan.monthlyPayment)} kr
+                {formatMoney(monthlyInterest + monthlyRepayment)} kr
               </span>
             </div>
             <div className="flex justify-between">
               <span>Interest:</span>
               <span className="text-red-600">
-                {monthlyInterest.toFixed(0)} kr
+                {formatMoney(monthlyInterest)} kr
               </span>
             </div>
-            <div className="flex justify-between">
-              <span>Repayment:</span>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-1.5">
+                <span>Repayment:</span>
+                <button
+                  type="button"
+                  onClick={handleApplyRepayment}
+                  disabled={!canApplyRepayment}
+                  title={`Apply this month's repayment (-${formatMoney(monthlyRepayment)} kr) to the current balance`}
+                  aria-label="Apply this month's repayment"
+                  className="text-gray-400 hover:text-green-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-gray-400"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
               <span className="text-green-600">
-                {monthlyRepayment.toFixed(0)} kr
+                {formatMoney(monthlyRepayment)} kr
               </span>
             </div>
             <div className="flex justify-between text-xs text-gray-500">
@@ -414,13 +643,13 @@ function LoanCard({
               <div className="flex justify-between">
                 <span>Test Payment:</span>
                 <span className="font-medium">
-                  {testMonthlyPayment!.toFixed(0)} kr
+                  {formatMoney(testMonthlyPayment!)} kr
                 </span>
               </div>
               <div className="flex justify-between">
                 <span>Interest:</span>
                 <span className="text-red-600">
-                  {testMonthlyInterest!.toFixed(0)} kr
+                  {formatMoney(testMonthlyInterest!)} kr
                 </span>
               </div>
               <div className="flex justify-between font-medium">
@@ -431,7 +660,7 @@ function LoanCard({
                   }
                 >
                   {testDifference > 0 ? '+' : ''}
-                  {testDifference.toFixed(0)} kr
+                  {formatMoney(testDifference)} kr
                 </span>
               </div>
               <div
@@ -439,7 +668,7 @@ function LoanCard({
               >
                 {testDifference > 0 ? '🔺' : '🔻'}{' '}
                 {testDifference > 0 ? 'More expensive' : 'Savings'} of{' '}
-                {Math.abs(testDifference * 12).toFixed(0)} kr/year
+                {formatMoney(Math.abs(testDifference * 12))} kr/year
               </div>
             </div>
           </div>
@@ -464,12 +693,20 @@ function LoanCard({
 interface LoanFormProps {
   users: User[];
   initialData?: Loan;
+  existingCategories: string[];
   onSubmit: (loan: Omit<Loan, 'id'>) => void;
   onCancel: () => void;
 }
 
-function LoanForm({ users, initialData, onSubmit, onCancel }: LoanFormProps) {
+function LoanForm({
+  users,
+  initialData,
+  existingCategories,
+  onSubmit,
+  onCancel,
+}: LoanFormProps) {
   const [name, setName] = useState(initialData?.name || '');
+  const [category, setCategory] = useState(initialData?.category || '');
   const [originalAmount, setOriginalAmount] = useState(
     initialData?.originalAmount?.toString() || ''
   );
@@ -561,8 +798,11 @@ function LoanForm({ users, initialData, onSubmit, onCancel }: LoanFormProps) {
       }
     }
 
+    const trimmedCategory = category.trim();
+
     onSubmit({
       name: name.trim(),
+      category: trimmedCategory ? trimmedCategory : undefined,
       originalAmount: parseFloat(originalAmount),
       currentAmount: parseFloat(currentAmount),
       interestRate: parseFloat(interestRate) / 100,
@@ -605,6 +845,27 @@ function LoanForm({ users, initialData, onSubmit, onCancel }: LoanFormProps) {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
+            Category (optional)
+          </label>
+          <input
+            type="text"
+            list="loan-category-suggestions"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="e.g., Housing, Car, SMS loans"
+          />
+          <datalist id="loan-category-suggestions">
+            {existingCategories.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
             Original Amount (kr)
           </label>
           <input
@@ -617,9 +878,6 @@ function LoanForm({ users, initialData, onSubmit, onCancel }: LoanFormProps) {
             min="0"
           />
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Current Balance (kr)
@@ -634,6 +892,9 @@ function LoanForm({ users, initialData, onSubmit, onCancel }: LoanFormProps) {
             min="0"
           />
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Interest Rate (%)
@@ -645,6 +906,20 @@ function LoanForm({ users, initialData, onSubmit, onCancel }: LoanFormProps) {
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="3.5"
             required
+            min="0"
+            step="0.01"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Test Interest Rate (%) - Optional
+          </label>
+          <input
+            type="number"
+            value={testInterestRate}
+            onChange={(e) => setTestInterestRate(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="2.8"
             min="0"
             step="0.01"
           />
@@ -664,20 +939,6 @@ function LoanForm({ users, initialData, onSubmit, onCancel }: LoanFormProps) {
             placeholder="8500"
             required
             min="0"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Test Interest Rate (%) - Optional
-          </label>
-          <input
-            type="number"
-            value={testInterestRate}
-            onChange={(e) => setTestInterestRate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="2.8"
-            min="0"
-            step="0.01"
           />
         </div>
       </div>

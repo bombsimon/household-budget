@@ -59,6 +59,7 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
     addPersonalCategory,
     addLoan,
     updateLoan,
+    updateLoans,
     deleteLoan,
     addAsset,
     updateAsset,
@@ -186,6 +187,7 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
             loans={loans}
             onAddLoan={addLoan}
             onUpdateLoan={updateLoan}
+            onUpdateLoans={updateLoans}
             onDeleteLoan={deleteLoan}
           />
         );

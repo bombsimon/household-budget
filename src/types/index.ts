@@ -42,6 +42,7 @@ export interface Expense {
 export interface Loan {
   id: string;
   name: string;
+  category?: string; // Optional label used to group related loans (e.g. "Housing", "Car")
   originalAmount: number;
   currentAmount: number;
   interestRate: number;

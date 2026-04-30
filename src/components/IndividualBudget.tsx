@@ -136,7 +136,11 @@ export function UserBudgetPage({
 
   const totalRepaymentAllocation = loans.reduce((total, loan) => {
     if (!loan.isRepaymentShared) return total;
-    const monthlyAmortering = loan.monthlyPayment;
+    // Clamp at remaining balance — paid-off loans contribute 0.
+    const monthlyAmortering = Math.min(
+      loan.monthlyPayment,
+      Math.max(0, loan.currentAmount)
+    );
     if (loan.repaymentSplitType === 'equal') {
       return total + monthlyAmortering / users.length;
     } else if (

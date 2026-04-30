@@ -222,7 +222,12 @@ export function Dashboard({
             </div>
             {(() => {
               const totalMonthlyDebtPayments = loans.reduce(
-                (sum, loan) => sum + loan.monthlyPayment,
+                (sum, loan) =>
+                  sum +
+                  Math.min(
+                    loan.monthlyPayment,
+                    Math.max(0, loan.currentAmount)
+                  ),
                 0
               );
               const debtToIncomeRatio =
@@ -685,7 +690,15 @@ export function Dashboard({
             <div className="text-center">
               <div className="text-2xl font-bold text-orange-600">
                 {formatMoney(
-                  loans.reduce((sum, loan) => sum + loan.monthlyPayment, 0)
+                  loans.reduce(
+                    (sum, loan) =>
+                      sum +
+                      Math.min(
+                        loan.monthlyPayment,
+                        Math.max(0, loan.currentAmount)
+                      ),
+                    0
+                  )
                 )}{' '}
                 kr
               </div>
