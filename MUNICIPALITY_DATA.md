@@ -2,7 +2,7 @@
 
 ## Current Status
 
-✅ **The current municipality data in `/src/data/municipalities.ts` contains real 2025 tax rates** from Skatteverket.
+✅ **The current municipality data in `/src/data/municipalities.ts` contains real 2026 tax rates** from Skatteverket.
 
 ## Tax Table Data
 

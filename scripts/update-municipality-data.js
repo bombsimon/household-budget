@@ -43,11 +43,31 @@ const MAJOR_MUNICIPALITIES = [
   'Huddinge',
 ];
 
-async function fetchWithDelay(url, delay = 100) {
-  const response = await fetch(url);
-  await new Promise((resolve) => setTimeout(resolve, delay));
-  return response;
+const MAX_ATTEMPTS = 4;
+
+const wait = (milliseconds) =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+// Skatteverket sometimes answers with a temporary HTML page instead of JSON
+async function fetchJson(url) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`${response.status} ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      if (attempt === MAX_ATTEMPTS) throw error;
+
+      await wait(1000 * 2 ** attempt);
+    }
+  }
 }
+
+const TAX_YEAR = 2026;
 
 async function updateMunicipalityData() {
   try {
@@ -63,17 +83,9 @@ async function updateMunicipalityData() {
     const SKATTEVERKET_BASE =
       'https://www7.skatteverket.se/portal-wapi/open/skatteberakning/v1/api/skattesats';
 
-    const municipalitiesResponse = await fetch(
-      `${SKATTEVERKET_BASE}/2025/kommuner`
+    const allMunicipalities = await fetchJson(
+      `${SKATTEVERKET_BASE}/${TAX_YEAR}/kommuner`
     );
-
-    if (!municipalitiesResponse.ok) {
-      throw new Error(
-        `Failed to fetch municipalities: ${municipalitiesResponse.statusText}`
-      );
-    }
-
-    const allMunicipalities = await municipalitiesResponse.json();
     console.log(`Found ${allMunicipalities.length} municipalities`);
 
     // Filter municipalities based on flag
@@ -93,19 +105,10 @@ async function updateMunicipalityData() {
           `Fetching rates for ${municipality.namn} (${municipality.kod})...`
         );
 
-        const ratesResponse = await fetchWithDelay(
-          `${SKATTEVERKET_BASE}/2025/kommuner/${municipality.kod}`,
-          100 // 100ms delay between requests
+        await wait(100);
+        const rates = await fetchJson(
+          `${SKATTEVERKET_BASE}/${TAX_YEAR}/kommuner/${municipality.kod}`
         );
-
-        if (!ratesResponse.ok) {
-          console.warn(
-            `Failed to fetch rates for ${municipality.namn}: ${ratesResponse.statusText}`
-          );
-          continue;
-        }
-
-        const rates = await ratesResponse.json();
 
         const regionskatt = rates.lan?.regionskatt || rates.regionskatt;
 
@@ -134,6 +137,13 @@ async function updateMunicipalityData() {
       }
     }
 
+    // A partial file would silently remove municipalities people have chosen
+    if (municipalityData.length !== selectedMunicipalities.length) {
+      throw new Error(
+        `Only got rates for ${municipalityData.length} of ${selectedMunicipalities.length} municipalities`
+      );
+    }
+
     // Sort by name
     municipalityData.sort((a, b) => a.namn.localeCompare(b.namn));
 
@@ -148,14 +158,14 @@ async function updateMunicipalityData() {
  * Use --full flag to fetch all 290 municipalities, otherwise fetches major municipalities only
  *
  * Last updated: ${new Date().toISOString().split('T')[0]}
- * Data source: Skatteverket API for tax year 2025
+ * Data source: Skatteverket API for tax year ${TAX_YEAR}
  */
 
 export interface StaticMunicipality {
-  kod: string;
+  kod: number;
   namn: string;
   kommunalskatt: number;
-  regionskatt: number;
+  regionskatt?: number;
   begravningsavgift: number;
 }
 
@@ -172,7 +182,7 @@ export const STATIC_MUNICIPALITIES: StaticMunicipality[] = ${JSON.stringify(muni
     );
     fs.writeFileSync(filePath, fileContent, 'utf8');
 
-    console.log(`\\n✅ Successfully updated ${filePath}`);
+    console.log(`\n✅ Successfully updated ${filePath}`);
     console.log(`Generated data for ${municipalityData.length} municipalities`);
   } catch (error) {
     console.error('❌ Failed to update municipality data:', error.message);
