@@ -478,7 +478,7 @@ function UserBudgetCard({
                       <ExpenseList
                         expenses={combinedExpenses}
                         showSorting={combinedExpenses.length > 1}
-                        renderExpenseItem={(expense, _index) => {
+                        renderExpenseItem={(expense) => {
                           const isHousehold = householdExpenseIds.has(
                             expense.id
                           );

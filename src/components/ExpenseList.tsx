@@ -5,7 +5,7 @@ import { getMonthlyAmount } from '../utils/expenseCalculations';
 
 interface ExpenseListProps {
   expenses: Expense[];
-  renderExpenseItem: (expense: Expense, index: number) => React.ReactNode;
+  renderExpenseItem: (expense: Expense) => React.ReactNode;
   showSorting?: boolean;
 }
 
@@ -14,18 +14,13 @@ export function ExpenseList({
   renderExpenseItem,
   showSorting = true,
 }: ExpenseListProps) {
-  const [sortBy, setSortBy] = useState<'name' | 'amount' | 'type'>('name');
+  const [sortBy, setSortBy] = useState<'name' | 'amount'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [previousSort, setPreviousSort] = useState<'name' | 'amount'>('name');
 
-  const toggleSort = (newSortBy: 'name' | 'amount' | 'type') => {
+  const toggleSort = (newSortBy: 'name' | 'amount') => {
     if (sortBy === newSortBy) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
-      // Store previous sort when switching to type
-      if (newSortBy === 'type' && (sortBy === 'name' || sortBy === 'amount')) {
-        setPreviousSort(sortBy);
-      }
       setSortBy(newSortBy);
       setSortOrder('asc');
     }
@@ -33,29 +28,6 @@ export function ExpenseList({
 
   const sortExpenses = (expenses: Expense[]) => {
     return [...expenses].sort((a, b) => {
-      if (sortBy === 'type') {
-        // First sort by type (fixed first, then budgeted)
-        const aType = a.isBudgeted ? 1 : 0;
-        const bType = b.isBudgeted ? 1 : 0;
-        const typeComparison =
-          sortOrder === 'asc' ? aType - bType : bType - aType;
-
-        if (typeComparison !== 0) {
-          return typeComparison;
-        }
-
-        // If same type, use previous sort order within each type group
-        if (previousSort === 'amount') {
-          const aValue = getMonthlyAmount(a);
-          const bValue = getMonthlyAmount(b);
-          return aValue - bValue; // Always ascending for secondary sort
-        } else {
-          const aValue = a.name.toLowerCase();
-          const bValue = b.name.toLowerCase();
-          return aValue.localeCompare(bValue);
-        }
-      }
-
       let aValue, bValue;
 
       if (sortBy === 'name') {
@@ -82,7 +54,7 @@ export function ExpenseList({
           aria-label="Sort by"
           className="mb-1 flex justify-end gap-1 text-sm"
         >
-          {(['name', 'amount', 'type'] as const).map((key) => {
+          {(['name', 'amount'] as const).map((key) => {
             const isActive = sortBy === key;
 
             return (
@@ -111,8 +83,8 @@ export function ExpenseList({
       )}
 
       <div className="divide-y divide-line">
-        {sortedExpenses.map((expense, index) => (
-          <div key={expense.id}>{renderExpenseItem(expense, index)}</div>
+        {sortedExpenses.map((expense) => (
+          <div key={expense.id}>{renderExpenseItem(expense)}</div>
         ))}
       </div>
     </div>

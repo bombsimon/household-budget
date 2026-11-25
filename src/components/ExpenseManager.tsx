@@ -248,7 +248,7 @@ function GroupedExpenses({
                 <ExpenseList
                   expenses={categoryInfo.expenses}
                   showSorting={true}
-                  renderExpenseItem={(expense, _index) =>
+                  renderExpenseItem={(expense) =>
                     editingExpense === expense.id ? (
                       <ExpenseForm
                         users={users}
