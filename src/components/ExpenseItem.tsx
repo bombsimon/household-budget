@@ -1,7 +1,6 @@
 import React from 'react';
 import { Edit2 } from 'lucide-react';
 import type { Expense, User } from '../types';
-import { getIncomeShare } from '../utils/costAllocation';
 import { getMonthlyAmount, formatMoney } from '../utils/expenseCalculations';
 import { DeleteButton } from './DeleteButton';
 
@@ -47,23 +46,14 @@ export function ExpenseItem({
     );
   }
 
-  const getSplitLabel = () => {
-    if (expense.splitType === 'equal') return 'split equally';
-
-    return users
-      .map((user) => {
-        const share = Math.round(getIncomeShare(users, user.id) * 100);
-
-        return `${user.name.split(' ')[0]} ${share}%`;
-      })
-      .join(' / ');
-  };
+  const splitLabel =
+    expense.splitType === 'equal' ? 'split equally' : 'split by income';
 
   const details = [
     users.length > 1 && expense.isShared
       ? `Paid by ${paidByUser?.name.split(' ')[0] || 'unknown'}`
       : null,
-    users.length > 1 && expense.isShared ? getSplitLabel() : null,
+    users.length > 1 && expense.isShared ? splitLabel : null,
   ].filter(Boolean);
 
   return (
