@@ -16,11 +16,11 @@ export function Avatar({ user, size = 'medium' }: AvatarProps) {
   return (
     <span
       aria-hidden="true"
-      className={`inline-flex flex-shrink-0 items-center justify-center rounded-full bg-white font-bold text-slate-900 ring-inset ${SIZES[size]}`}
+      className={`inline-flex flex-shrink-0 items-center justify-center rounded-full bg-surface font-bold text-ink ring-inset ${SIZES[size]}`}
       style={
         {
           '--tw-ring-color': user?.color ?? '#94a3b8',
-          backgroundColor: `color-mix(in srgb, ${user?.color ?? '#94a3b8'} 18%, white)`,
+          backgroundColor: `color-mix(in srgb, ${user?.color ?? '#94a3b8'} 18%, rgb(var(--color-surface)))`,
         } as CSSProperties
       }
     >

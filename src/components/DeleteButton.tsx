@@ -29,8 +29,8 @@ export function DeleteButton({
         title={`Delete ${name}`}
         className={
           showLabel
-            ? 'btn text-red-700 hover:bg-red-50'
-            : 'icon-btn hover:text-red-700'
+            ? 'btn text-danger-ink hover:bg-danger-soft'
+            : 'icon-btn hover:text-danger-ink'
         }
       >
         <Trash2 className="h-4 w-4" aria-hidden="true" />

@@ -50,7 +50,7 @@ export function CostLegend({ parts, hideShares = false }: CostChartProps) {
   const total = sumOf(visibleParts);
 
   return (
-    <ul className="divide-y divide-slate-100">
+    <ul className="divide-y divide-line-subtle">
       {visibleParts.map((part) => (
         <li key={part.label} className="flex items-center gap-3 py-2 text-sm">
           <span
@@ -63,7 +63,7 @@ export function CostLegend({ parts, hideShares = false }: CostChartProps) {
             {formatMoney(part.amount)} kr
           </span>
           <span
-            className={`money w-12 text-right text-slate-600 ${hideShares ? 'select-none blur-md' : ''}`}
+            className={`money w-12 text-right text-muted ${hideShares ? 'select-none blur-md' : ''}`}
           >
             {Math.round((part.amount / total) * 100)}%
           </span>
@@ -82,7 +82,7 @@ export function CostDonut({ parts }: CostChartProps) {
         <span className="text-2xl font-bold">
           {formatMoney(sumOf(visibleParts))}
         </span>
-        <span className="text-sm text-slate-600">kr a month</span>
+        <span className="text-sm text-muted">kr a month</span>
       </div>
       <ResponsiveContainer width="100%" height="100%">
         <PieChart accessibilityLayer>
@@ -94,7 +94,7 @@ export function CostDonut({ parts }: CostChartProps) {
             outerRadius={106}
             startAngle={90}
             endAngle={-270}
-            stroke="#fff"
+            stroke="rgb(var(--color-surface))"
             strokeWidth={2}
             isAnimationActive={false}
           >
@@ -104,6 +104,11 @@ export function CostDonut({ parts }: CostChartProps) {
           </Pie>
           <Tooltip
             wrapperStyle={{ zIndex: 1 }}
+            contentStyle={{
+              backgroundColor: 'rgb(var(--color-surface))',
+              borderColor: 'rgb(var(--color-line-strong))',
+            }}
+            itemStyle={{ color: 'rgb(var(--color-ink))' }}
             formatter={(value: number, name: string) => [
               `${formatMoney(value)} kr`,
               name,
@@ -127,7 +132,7 @@ export function ProgressRing({ percentage }: { percentage: number }) {
           cy="50"
           r="42"
           fill="none"
-          stroke="#d1fae5"
+          stroke="rgb(var(--color-success-tag))"
           strokeWidth="10"
         />
         {clamped > 0 && (
@@ -136,7 +141,7 @@ export function ProgressRing({ percentage }: { percentage: number }) {
             cy="50"
             r="42"
             fill="none"
-            stroke="#059669"
+            stroke="rgb(var(--color-success))"
             strokeWidth="10"
             strokeLinecap="round"
             strokeDasharray={`${(clamped / 100) * circumference} ${circumference}`}
@@ -145,7 +150,7 @@ export function ProgressRing({ percentage }: { percentage: number }) {
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-xl font-bold">{percentage.toFixed(0)}%</span>
-        <span className="text-xs text-slate-600">paid off</span>
+        <span className="text-xs text-muted">paid off</span>
       </div>
     </div>
   );

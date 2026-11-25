@@ -64,7 +64,7 @@ export function LandingPage() {
     <main className="flex min-h-screen items-center justify-center p-4">
       <div className="flex w-full max-w-md flex-col panel p-8">
         <h1 className="text-3xl font-bold tracking-tight">Household Budget</h1>
-        <p className="mt-2 text-slate-700">
+        <p className="mt-2 text-ink-soft">
           See what is left each month and who owes whom.
         </p>
 
@@ -92,7 +92,7 @@ export function LandingPage() {
             <p
               id="household-id-error"
               role="alert"
-              className="mt-2 text-sm text-red-700"
+              className="mt-2 text-sm text-danger-ink"
             >
               {error}
             </p>

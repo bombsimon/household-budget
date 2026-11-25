@@ -48,8 +48,8 @@ function ColorPicker({
             onClick={() => onColorChange(color)}
             className={`w-8 h-8 rounded-full border-2  ${
               isSelected
-                ? 'border-slate-900 scale-110'
-                : 'border-slate-300 hover:border-slate-400'
+                ? 'border-ink scale-110'
+                : 'border-line-strong hover:border-field-line'
             } ${isUsed && !isSelected ? 'opacity-50' : ''}`}
             style={{ backgroundColor: color }}
             aria-pressed={isSelected}
@@ -288,7 +288,7 @@ export function UserManagement({
         </section>
       )}
 
-      <ul className="panel divide-y divide-slate-200">
+      <ul className="panel divide-y divide-line">
         {users.map((user) => (
           <li key={user.id} className="p-6">
             {editingId === user.id ? (
@@ -306,7 +306,7 @@ export function UserManagement({
                   </h2>
                   <UserTaxInfo user={user} />
                   {totalIncome > 0 && users.length > 1 && (
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-muted">
                       {((user.monthlyIncome / totalIncome) * 100).toFixed(1)}%
                       of household income
                     </p>

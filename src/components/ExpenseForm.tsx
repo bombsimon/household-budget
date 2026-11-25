@@ -212,7 +212,7 @@ export function ExpenseForm({
           Budgeted, amount varies
         </label>
         {isPersonalCategory && (
-          <span className="text-sm text-slate-700 font-medium">
+          <span className="text-sm text-ink-soft font-medium">
             Personal expense for{' '}
             {users.find((u) => u.id === personalUserId)?.name}
           </span>

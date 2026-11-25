@@ -211,7 +211,7 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p role="status" className="text-slate-700">
+        <p role="status" className="text-ink-soft">
           Looking for {householdId}…
         </p>
       </div>
@@ -249,7 +249,7 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
         {error && (
           <p
             role="alert"
-            className="mt-4 rounded-lg bg-red-50 p-3 ring-1 ring-red-300 text-sm"
+            className="mt-4 rounded-lg bg-danger-soft p-3 ring-1 ring-danger-line text-sm"
           >
             {error}
           </p>
@@ -265,7 +265,7 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
           </button>
         ) : (
           <form onSubmit={handleSubmit} className="mt-4">
-            <p className="mb-4 text-sm text-slate-700">
+            <p className="mb-4 text-sm text-ink-soft">
               {isCreating
                 ? 'No household has this ID yet. Choose a password to create it. The budget is encrypted with the password, and it cannot be recovered if you lose it.'
                 : 'Enter the household password to open the budget.'}
@@ -308,7 +308,7 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
 
         <Link
           to="/"
-          className="mt-6 inline-block py-1 text-sm text-blue-800 underline"
+          className="mt-6 inline-block py-1 text-sm text-accent-ink underline"
         >
           Use another household ID
         </Link>

@@ -22,6 +22,7 @@ import { formatMoney } from '../utils/expenseCalculations';
 import { Avatar } from './Avatar';
 import { AssetManager } from './AssetManager';
 import { SettlementVisualizer } from './SettlementVisualizer';
+import { ThemeToggle } from './ThemeToggle';
 
 interface HouseholdAppProps {
   householdId: string;
@@ -109,7 +110,7 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
         {error ? (
           <div role="alert" className="max-w-md">
             <h1 className="page-title">Could not load this household</h1>
-            <p className="my-3 text-slate-700">
+            <p className="my-3 text-ink-soft">
               Check your connection and try again. ({error})
             </p>
             <button
@@ -120,7 +121,7 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
             </button>
           </div>
         ) : (
-          <p role="status" className="text-slate-700">
+          <p role="status" className="text-ink-soft">
             Loading your budget…
           </p>
         )}
@@ -189,7 +190,7 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
                   </div>
                 </div>
                 <div>
-                  <p className="text-sm text-slate-700">
+                  <p className="text-sm text-ink-soft">
                     Give them the Household ID and the household password. They
                     enter both at{' '}
                     <span className="font-mono">
@@ -272,11 +273,11 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
 
   return (
     <div className="min-h-screen lg:flex">
-      <aside className="sticky top-0 hidden h-screen w-56 flex-shrink-0 flex-col overflow-y-auto border-r border-slate-200 bg-white px-3 py-6 lg:flex">
+      <aside className="sticky top-0 hidden h-screen w-56 flex-shrink-0 flex-col overflow-y-auto border-r border-line bg-surface px-3 py-6 lg:flex">
         <p className="px-3 text-lg font-bold tracking-tight">
           Household Budget
         </p>
-        <p className="truncate px-3 text-sm text-slate-600">{householdId}</p>
+        <p className="truncate px-3 text-sm text-muted">{householdId}</p>
         <nav aria-label="Main" className="mt-6 flex-1">
           {tabs.map(({ path, name, icon: Icon }) => (
             <div key={path}>
@@ -286,8 +287,8 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
                 className={({ isActive }) =>
                   `flex items-center gap-3 mt-1 rounded-lg px-3 py-2.5 text-sm ${
                     isActive
-                      ? 'bg-blue-50 font-semibold text-blue-800'
-                      : 'text-slate-700 hover:bg-slate-100'
+                      ? 'bg-accent-soft font-semibold text-accent-ink'
+                      : 'text-ink-soft hover:bg-hover'
                   }`
                 }
               >
@@ -302,8 +303,8 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
                     className={({ isActive }) =>
                       `ml-4 mt-0.5 flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm ${
                         isActive
-                          ? 'bg-blue-50 font-semibold text-blue-800'
-                          : 'text-slate-700 hover:bg-slate-100'
+                          ? 'bg-accent-soft font-semibold text-accent-ink'
+                          : 'text-ink-soft hover:bg-hover'
                       }`
                     }
                   >
@@ -315,15 +316,15 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
           ))}
         </nav>
         {users.length > 0 && (
-          <dl className="mb-3 border-t border-slate-200 px-3 pt-4 text-sm">
+          <dl className="mb-3 border-t border-line px-3 pt-4 text-sm">
             <div className="flex justify-between">
-              <dt className="text-slate-600">Income</dt>
+              <dt className="text-muted">Income</dt>
               <dd className="money">
                 {formatMoney(budgetSummary.totalIncome)} kr
               </dd>
             </div>
             <div className="mt-1 flex justify-between">
-              <dt className="text-slate-600">Left</dt>
+              <dt className="text-muted">Left</dt>
               <dd className="money font-semibold">
                 {users.every((user) => user.municipalityCode)
                   ? `${formatMoney(budgetSummary.remainingIncome)} kr`
@@ -332,9 +333,12 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
             </div>
           </dl>
         )}
+        <div className="mb-2 px-3">
+          <ThemeToggle />
+        </div>
         <button
           onClick={handleLeaveHousehold}
-          className="btn justify-start px-3 text-slate-700 hover:bg-slate-100"
+          className="btn justify-start px-3 text-ink-soft hover:bg-hover"
         >
           <LogOut className="h-4 w-4" aria-hidden="true" />
           Log out
@@ -346,7 +350,7 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
           {(saveFailed || error) && (
             <div
               role="alert"
-              className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-red-50 p-4 ring-1 ring-red-300 text-sm"
+              className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-danger-soft p-4 ring-1 ring-danger-line text-sm"
             >
               <p>
                 {saveFailed
@@ -381,7 +385,7 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
           {pendingSaves > 0 && (
             <p
               role="status"
-              className="fixed right-4 top-4 z-20 rounded-lg bg-slate-900 px-3 py-1.5 text-sm text-white"
+              className="fixed right-4 top-4 z-20 rounded-lg bg-inverse px-3 py-1.5 text-sm text-white"
             >
               Saving…
             </p>
@@ -393,7 +397,7 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
       {isMoreOpen && (
         <div
           id="more-menu"
-          className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-10 border-t border-slate-300 bg-white p-3 lg:hidden"
+          className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-10 border-t border-line-strong bg-surface p-3 lg:hidden"
         >
           {moreTabs.map(({ path, name, icon: Icon }) => (
             <NavLink
@@ -406,9 +410,12 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
               {name}
             </NavLink>
           ))}
-          <p className="truncate border-t border-slate-200 px-3 pt-3 text-sm text-slate-600">
+          <p className="truncate border-t border-line px-3 pt-3 text-sm text-muted">
             {householdId}
           </p>
+          <div className="px-3 pt-3">
+            <ThemeToggle />
+          </div>
           <button
             onClick={handleLeaveHousehold}
             className="flex min-h-12 w-full items-center gap-3 px-3"
@@ -424,7 +431,7 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
         onKeyDown={(event) => {
           if (event.key === 'Escape') setIsMoreOpen(false);
         }}
-        className="fixed inset-x-0 bottom-0 z-10 flex border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-10 flex border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden"
       >
         {phoneTabs.map(({ path, name, icon: Icon }) => (
           <NavLink
@@ -435,8 +442,8 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
             className={({ isActive }) =>
               `flex min-h-16 min-w-0 flex-1 flex-col items-center justify-center gap-1 border-t-4 text-xs ${
                 isActive
-                  ? 'border-blue-700 font-semibold text-blue-800'
-                  : 'border-transparent text-slate-700'
+                  ? 'border-focus font-semibold text-accent-ink'
+                  : 'border-transparent text-ink-soft'
               }`
             }
           >
@@ -450,8 +457,8 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
           onClick={() => setIsMoreOpen(!isMoreOpen)}
           className={`flex min-h-16 min-w-0 flex-1 flex-col items-center justify-center gap-1 border-t-4 text-xs ${
             isMoreActive
-              ? 'border-blue-700 font-semibold text-blue-800'
-              : 'border-transparent text-slate-700'
+              ? 'border-focus font-semibold text-accent-ink'
+              : 'border-transparent text-ink-soft'
           }`}
         >
           <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
@@ -466,7 +473,7 @@ function NotFound({ householdPath }: { householdPath: string }) {
   return (
     <div>
       <h1 className="page-title">This page does not exist</h1>
-      <Link to={householdPath} className="text-blue-800 underline">
+      <Link to={householdPath} className="text-accent-ink underline">
         Go to the overview
       </Link>
     </div>

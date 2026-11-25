@@ -5,19 +5,124 @@
 @layer base {
   :root {
     color-scheme: light;
-    accent-color: #1d4ed8;
+    accent-color: rgb(var(--color-accent));
+    --color-page: 241 245 249;
+    --color-surface: 255 255 255;
+    --color-subtle: 248 250 252;
+    --color-hover: 241 245 249;
+    --color-pressed: 226 232 240;
+    --color-pressed-strong: 203 213 225;
+    --color-inverse: 15 23 42;
+    --color-ink: 15 23 42;
+    --color-ink-strong: 30 41 59;
+    --color-ink-soft: 51 65 85;
+    --color-muted: 71 85 105;
+    --color-faint: 100 116 139;
+    --color-disabled: 148 163 184;
+    --color-line: 226 232 240;
+    --color-line-subtle: 241 245 249;
+    --color-line-strong: 203 213 225;
+    --color-field-line: 148 163 184;
+    --color-accent: 29 78 216;
+    --color-accent-hover: 30 64 175;
+    --color-accent-active: 30 58 138;
+    --color-accent-ink: 30 64 175;
+    --color-accent-ink-strong: 30 58 138;
+    --color-link: 37 99 235;
+    --color-focus: 29 78 216;
+    --color-accent-soft: 239 246 255;
+    --color-accent-tag: 219 234 254;
+    --color-danger: 185 28 28;
+    --color-danger-hover: 153 27 27;
+    --color-danger-active: 127 29 29;
+    --color-danger-ink: 185 28 28;
+    --color-danger-soft: 254 242 242;
+    --color-danger-line: 252 165 165;
+    --color-warning-soft: 255 251 235;
+    --color-warning-tag: 254 243 199;
+    --color-warning-ink: 120 53 15;
+    --color-warning-line: 251 191 36;
+    --color-success: 5 150 105;
+    --color-success-tag: 209 250 229;
+    --color-success-ink: 6 78 59;
+    --cost-household: #2a78d6;
+    --cost-loan-interest: #eb6834;
+    --cost-loan-repayment: #1baf7a;
+    --cost-assets: #eda100;
+    --cost-personal: #e87ba4;
+    --cost-left: #cbd5e1;
+  }
+
+  @media screen {
+    :root[data-theme='dark'] {
+      color-scheme: dark;
+      --color-page: 11 18 32;
+      --color-surface: 22 32 50;
+      --color-subtle: 27 39 59;
+      --color-hover: 34 48 74;
+      --color-pressed: 44 59 87;
+      --color-pressed-strong: 56 73 101;
+      --color-inverse: 51 65 85;
+      --color-ink: 241 245 249;
+      --color-ink-strong: 226 232 240;
+      --color-ink-soft: 203 213 225;
+      --color-muted: 168 181 199;
+      --color-faint: 148 163 184;
+      --color-disabled: 124 139 161;
+      --color-line: 42 56 80;
+      --color-line-subtle: 34 48 73;
+      --color-line-strong: 61 78 107;
+      --color-field-line: 100 116 139;
+      --color-accent: 37 99 235;
+      --color-accent-hover: 29 78 216;
+      --color-accent-active: 30 64 175;
+      --color-accent-ink: 147 197 253;
+      --color-accent-ink-strong: 191 219 254;
+      --color-link: 147 197 253;
+      --color-focus: 96 165 250;
+      --color-accent-soft: 26 43 77;
+      --color-accent-tag: 30 58 110;
+      --color-danger: 185 28 28;
+      --color-danger-hover: 153 27 27;
+      --color-danger-active: 127 29 29;
+      --color-danger-ink: 252 165 165;
+      --color-danger-soft: 59 23 32;
+      --color-danger-line: 153 27 27;
+      --color-warning-soft: 51 38 13;
+      --color-warning-tag: 74 53 16;
+      --color-warning-ink: 253 230 138;
+      --color-warning-line: 161 98 7;
+      --color-success: 16 185 129;
+      --color-success-tag: 15 61 48;
+      --color-success-ink: 167 243 208;
+      --cost-household: #3987e5;
+      --cost-loan-interest: #d95926;
+      --cost-loan-repayment: #199e70;
+      --cost-assets: #c98500;
+      --cost-personal: #d55181;
+      --cost-left: #475569;
+    }
   }
 
   body {
-    @apply bg-slate-100 text-slate-900 antialiased;
+    @apply bg-page text-ink antialiased;
   }
 
   :focus-visible {
-    @apply outline outline-2 outline-offset-2 outline-blue-700;
+    @apply outline outline-2 outline-offset-2 outline-focus;
+  }
+
+  [type='checkbox']:not(:checked),
+  [type='radio']:not(:checked) {
+    @apply bg-surface;
+  }
+
+  ::placeholder {
+    @apply text-faint opacity-100;
   }
 
   ::selection {
-    @apply bg-blue-100;
+    @apply bg-accent-tag;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -26,18 +131,18 @@
     ::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
+      transition-duration: 0s !important;
     }
   }
 }
 
 @layer components {
   .page-title {
-    @apply text-2xl font-bold tracking-tight text-slate-900;
+    @apply text-2xl font-bold tracking-tight text-ink;
   }
 
   .section-title {
-    @apply text-lg font-semibold text-slate-900;
+    @apply text-lg font-semibold text-ink;
   }
 
   .btn {
@@ -45,31 +150,31 @@
   }
 
   .btn-primary {
-    @apply btn bg-blue-700 text-white hover:bg-blue-800 active:bg-blue-900;
+    @apply btn bg-accent text-white hover:bg-accent-hover active:bg-accent-active;
   }
 
   .btn-secondary {
-    @apply btn border border-slate-300 bg-white text-slate-800 hover:bg-slate-100 active:bg-slate-200;
+    @apply btn border border-line-strong bg-surface text-ink-strong hover:bg-hover active:bg-pressed;
   }
 
   .btn-danger {
-    @apply btn bg-red-700 text-white hover:bg-red-800 active:bg-red-900;
+    @apply btn bg-danger text-white hover:bg-danger-hover active:bg-danger-active;
   }
 
   .icon-btn {
-    @apply inline-flex h-9 w-9 items-center justify-center rounded text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900 active:bg-slate-300 disabled:cursor-not-allowed disabled:opacity-40;
+    @apply inline-flex h-9 w-9 items-center justify-center rounded text-muted transition-colors hover:bg-pressed hover:text-ink active:bg-pressed-strong disabled:cursor-not-allowed disabled:opacity-40;
   }
 
   .field {
-    @apply w-full rounded-lg border border-slate-400 bg-white px-3 py-2 text-slate-900 focus:border-blue-700 focus:ring-1 focus:ring-blue-700;
+    @apply w-full rounded-lg border border-field-line bg-surface px-3 py-2 text-ink focus:border-focus focus:ring-1 focus:ring-focus;
   }
 
   .field-label {
-    @apply mb-1 block text-left text-sm font-medium text-slate-700;
+    @apply mb-1 block text-left text-sm font-medium text-ink-soft;
   }
 
   .form-panel {
-    @apply rounded-lg border-2 border-blue-700 bg-white p-5;
+    @apply rounded-lg border-2 border-focus bg-surface p-5;
   }
 
   .money {
@@ -77,7 +182,7 @@
   }
 
   .panel {
-    @apply rounded-lg border border-slate-200 bg-white;
+    @apply rounded-lg border border-line bg-surface;
   }
 
   .tag {

@@ -158,7 +158,7 @@ export function AssetManager({
 
           return (
             <div key={asset.id} className="panel overflow-hidden">
-              <div className="bg-slate-50 px-5 py-3">
+              <div className="bg-subtle px-5 py-3">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   {/* Asset Header - same pattern as category header */}
                   <button
@@ -168,26 +168,26 @@ export function AssetManager({
                     className="flex items-center gap-2 text-left flex-1 min-w-0"
                   >
                     {!isExpanded ? (
-                      <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600 flex-shrink-0" />
+                      <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-muted flex-shrink-0" />
                     ) : (
-                      <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600 flex-shrink-0" />
+                      <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-muted flex-shrink-0" />
                     )}
                     <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 min-w-0 flex-1">
                       <div className="flex items-center gap-2 min-w-0">
                         <h2 className="section-title truncate">{asset.name}</h2>
-                        <span className="text-sm text-slate-600 flex-shrink-0">
+                        <span className="text-sm text-muted flex-shrink-0">
                           ({migratedAsset.expenses.length})
                         </span>
                       </div>
                       {totalExpenses > 0 && (
                         <div className="text-sm font-medium mt-1 sm:mt-0">
-                          <span className="text-slate-700">
+                          <span className="text-ink-soft">
                             {formatMoney(fixedExpenses)} kr/month
                           </span>
                           {budgetedExpenses > 0 && (
                             <>
-                              <span className="text-slate-600"> + </span>
-                              <span className="text-slate-600">
+                              <span className="text-muted"> + </span>
+                              <span className="text-muted">
                                 {formatMoney(budgetedExpenses)} kr budgeted
                               </span>
                             </>
@@ -236,7 +236,7 @@ export function AssetManager({
 
               {/* Asset Content */}
               {isExpanded && (
-                <div className="border-t border-slate-200 px-5 py-3">
+                <div className="border-t border-line px-5 py-3">
                   {/* Edit Asset Form */}
                   {editingAsset === asset.id && (
                     <div className="mb-4">
@@ -271,7 +271,7 @@ export function AssetManager({
 
                   {/* Expenses List - using ExpenseItem component */}
                   {migratedAsset.expenses.length > 0 && (
-                    <div className="divide-y divide-slate-200">
+                    <div className="divide-y divide-line">
                       {migratedAsset.expenses.map((expense) => (
                         <ExpenseItem
                           key={expense.id}
@@ -306,11 +306,11 @@ export function AssetManager({
 
                   {/* Empty State */}
                   {migratedAsset.expenses.length === 0 && (
-                    <div className="py-4 text-slate-700">
+                    <div className="py-4 text-ink-soft">
                       <p>No expenses added for this asset yet.</p>
                       <button
                         onClick={() => setAddingExpenseToAsset(asset.id)}
-                        className="mt-2 text-blue-600 hover:text-blue-800"
+                        className="mt-2 text-link hover:text-accent-ink"
                       >
                         Add your first expense
                       </button>
@@ -324,7 +324,7 @@ export function AssetManager({
       </div>
 
       {assets.length === 0 && !isAdding && (
-        <p className="panel p-8 text-slate-700">
+        <p className="panel p-8 text-ink-soft">
           No assets yet. Add a car, boat or house to track what it costs.
         </p>
       )}
@@ -357,7 +357,7 @@ function AssetForm({ initialData, onSubmit, onCancel }: AssetFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="form-panel space-y-4">
-      <h3 className="text-lg font-semibold text-slate-900">
+      <h3 className="text-lg font-semibold text-ink">
         {initialData ? 'Edit Asset' : 'Add Asset'}
       </h3>
 

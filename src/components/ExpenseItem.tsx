@@ -72,18 +72,18 @@ export function ExpenseItem({
         <p className="break-words font-medium">
           {expense.name}
           {expense.isBudgeted && (
-            <span className="tag sm:ml-2 bg-amber-100 text-amber-900">
+            <span className="tag sm:ml-2 bg-warning-tag text-warning-ink">
               budgeted
             </span>
           )}
           {expense.isYearly && (
-            <span className="tag sm:ml-2 bg-blue-100 text-blue-900">
+            <span className="tag sm:ml-2 bg-accent-tag text-accent-ink-strong">
               paid yearly
             </span>
           )}
         </p>
         {details.length > 0 && (
-          <p className="hidden text-sm text-slate-600 sm:block">
+          <p className="hidden text-sm text-muted sm:block">
             {details.join(', ')}
           </p>
         )}
@@ -93,7 +93,7 @@ export function ExpenseItem({
           {formatMoney(getMonthlyAmount(expense))} kr/month
         </p>
         {expense.isYearly && (
-          <p className="money text-sm text-slate-600">
+          <p className="money text-sm text-muted">
             {formatMoney(expense.amount)} kr/year
           </p>
         )}
@@ -111,7 +111,7 @@ export function ExpenseItem({
         <DeleteButton name={expense.name} onDelete={onDelete} />
       </div>
       {details.length > 0 && (
-        <p className="w-full text-sm text-slate-600 sm:hidden">
+        <p className="w-full text-sm text-muted sm:hidden">
           {details.join(', ')}
         </p>
       )}

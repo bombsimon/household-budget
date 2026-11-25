@@ -52,7 +52,7 @@ export function SettlementVisualizer({
                   />
                   <span className="text-lg">{getUserName(settlement.to)}</span>
                 </p>
-                <p className="money mt-2 text-4xl font-bold tracking-tight text-blue-800">
+                <p className="money mt-2 text-4xl font-bold tracking-tight text-accent-ink">
                   {formatMoney(settlement.amount)} kr
                 </p>
               </li>
@@ -60,7 +60,7 @@ export function SettlementVisualizer({
           </ul>
 
           <h2 className="section-title mb-1 mt-10">How it adds up</h2>
-          <p className="mb-4 text-sm text-slate-600">
+          <p className="mb-4 text-sm text-muted">
             Plus means the person paid more than their share, minus means less.
             Personal loans are not part of a transfer.
           </p>
@@ -108,11 +108,11 @@ export function SettlementVisualizer({
                         key={line.key}
                         className="flex justify-between gap-4"
                       >
-                        <dt className="text-slate-700">{line.label}</dt>
+                        <dt className="text-ink-soft">{line.label}</dt>
                         <dd className="money">{formatSigned(line.amount)}</dd>
                       </div>
                     ))}
-                    <div className="flex justify-between gap-4 border-t border-slate-400 pt-2 font-semibold">
+                    <div className="flex justify-between gap-4 border-t border-field-line pt-2 font-semibold">
                       <dt>Total</dt>
                       <dd className="money ledger-total">
                         {formatSigned(balance.total)}

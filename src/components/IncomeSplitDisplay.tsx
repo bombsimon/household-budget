@@ -14,9 +14,9 @@ export function IncomeSplitDisplay({
   users,
   splitData,
   title = 'Income-based split:',
-  bgColor = 'bg-slate-100',
-  textColor = 'text-slate-700',
-  titleColor = 'text-slate-900',
+  bgColor = 'bg-hover',
+  textColor = 'text-ink-soft',
+  titleColor = 'text-ink',
 }: IncomeSplitDisplayProps) {
   const totalIncome = users.reduce((sum, user) => sum + user.monthlyIncome, 0);
 
@@ -36,7 +36,7 @@ export function IncomeSplitDisplay({
           );
         })}
       </div>
-      <div className={`mt-2 pt-2 border-t border-slate-300`}>
+      <div className={`mt-2 pt-2 border-t border-line-strong`}>
         <div
           className={`flex justify-between text-sm font-semibold ${titleColor}`}
         >

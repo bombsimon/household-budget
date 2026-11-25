@@ -140,7 +140,7 @@ export function BudgetBreakdownSummary({
         />
       </div>
 
-      <div className="pt-2 border-t border-slate-200">
+      <div className="pt-2 border-t border-line">
         <BudgetLine
           label="Total costs"
           amount={-(breakdown.sharedExpensesOwed + breakdown.personalExpenses)}
@@ -148,18 +148,18 @@ export function BudgetBreakdownSummary({
         />
       </div>
 
-      <div className="pt-2 border-t border-slate-300">
+      <div className="pt-2 border-t border-line-strong">
         <BudgetLine
           label="Left"
           isFinal
           amount={breakdown.remainingAfterExpenses}
           isSubtotal={true}
-          color={isPositive ? 'text-blue-800' : 'text-red-700'}
+          color={isPositive ? 'text-accent-ink' : 'text-danger-ink'}
           blurSensitive={blurSensitive}
         />
 
         <div
-          className={`text-sm text-slate-600 mt-1 ${blurSensitive ? 'blur-md select-none' : ''}`}
+          className={`text-sm text-muted mt-1 ${blurSensitive ? 'blur-md select-none' : ''}`}
         >
           {percentageLeft.toFixed(1)}% of after-tax income
         </div>
@@ -168,8 +168,8 @@ export function BudgetBreakdownSummary({
       {/* Budgeted Expenses Section */}
       {totalBudgetedExpenses > 0 && (
         <>
-          <div className="pt-2 border-t border-slate-300">
-            <div className="text-sm font-medium text-slate-800 mb-2">
+          <div className="pt-2 border-t border-line-strong">
+            <div className="text-sm font-medium text-ink-strong mb-2">
               Budgeted
             </div>
 
@@ -206,7 +206,7 @@ export function BudgetBreakdownSummary({
             </div>
           </div>
 
-          <div className="pt-2 border-t border-slate-200">
+          <div className="pt-2 border-t border-line">
             <BudgetLine
               label="Total budgeted"
               amount={-totalBudgetedExpenses}
@@ -214,26 +214,28 @@ export function BudgetBreakdownSummary({
             />
 
             <div
-              className={`text-sm text-slate-600 mt-1 ${blurSensitive ? 'blur-md select-none' : ''}`}
+              className={`text-sm text-muted mt-1 ${blurSensitive ? 'blur-md select-none' : ''}`}
             >
               {budgetedPercentage.toFixed(1)}% of after-tax income
             </div>
           </div>
 
-          <div className="pt-2 border-t border-slate-300">
+          <div className="pt-2 border-t border-line-strong">
             <BudgetLine
               label="Left after budgeted"
               isFinal
               amount={remainingAfterBudgeted}
               isSubtotal={true}
               color={
-                remainingAfterBudgeted > 0 ? 'text-blue-800' : 'text-red-700'
+                remainingAfterBudgeted > 0
+                  ? 'text-accent-ink'
+                  : 'text-danger-ink'
               }
               blurSensitive={blurSensitive}
             />
 
             <div
-              className={`text-sm text-slate-600 mt-1 ${blurSensitive ? 'blur-md select-none' : ''}`}
+              className={`text-sm text-muted mt-1 ${blurSensitive ? 'blur-md select-none' : ''}`}
             >
               {breakdown.income > 0
                 ? ((remainingAfterBudgeted / breakdown.income) * 100).toFixed(1)
@@ -261,7 +263,7 @@ function BudgetLine({
   amount,
   isSubtotal,
   isFinal = false,
-  color = 'text-slate-900',
+  color = 'text-ink',
   blurSensitive = false,
 }: BudgetLineProps) {
   return (

@@ -36,15 +36,13 @@ export function SplitMethodSelector({
               value={option.key}
               checked={value === option.key}
               onChange={() => onChange(option.key)}
-              className="mt-0.5 mr-3 text-blue-600 focus:ring-blue-500"
+              className="mt-0.5 mr-3 text-link focus:ring-focus"
             />
             <div>
-              <span className="text-sm font-medium text-slate-700">
+              <span className="text-sm font-medium text-ink-soft">
                 {option.label}
               </span>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {option.description}
-              </p>
+              <p className="text-xs text-faint mt-0.5">{option.description}</p>
             </div>
           </label>
         ))}

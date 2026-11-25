@@ -50,7 +50,7 @@ export function Dashboard({
     return (
       <section className="panel max-w-lg p-8">
         <h2 className="page-title">Start with who lives here</h2>
-        <p className="mt-2 text-slate-700">
+        <p className="mt-2 text-ink-soft">
           Add each person with their monthly income and municipality. Then add
           the expenses you share.
         </p>
@@ -117,7 +117,7 @@ export function Dashboard({
   return (
     <div className="space-y-5">
       {!isIncomeKnown && (
-        <p className="rounded-xl bg-amber-50 p-4 text-sm ring-1 ring-amber-400">
+        <p className="rounded-xl bg-warning-soft p-4 text-sm ring-1 ring-warning-line">
           Choose a municipality for{' '}
           {usersWithoutMunicipality.map((user) => user.name).join(', ')} to see
           income after tax and what is left.{' '}
@@ -136,10 +136,10 @@ export function Dashboard({
           <h2 id="left-title" className="section-title">
             Left each month
           </h2>
-          <p className="mt-1 whitespace-nowrap text-4xl font-bold tracking-tight text-blue-800 sm:text-5xl">
+          <p className="mt-1 whitespace-nowrap text-4xl font-bold tracking-tight text-accent-ink sm:text-5xl">
             {isIncomeKnown ? `${formatMoney(left)} kr` : 'Not known yet'}
           </p>
-          <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-slate-200 pt-5 sm:grid-cols-4">
+          <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-line pt-5 sm:grid-cols-4">
             <HeroFigure label="Before tax">
               {formatMoney(budgetSummary.totalIncome)} kr
             </HeroFigure>
@@ -176,7 +176,7 @@ export function Dashboard({
                   <div className="flex items-center gap-3">
                     <Person users={users} userId={settlement.from} />
                     <ArrowRight
-                      className="h-5 w-5 flex-shrink-0 text-slate-500"
+                      className="h-5 w-5 flex-shrink-0 text-faint"
                       aria-label="pays"
                     />
                     <Person users={users} userId={settlement.to} />
@@ -189,7 +189,7 @@ export function Dashboard({
             </div>
             <Link
               to={`${householdPath}/settlements`}
-              className="py-1 text-sm text-blue-800 underline"
+              className="py-1 text-sm text-accent-ink underline"
             >
               See how it adds up
             </Link>
@@ -241,7 +241,7 @@ export function Dashboard({
               </div>
             </>
           ) : (
-            <p className="text-slate-700">
+            <p className="text-ink-soft">
               No fixed costs yet.{' '}
               <Link to={`${householdPath}/expenses`} className="underline">
                 Add household expenses
@@ -254,7 +254,7 @@ export function Dashboard({
           <h2 id="people-title" className="section-title mb-4">
             Left per person
           </h2>
-          <ul className="divide-y divide-slate-200">
+          <ul className="divide-y divide-line">
             {userBreakdowns.map((breakdown) => {
               const user = users.find(
                 (candidate) => candidate.id === breakdown.userId
@@ -265,7 +265,7 @@ export function Dashboard({
                 <li key={user.id}>
                   <Link
                     to={`${householdPath}/users/${user.id}`}
-                    className="-mx-3 block rounded px-3 py-4 hover:bg-slate-50"
+                    className="-mx-3 block rounded px-3 py-4 hover:bg-subtle"
                   >
                     <span className="flex items-center gap-3">
                       <Avatar user={user} />
@@ -300,7 +300,7 @@ export function Dashboard({
                         ]}
                       />
                     </span>
-                    <span className="mt-2 block text-sm text-slate-600">
+                    <span className="mt-2 block text-sm text-muted">
                       Household and loans{' '}
                       {formatMoney(breakdown.sharedExpensesOwed)} kr, personal{' '}
                       {formatMoney(breakdown.personalExpenses)} kr
@@ -311,7 +311,7 @@ export function Dashboard({
             })}
           </ul>
           {users.length > 1 && budgetSummary.totalIncome > 0 && (
-            <div className="mt-6 border-t border-slate-200 pt-5">
+            <div className="mt-6 border-t border-line pt-5">
               <h3 className="mb-3 font-semibold">Income before tax</h3>
               <CostLegend
                 parts={users.map((user) => ({
@@ -350,7 +350,7 @@ function HeroFigure({
 }) {
   return (
     <div>
-      <dt className="text-sm text-slate-600">{label}</dt>
+      <dt className="text-sm text-muted">{label}</dt>
       <dd className="money mt-0.5 font-semibold">{children}</dd>
     </div>
   );

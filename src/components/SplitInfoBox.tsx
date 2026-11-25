@@ -12,9 +12,9 @@ export function SplitInfoBox({ users, splitData }: SplitInfoBoxProps) {
       users={users}
       splitData={splitData}
       title="Shares by current income"
-      bgColor="bg-slate-100"
-      textColor="text-slate-700"
-      titleColor="text-slate-900"
+      bgColor="bg-hover"
+      textColor="text-ink-soft"
+      titleColor="text-ink"
     />
   );
 }

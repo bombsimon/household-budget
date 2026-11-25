@@ -29,16 +29,16 @@ function HouseholdWrapper() {
 
   if (!validHouseholdId) {
     return (
-      <div className="h-screen flex items-center justify-center bg-white">
+      <div className="h-screen flex items-center justify-center bg-surface">
         <div className="text-center p-6">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">
+          <h1 className="text-2xl font-bold text-danger-ink mb-4">
             Invalid Household ID
           </h1>
-          <p className="text-slate-600 mb-4">
+          <p className="text-muted mb-4">
             Household IDs can only contain letters, numbers, hyphens, and
             underscores.
           </p>
-          <Link to="/" className="text-blue-800 underline">
+          <Link to="/" className="text-accent-ink underline">
             Go to Home
           </Link>
         </div>

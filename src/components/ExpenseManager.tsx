@@ -48,8 +48,8 @@ export function ExpenseManager({
         <div>
           <h1 className="page-title">Household expenses</h1>
           {expenses.length > 0 && (
-            <p className="money mt-1 text-slate-700">
-              <span className="text-3xl font-bold tracking-tight text-slate-900">
+            <p className="money mt-1 text-ink-soft">
+              <span className="text-3xl font-bold tracking-tight text-ink">
                 {formatMoney(fixedExpenses)} kr
               </span>{' '}
               a month
@@ -91,7 +91,7 @@ export function ExpenseManager({
         )}
 
         {expenses.length === 0 && !isAdding ? (
-          <p className="panel p-8 text-slate-700">
+          <p className="panel p-8 text-ink-soft">
             No household expenses yet. Add rent, electricity, or anything else
             you share.
           </p>
@@ -200,7 +200,7 @@ function GroupedExpenses({
       <div className="space-y-5">
         {categorySummaries.map((categoryInfo) => (
           <section key={categoryInfo.id} className="panel overflow-hidden">
-            <div className="bg-slate-50 px-5 py-3">
+            <div className="bg-subtle px-5 py-3">
               <button
                 type="button"
                 aria-expanded={!categoryInfo.isCollapsed}
@@ -210,30 +210,30 @@ function GroupedExpenses({
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between min-w-0 flex-1 gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     {categoryInfo.isCollapsed ? (
-                      <ChevronRight className="w-4 h-4 text-slate-600 flex-shrink-0" />
+                      <ChevronRight className="w-4 h-4 text-muted flex-shrink-0" />
                     ) : (
-                      <ChevronDown className="w-4 h-4 text-slate-600 flex-shrink-0" />
+                      <ChevronDown className="w-4 h-4 text-muted flex-shrink-0" />
                     )}
                     <h2 className="section-title truncate">
                       {categoryInfo.name}
                     </h2>
-                    <span className="text-sm text-slate-600 flex-shrink-0">
+                    <span className="text-sm text-muted flex-shrink-0">
                       ({categoryInfo.count})
                     </span>
                   </div>
 
                   <div className="font-medium ml-6 sm:ml-0 sm:text-right sm:flex-shrink-0 text-sm">
                     {categoryInfo.fixedAmount > 0 && (
-                      <span className="text-slate-700">
+                      <span className="text-ink-soft">
                         {formatMoney(categoryInfo.fixedAmount)} kr/month
                       </span>
                     )}
                     {categoryInfo.budgetedAmount > 0 && (
                       <>
                         {categoryInfo.fixedAmount > 0 && (
-                          <span className="text-slate-600"> + </span>
+                          <span className="text-muted"> + </span>
                         )}
-                        <span className="text-slate-600">
+                        <span className="text-muted">
                           {formatMoney(categoryInfo.budgetedAmount)} kr budgeted
                         </span>
                       </>
@@ -244,7 +244,7 @@ function GroupedExpenses({
             </div>
 
             {!categoryInfo.isCollapsed && (
-              <div className="border-t border-slate-200 px-5 py-3">
+              <div className="border-t border-line px-5 py-3">
                 <ExpenseList
                   expenses={categoryInfo.expenses}
                   showSorting={true}

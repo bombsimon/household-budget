@@ -159,7 +159,7 @@ export function CategoryAutocomplete({
         <ul
           id={listId}
           role="listbox"
-          className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded shadow-lg max-h-48 overflow-y-auto"
+          className="absolute z-10 mt-1 w-full bg-surface border border-line rounded shadow-lg max-h-48 overflow-y-auto"
         >
           {options.map((option, index) => (
             <li
@@ -174,10 +174,10 @@ export function CategoryAutocomplete({
               onMouseEnter={() => setHighlightedIndex(index)}
               className={`px-3 py-2 text-sm cursor-pointer ${
                 index === highlightedIndex
-                  ? 'bg-blue-50 text-blue-900'
-                  : 'text-slate-700'
-              } ${option.type === 'create' ? 'border-t border-slate-100 text-blue-600 font-medium' : ''} ${
-                option.type === 'uncategorized' ? 'text-slate-600 italic' : ''
+                  ? 'bg-accent-soft text-accent-ink-strong'
+                  : 'text-ink-soft'
+              } ${option.type === 'create' ? 'border-t border-line-subtle text-link font-medium' : ''} ${
+                option.type === 'uncategorized' ? 'text-muted italic' : ''
               }`}
             >
               {option.label}

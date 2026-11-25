@@ -270,7 +270,7 @@ function UserBudgetCard({
         <div>
           <h2 className="section-title">Left each month</h2>
           <p
-            className={`mt-1 whitespace-nowrap text-4xl font-bold tracking-tight text-blue-800 sm:text-5xl ${blurSensitive ? 'select-none blur-lg' : ''}`}
+            className={`mt-1 whitespace-nowrap text-4xl font-bold tracking-tight text-accent-ink sm:text-5xl ${blurSensitive ? 'select-none blur-lg' : ''}`}
             aria-hidden={blurSensitive}
           >
             {formatMoney(breakdown.remainingAfterExpenses)} kr
@@ -278,7 +278,7 @@ function UserBudgetCard({
         </div>
         <dl className="flex gap-8">
           <div>
-            <dt className="text-sm text-slate-600">After tax</dt>
+            <dt className="text-sm text-muted">After tax</dt>
             <dd
               className={`money font-semibold ${blurSensitive ? 'select-none blur-md' : ''}`}
             >
@@ -286,7 +286,7 @@ function UserBudgetCard({
             </dd>
           </div>
           <div>
-            <dt className="text-sm text-slate-600">Costs</dt>
+            <dt className="text-sm text-muted">Costs</dt>
             <dd className="money font-semibold">
               {formatMoney(
                 breakdown.sharedExpensesOwed + breakdown.personalExpenses
@@ -318,7 +318,7 @@ function UserBudgetCard({
               <CostLegend parts={costParts} />
             </div>
             {breakdown.personalExpenseBreakdown.length > 0 && (
-              <div className="mt-6 border-t border-slate-200 pt-5">
+              <div className="mt-6 border-t border-line pt-5">
                 <h3 className="mb-3 font-semibold">Personal, by category</h3>
                 <ul className="space-y-3 text-sm">
                   {personalBySize.map((category) => (
@@ -431,16 +431,16 @@ function UserBudgetCard({
                     <div className="text-right">
                       <div className="text-sm font-medium">
                         {fixedTotal > 0 && (
-                          <span className="text-slate-700">
+                          <span className="text-ink-soft">
                             {formatMoney(fixedTotal)} kr/month
                           </span>
                         )}
                         {budgetedTotal > 0 && (
                           <>
                             {fixedTotal > 0 && (
-                              <span className="text-slate-600"> + </span>
+                              <span className="text-muted"> + </span>
                             )}
-                            <span className="text-slate-600">
+                            <span className="text-muted">
                               {formatMoney(budgetedTotal)} kr budgeted
                             </span>
                           </>
@@ -448,9 +448,9 @@ function UserBudgetCard({
                         {householdTotal > 0 && (
                           <>
                             {(fixedTotal > 0 || budgetedTotal > 0) && (
-                              <span className="text-slate-600"> + </span>
+                              <span className="text-muted"> + </span>
                             )}
-                            <span className="text-slate-600">
+                            <span className="text-muted">
                               {formatMoney(householdTotal)} kr household
                             </span>
                           </>
@@ -458,13 +458,13 @@ function UserBudgetCard({
                         {fixedTotal === 0 &&
                           budgetedTotal === 0 &&
                           householdTotal === 0 && (
-                            <span className="text-lg font-semibold text-slate-900 whitespace-nowrap">
+                            <span className="text-lg font-semibold text-ink whitespace-nowrap">
                               {formatMoney(category.amount)}&nbsp;kr
                             </span>
                           )}
                       </div>
                       <div
-                        className={`text-sm text-slate-600 ${blurSensitive ? 'blur-md select-none' : ''}`}
+                        className={`text-sm text-muted ${blurSensitive ? 'blur-md select-none' : ''}`}
                       >
                         {category.percentage > 0
                           ? `${category.percentage.toFixed(1)}% of income`
@@ -474,7 +474,7 @@ function UserBudgetCard({
                   </div>
 
                   {combinedExpenses.length > 0 && (
-                    <div className="border-t border-slate-200 pt-2">
+                    <div className="border-t border-line pt-2">
                       <ExpenseList
                         expenses={combinedExpenses}
                         showSorting={combinedExpenses.length > 1}
@@ -507,17 +507,17 @@ function UserBudgetCard({
                               <span className="min-w-0 break-words">
                                 {expense.name}
                                 {isHousehold && (
-                                  <span className="tag ml-2 bg-emerald-100 text-emerald-900">
+                                  <span className="tag ml-2 bg-success-tag text-success-ink">
                                     your share
                                   </span>
                                 )}
                                 {expense.isBudgeted && (
-                                  <span className="tag ml-2 bg-amber-100 text-amber-900">
+                                  <span className="tag ml-2 bg-warning-tag text-warning-ink">
                                     budgeted
                                   </span>
                                 )}
                                 {!isHousehold && expense.isYearly && (
-                                  <span className="tag ml-2 bg-blue-100 text-blue-900">
+                                  <span className="tag ml-2 bg-accent-tag text-accent-ink-strong">
                                     paid yearly
                                   </span>
                                 )}
@@ -534,7 +534,7 @@ function UserBudgetCard({
                             <button
                               type="button"
                               aria-label={`Edit ${expense.name}, ${formatMoney(getMonthlyAmount(expense))} kr`}
-                              className="block w-full rounded-lg hover:bg-blue-50"
+                              className="block w-full rounded-lg hover:bg-accent-soft"
                               onClick={() => {
                                 setEditingExpenseId(expense.id);
                                 setIsAddingExpense(false);
@@ -549,7 +549,7 @@ function UserBudgetCard({
                   )}
 
                   {combinedExpenses.length === 0 && (
-                    <div className="text-sm text-slate-600 italic pt-2">
+                    <div className="text-sm text-muted italic pt-2">
                       No expenses in this category.
                     </div>
                   )}
@@ -593,7 +593,7 @@ function UserBudgetCard({
               />
             </div>
           )}
-          <div className="text-slate-700">No expenses yet.</div>
+          <div className="text-ink-soft">No expenses yet.</div>
         </div>
       )}
     </div>

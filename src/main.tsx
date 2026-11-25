@@ -5,6 +5,9 @@ import './index.css';
 import './mobile.css';
 import App from './App.tsx';
 import { initializeTaxService } from './services/taxService';
+import { initializeTheme } from './utils/theme';
+
+initializeTheme();
 
 // Initialize tax service (preload tax table data)
 initializeTaxService();

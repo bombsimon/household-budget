@@ -91,10 +91,10 @@ export function ExpenseList({
                 type="button"
                 aria-pressed={isActive}
                 onClick={() => toggleSort(key)}
-                className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 capitalize hover:bg-slate-100 ${
+                className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 capitalize hover:bg-hover ${
                   isActive
-                    ? 'bg-blue-100 font-semibold text-blue-900'
-                    : 'text-slate-600'
+                    ? 'bg-accent-tag font-semibold text-accent-ink-strong'
+                    : 'text-muted'
                 }`}
               >
                 {key}
@@ -110,7 +110,7 @@ export function ExpenseList({
         </div>
       )}
 
-      <div className="divide-y divide-slate-200">
+      <div className="divide-y divide-line">
         {sortedExpenses.map((expense, index) => (
           <div key={expense.id}>{renderExpenseItem(expense, index)}</div>
         ))}

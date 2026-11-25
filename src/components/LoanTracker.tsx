@@ -82,7 +82,7 @@ export function LoanTracker({
       </div>
 
       {loans.length > 0 && (
-        <dl className="panel mb-5 grid divide-y divide-slate-200 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        <dl className="panel mb-5 grid divide-y divide-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
           <LoanFigure
             isHero
             label="Cost each month"
@@ -111,7 +111,7 @@ export function LoanTracker({
             {totalTestDifference > 0 ? 'more' : 'less'} interest each month, or{' '}
             {formatMoney(Math.abs(totalTestDifference * 12))} kr a year.
           </p>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-muted">
             {formatMoney(totalTestMonthlyInterest)} kr compared with{' '}
             {formatMoney(totalCurrentInterestForTestLoans)} kr today, on{' '}
             {loansWithTestRates.length}{' '}
@@ -180,7 +180,7 @@ export function LoanTracker({
                       Record repayments
                     </button>
                   </div>
-                  <span className="text-xs text-slate-600">
+                  <span className="text-xs text-muted">
                     {groupLoans.length} loan
                     {groupLoans.length !== 1 ? 's' : ''}
                   </span>
@@ -197,12 +197,12 @@ export function LoanTracker({
                   />
                 )}
 
-                <p className="mb-3 text-sm text-slate-700">
+                <p className="mb-3 text-sm text-ink-soft">
                   {formatMoney(groupTotals.totalCurrentAmount)} kr left,{' '}
                   {formatMoney(groupTotals.totalMonthlyCost)} kr a month
                 </p>
 
-                <div className="panel divide-y divide-slate-200">
+                <div className="panel divide-y divide-line">
                   {groupLoans.map((loan) => (
                     <LoanCard
                       key={loan.id}
@@ -225,7 +225,7 @@ export function LoanTracker({
           })}
         </div>
       ) : (
-        <div className="panel divide-y divide-slate-200">
+        <div className="panel divide-y divide-line">
           {loans.map((loan) => (
             <LoanCard
               key={loan.id}
@@ -246,7 +246,7 @@ export function LoanTracker({
       )}
 
       {loans.length === 0 && !isAdding && (
-        <p className="panel p-8 text-slate-700">
+        <p className="panel p-8 text-ink-soft">
           No loans yet. Add one to see its monthly cost and interest.
         </p>
       )}
@@ -337,13 +337,13 @@ function LoanFigure({
 }) {
   return (
     <div className="p-6">
-      <dt className="text-sm text-slate-600">{label}</dt>
+      <dt className="text-sm text-muted">{label}</dt>
       <dd
-        className={`mt-1 text-2xl font-bold tracking-tight ${isHero ? 'text-blue-800' : ''}`}
+        className={`mt-1 text-2xl font-bold tracking-tight ${isHero ? 'text-accent-ink' : ''}`}
       >
         {formatMoney(amount)} kr
       </dd>
-      {note && <dd className="mt-1 text-sm text-slate-600">{note}</dd>}
+      {note && <dd className="mt-1 text-sm text-muted">{note}</dd>}
     </div>
   );
 }
@@ -426,7 +426,7 @@ function LoanCard({
         <Avatar user={payer} />
         <div className="min-w-0 flex-1">
           <h3 className="section-title break-words">{loan.name}</h3>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-muted">
             {payer ? `Paid by ${payer.name}, ` : ''}
             {(loan.interestRate * 100).toFixed(2)}% interest
           </p>
@@ -449,15 +449,15 @@ function LoanCard({
         <div className="flex items-center gap-6">
           <ProgressRing percentage={paidOffPercentage} />
           <div className="min-w-0">
-            <p className="text-sm text-slate-600">Left to pay</p>
+            <p className="text-sm text-muted">Left to pay</p>
             <p className="whitespace-nowrap text-2xl font-bold tracking-tight">
               {formatMoney(loan.currentAmount)} kr
             </p>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-muted">
               {formatMoney(paidOffAmount)} of {formatMoney(loan.originalAmount)}{' '}
               kr paid off
             </p>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-muted">
               {monthlyRepayment > 0
                 ? `${Math.ceil(monthsToPayOff)} months to go`
                 : 'No repayment set'}
@@ -465,7 +465,7 @@ function LoanCard({
           </div>
         </div>
         <div>
-          <p className="text-sm text-slate-600">Cost each month</p>
+          <p className="text-sm text-muted">Cost each month</p>
           <p className="mb-3 text-2xl font-bold tracking-tight">
             {formatMoney(monthlyInterest + monthlyRepayment)} kr
           </p>
@@ -477,7 +477,7 @@ function LoanCard({
       </div>
 
       {loan.testInterestRate && (
-        <p className="mt-5 border-l-2 border-blue-700 pl-3 text-sm">
+        <p className="mt-5 border-l-2 border-focus pl-3 text-sm">
           At {(loan.testInterestRate * 100).toFixed(2)}% it would cost{' '}
           <strong className="money">
             {formatMoney(testMonthlyPayment!)} kr
@@ -772,10 +772,8 @@ function LoanForm({
 
       {/* Payment & Splitting Controls */}
       {users.length > 1 && (
-        <div className="border-t border-slate-200 pt-4 mt-4">
-          <h4 className="font-medium text-slate-900 mb-3">
-            Payment & splitting
-          </h4>
+        <div className="border-t border-line pt-4 mt-4">
+          <h4 className="font-medium text-ink mb-3">Payment & splitting</h4>
 
           <div className="mb-4">
             <label htmlFor={`${fieldId}-8`} className="field-label">
@@ -799,8 +797,8 @@ function LoanForm({
           {/* Interest and Repayment Splitting - Side by Side */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Interest Splitting */}
-            <div className="border-t border-slate-300 pt-4">
-              <h5 className="font-medium text-slate-800 mb-3">
+            <div className="border-t border-line-strong pt-4">
+              <h5 className="font-medium text-ink-strong mb-3">
                 Interest splitting
               </h5>
               <div className="space-y-3">
@@ -862,8 +860,8 @@ function LoanForm({
             </div>
 
             {/* Repayment Splitting */}
-            <div className="border-t border-slate-300 pt-4">
-              <h5 className="font-medium text-slate-800 mb-3">
+            <div className="border-t border-line-strong pt-4">
+              <h5 className="font-medium text-ink-strong mb-3">
                 Repayment splitting
               </h5>
               <div className="space-y-3">

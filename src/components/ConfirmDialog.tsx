@@ -32,12 +32,12 @@ export function ConfirmDialog({
       onClose={onClose}
       aria-labelledby="confirm-title"
       aria-describedby="confirm-description"
-      className="w-[calc(100%-2rem)] max-w-md rounded-2xl p-6 shadow-2xl text-left text-slate-900 backdrop:bg-slate-900/50"
+      className="w-[calc(100%-2rem)] max-w-md rounded-2xl bg-surface p-6 shadow-2xl text-left text-ink backdrop:bg-slate-900/50"
     >
       <h2 id="confirm-title" className="section-title">
         {title}
       </h2>
-      <p id="confirm-description" className="mt-2 text-sm text-slate-700">
+      <p id="confirm-description" className="mt-2 text-sm text-ink-soft">
         {description}
       </p>
       <div className="mt-6 flex flex-wrap justify-end gap-2">

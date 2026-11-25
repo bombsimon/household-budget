@@ -12,7 +12,7 @@ export function UserTaxInfo({ user }: UserTaxInfoProps) {
     useTaxCalculation(user.monthlyIncome * 12, user.municipalityCode);
 
   return (
-    <div className="mt-1 space-y-0.5 text-sm text-slate-700">
+    <div className="mt-1 space-y-0.5 text-sm text-ink-soft">
       <p>Before tax: {formatMoney(user.monthlyIncome)} kr</p>
 
       <div className="flex items-center gap-1">
@@ -20,7 +20,7 @@ export function UserTaxInfo({ user }: UserTaxInfoProps) {
         {isLoading ? (
           <div className="flex items-center gap-1">
             <Loader className="w-3 h-3 animate-spin" />
-            <span className="text-slate-400">Calculating...</span>
+            <span className="text-disabled">Calculating...</span>
           </div>
         ) : (
           <>
@@ -39,7 +39,7 @@ export function UserTaxInfo({ user }: UserTaxInfoProps) {
         )}
       </div>
       {tableNumber && (
-        <p className="text-slate-600">
+        <p className="text-muted">
           {user.municipalityName}, tax table {tableNumber}
         </p>
       )}
