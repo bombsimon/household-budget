@@ -1,3 +1,5 @@
+import type { AppState } from '../types';
+
 export interface HouseholdData {
   encryptedData: string;
   iv: string;
@@ -21,7 +23,7 @@ class EncryptionService {
    * Encrypt household data with password
    */
   async encryptHouseholdData(
-    data: any,
+    data: unknown,
     password: string
   ): Promise<HouseholdData> {
     // Generate a random salt for this household
@@ -62,7 +64,7 @@ class EncryptionService {
   async decryptHouseholdData(
     householdData: HouseholdData,
     password: string
-  ): Promise<any> {
+  ): Promise<AppState> {
     // Convert hex salt back to Uint8Array
     const salt = new Uint8Array(
       householdData.salt.match(/.{2}/g)!.map((byte) => parseInt(byte, 16))
@@ -101,7 +103,7 @@ class EncryptionService {
     try {
       await this.decryptHouseholdData(householdData, password);
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -127,7 +129,7 @@ class EncryptionService {
     }
     try {
       return localStorage.getItem(`household_password_${householdId}`) !== null;
-    } catch (error) {
+    } catch {
       return false;
     }
   }

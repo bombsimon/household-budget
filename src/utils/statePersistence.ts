@@ -101,7 +101,7 @@ export const importState = (file: File): Promise<AppState> => {
         }
 
         resolve(state);
-      } catch (error) {
+      } catch {
         reject(
           new Error(
             "Failed to parse JSON file. Please ensure it's a valid budget export."

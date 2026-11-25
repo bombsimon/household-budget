@@ -7,15 +7,6 @@ import {
   type HouseholdData,
 } from '../services/encryptionService';
 
-// Generate a simple user ID for this browser session
-const getCurrentUserId = (): string => {
-  let userId = localStorage.getItem('household_user_id');
-  if (!userId) {
-    userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    localStorage.setItem('household_user_id', userId);
-  }
-  return userId;
-};
 import type {
   User,
   Expense,
@@ -53,7 +44,6 @@ const getInitialState = (): AppState => {
 };
 
 export function useManualFirebaseBudgetData(householdId: string) {
-  const currentUserId = getCurrentUserId();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -194,7 +184,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
     },
     [
       encryptionReady,
-      currentUserId,
       categories,
       personalCategories,
       loans,
@@ -251,13 +240,9 @@ export function useManualFirebaseBudgetData(householdId: string) {
         const updatedCategories = categories
           .map((category) => {
             if (category.id === 'shared') {
-              const filteredExpenses = category.expenses.filter((expense) => {
-                const shouldRemove = expense.paidBy === userId;
-                if (shouldRemove) {
-                } else {
-                }
-                return !shouldRemove;
-              });
+              const filteredExpenses = category.expenses.filter(
+                (expense) => expense.paidBy !== userId
+              );
 
               return {
                 ...category,
@@ -617,7 +602,7 @@ export function useManualFirebaseBudgetData(householdId: string) {
       remainingIncome: afterPersonalExpenses,
       percentageRemaining,
     };
-  }, [users, categories, personalCategories, assets, loans]);
+  }, [users, categories, assets, loans]);
 
   const calculateUserBreakdowns = useCallback((): UserBudgetBreakdown[] => {
     return users.map((user) => {

@@ -77,7 +77,7 @@ export function getTaxFromTablesSync(
       tableNumber
     );
     return result;
-  } catch (error) {
+  } catch {
     return null;
   }
 }

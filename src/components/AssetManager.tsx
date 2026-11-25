@@ -1,6 +1,7 @@
 import React, { useId, useState } from 'react';
 import { Plus, Edit2, ChevronDown, ChevronRight } from 'lucide-react';
 import type { Asset, Expense, User } from '../types';
+import { getAssetExpenses } from '../utils/costAllocation';
 import { formatMoney, getMonthlyAmount } from '../utils/expenseCalculations';
 import { DeleteButton } from './DeleteButton';
 import { FormActionButtons } from './FormActionButtons';
@@ -8,30 +9,10 @@ import { ExpenseForm } from './ExpenseForm';
 import { ExpenseItem } from './ExpenseItem';
 
 // Helper function to migrate legacy asset data structure
-const migrateAssetData = (asset: Asset): Asset => {
-  if (
-    !asset.expenses &&
-    ((asset as any).fixedCosts || (asset as any).variableCosts)
-  ) {
-    return {
-      ...asset,
-      expenses: [
-        ...((asset as any).fixedCosts || []).map((exp: any) => ({
-          ...exp,
-          isBudgeted: false,
-        })),
-        ...((asset as any).variableCosts || []).map((exp: any) => ({
-          ...exp,
-          isBudgeted: true,
-        })),
-      ],
-    };
-  }
-  return {
-    ...asset,
-    expenses: asset.expenses || [],
-  };
-};
+const migrateAssetData = (asset: Asset): Asset => ({
+  ...asset,
+  expenses: getAssetExpenses(asset),
+});
 
 interface AssetManagerProps {
   users: User[];

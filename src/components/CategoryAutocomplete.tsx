@@ -107,8 +107,7 @@ export function CategoryAutocomplete({
       case 'Escape':
         setIsOpen(false);
         setHighlightedIndex(-1);
-        const cat = personalCategories.find((c) => c.id === value);
-        setInputValue(cat?.name || '');
+        setInputValue(selectedCategory?.name || '');
         break;
     }
   };

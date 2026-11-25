@@ -93,7 +93,7 @@ export function UserBudgetPage({
 interface UserBudgetCardProps {
   user: User;
   breakdown: UserBudgetBreakdown;
-  personalExpenses: any[];
+  personalExpenses: Expense[];
   personalCategories: PersonalExpenseCategory[];
   categories: ExpenseCategory[];
   assets: Asset[];
