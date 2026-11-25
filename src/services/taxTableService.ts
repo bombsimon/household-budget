@@ -7,6 +7,24 @@ import {
 let cachedTaxTableData: TaxTableRow[] | null = null;
 let loadingPromise: Promise<TaxTableRow[]> | null = null;
 
+type TaxTableStatus = 'loading' | 'ready' | 'failed';
+
+let status: TaxTableStatus = 'loading';
+const listeners = new Set<() => void>();
+
+const setStatus = (nextStatus: TaxTableStatus): void => {
+  status = nextStatus;
+  listeners.forEach((listener) => listener());
+};
+
+export const getTaxTableStatus = (): TaxTableStatus => status;
+
+export const subscribeToTaxTable = (listener: () => void): (() => void) => {
+  listeners.add(listener);
+
+  return () => listeners.delete(listener);
+};
+
 export async function loadTaxTableData(): Promise<TaxTableRow[]> {
   if (cachedTaxTableData) {
     return cachedTaxTableData;
@@ -31,10 +49,12 @@ export async function loadTaxTableData(): Promise<TaxTableRow[]> {
 
       cachedTaxTableData = taxTableData;
       loadingPromise = null;
+      setStatus('ready');
 
       return taxTableData;
     } catch (error) {
       loadingPromise = null;
+      setStatus('failed');
       throw error;
     }
   })();

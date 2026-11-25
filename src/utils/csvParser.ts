@@ -85,7 +85,10 @@ export function findTaxFromTable(
 
   for (const taxAmount of columns) {
     if (taxAmount > 0) {
-      return taxAmount;
+      // High incomes are listed as a percentage instead of an amount.
+      return matchingRow.antalDgr === '30%'
+        ? Math.floor((yearlyIncome * taxAmount) / 100)
+        : taxAmount;
     }
   }
 

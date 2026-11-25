@@ -17,6 +17,11 @@ import {
   SegmentedBar,
   type CostPart,
 } from './CostCharts';
+import {
+  getAssetExpenses,
+  getLoanInterest,
+  getLoanRepayment,
+} from '../utils/costAllocation';
 import { COST_COLORS } from '../utils/costColors';
 import { getMonthlyAmount, formatMoney } from '../utils/expenseCalculations';
 
@@ -68,15 +73,15 @@ export function Dashboard({
     .filter((expense) => expense.isShared)
     .reduce((sum, expense) => sum + getMonthlyAmount(expense), 0);
   const assetTotal = assets
-    .flatMap((asset) => asset.expenses || [])
+    .flatMap(getAssetExpenses)
     .filter((expense) => !expense.isBudgeted)
     .reduce((sum, expense) => sum + getMonthlyAmount(expense), 0);
   const interestTotal = loans.reduce(
-    (sum, loan) => sum + (loan.currentAmount * loan.interestRate) / 12,
+    (sum, loan) => sum + getLoanInterest(loan),
     0
   );
   const repaymentTotal = loans.reduce(
-    (sum, loan) => sum + loan.monthlyPayment,
+    (sum, loan) => sum + getLoanRepayment(loan),
     0
   );
   const budgetedTotal =
@@ -278,7 +283,7 @@ export function Dashboard({
                         isThin
                         parts={[
                           {
-                            label: 'Household share',
+                            label: 'Household and loans',
                             amount: breakdown.sharedExpensesOwed,
                             color: COST_COLORS.household,
                           },
@@ -296,7 +301,7 @@ export function Dashboard({
                       />
                     </span>
                     <span className="mt-2 block text-sm text-slate-600">
-                      Household share{' '}
+                      Household and loans{' '}
                       {formatMoney(breakdown.sharedExpensesOwed)} kr, personal{' '}
                       {formatMoney(breakdown.personalExpenses)} kr
                     </span>

@@ -46,5 +46,5 @@ function HouseholdWrapper() {
     );
   }
 
-  return <HouseholdAuth householdId={householdId} />;
+  return <HouseholdAuth key={householdId} householdId={householdId} />;
 }

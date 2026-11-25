@@ -10,6 +10,7 @@ interface SettlementVisualizerProps {
     [userId: string]: {
       total: number;
       sharedExpenses: number;
+      personalExpenses: number;
       assets: { [assetName: string]: number };
       loanInterests: number;
       loanRepayments: number;
@@ -74,6 +75,11 @@ export function SettlementVisualizer({
                   label: 'Household expenses',
                   amount: balance.sharedExpenses,
                 },
+                {
+                  key: 'personal',
+                  label: 'Personal expenses',
+                  amount: balance.personalExpenses,
+                },
                 ...Object.entries(balance.assets).map(([name, amount]) => ({
                   key: `asset-${name}`,
                   label: name,
@@ -90,12 +96,6 @@ export function SettlementVisualizer({
                   amount: balance.loanRepayments,
                 },
               ].filter((line) => Math.abs(line.amount) > 0.01);
-              // The balance total also counts personal loans, which no transfer covers.
-              const shownTotal = lines.reduce(
-                (sum, line) => sum + line.amount,
-                0
-              );
-
               return (
                 <section key={user.id} className="panel p-6">
                   <h3 className="mb-4 flex items-center gap-3 font-semibold">
@@ -115,7 +115,7 @@ export function SettlementVisualizer({
                     <div className="flex justify-between gap-4 border-t border-slate-400 pt-2 font-semibold">
                       <dt>Total</dt>
                       <dd className="money ledger-total">
-                        {formatSigned(shownTotal)}
+                        {formatSigned(balance.total)}
                       </dd>
                     </div>
                   </dl>

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { Link, useNavigate } from 'react-router-dom';
+import { doc, getDoc, runTransaction } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { HouseholdApp } from './HouseholdApp';
 import { encryptionService } from '../services/encryptionService';
+import { normalizeHouseholdId } from '../utils/householdId';
 import type { HouseholdData } from '../services/encryptionService';
 
 interface HouseholdAuthProps {
@@ -21,6 +22,7 @@ const getCurrentUserId = (): string => {
 };
 
 export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,14 +31,6 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
   const [joiningHousehold, setJoiningHousehold] = useState(false);
   const [password, setPassword] = useState('');
 
-  const normalizeSlug = (slug: string): string => {
-    return slug
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '');
-  };
-
   const handleCreateHousehold = async () => {
     if (!password.trim()) return;
 
@@ -44,7 +38,6 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
     setError(null);
 
     try {
-      const normalizedSlug = normalizeSlug(householdId);
       getCurrentUserId();
 
       // Create initial household data with empty users array
@@ -74,11 +67,24 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
           password.trim()
         );
 
-      const householdDocRef = doc(db, 'households', normalizedSlug);
-      await setDoc(householdDocRef, encryptedHouseholdData);
+      const householdDocRef = doc(db, 'households', householdId);
+      const isCreated = await runTransaction(db, async (transaction) => {
+        const existing = await transaction.get(householdDocRef);
+        if (existing.exists()) return false;
+
+        transaction.set(householdDocRef, encryptedHouseholdData);
+
+        return true;
+      });
+
+      if (!isCreated) {
+        setHouseholdExists(true);
+        setError('Someone just created this household. Enter its password.');
+        return;
+      }
 
       // Store password in memory
-      encryptionService.setHouseholdPassword(normalizedSlug, password.trim());
+      encryptionService.setHouseholdPassword(householdId, password.trim());
 
       setAuthorized(true);
       setPassword('');
@@ -147,6 +153,14 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
         const householdDocRef = doc(db, 'households', householdId);
         const householdSnap = await getDoc(householdDocRef);
 
+        const normalizedId = normalizeHouseholdId(householdId);
+
+        // Older links may use other spellings, but new households only use one.
+        if (!householdSnap.exists() && normalizedId !== householdId) {
+          navigate(normalizedId ? `/${normalizedId}` : '/', { replace: true });
+          return;
+        }
+
         if (!householdSnap.exists()) {
           setHouseholdExists(false);
           setAuthorized(false);
@@ -192,7 +206,7 @@ export function HouseholdAuth({ householdId }: HouseholdAuthProps) {
     };
 
     checkAuthorization();
-  }, [householdId]);
+  }, [householdId, navigate]);
 
   if (loading) {
     return (

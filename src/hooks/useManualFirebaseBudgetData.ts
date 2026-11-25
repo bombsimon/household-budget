@@ -31,6 +31,14 @@ import type {
 } from '../types';
 import { calculateAfterTaxIncomeWithTablesSync } from '../services/taxService';
 import { getMonthlyAmount } from '../utils/expenseCalculations';
+import {
+  getAssetExpenses,
+  getLoanInterest,
+  getLoanRepayment,
+  getSettlements,
+  getUserBalances,
+  getUserCosts,
+} from '../utils/costAllocation';
 
 const getInitialState = (): AppState => {
   return {
@@ -124,6 +132,10 @@ export function useManualFirebaseBudgetData(householdId: string) {
             setAssets(defaultState.assets);
             setUsers(defaultState.users);
           }
+
+          // Only a successful read may unlock editing, since a save overwrites everything.
+          setIsLoaded(true);
+          setError(null);
         } catch (error) {
           console.error(`❌ Error processing real-time encrypted data:`, error);
           setError(
@@ -131,7 +143,6 @@ export function useManualFirebaseBudgetData(householdId: string) {
           );
         } finally {
           setIsLoading(false);
-          setIsLoaded(true);
         }
       },
       (error) => {
@@ -511,380 +522,15 @@ export function useManualFirebaseBudgetData(householdId: string) {
   );
 
   // Calculation methods remain the same...
-  const calculateSettlements = useCallback((): Settlement[] => {
-    const userBalances: { [userId: string]: number } = {};
+  const calculateDetailedBalances = useCallback(
+    () => getUserBalances({ users, categories, assets, loans }),
+    [users, categories, assets, loans]
+  );
 
-    users.forEach((user) => {
-      userBalances[user.id] = 0;
-    });
-
-    categories.forEach((category) => {
-      category.expenses.forEach((expense) => {
-        if (expense.isShared && !expense.isBudgeted) {
-          const paidBy = expense.paidBy || users[0]?.id;
-          userBalances[paidBy] =
-            (userBalances[paidBy] || 0) + getMonthlyAmount(expense);
-
-          if (expense.splitType === 'equal') {
-            const perPerson = getMonthlyAmount(expense) / users.length;
-            users.forEach((user) => {
-              userBalances[user.id] -= perPerson;
-            });
-          } else if (expense.splitType === 'percentage' && expense.splitData) {
-            Object.entries(expense.splitData).forEach(
-              ([userId, percentage]) => {
-                if (userBalances[userId] !== undefined) {
-                  // Only process if user still exists
-                  userBalances[userId] -=
-                    getMonthlyAmount(expense) * (percentage as number);
-                }
-              }
-            );
-          }
-        } else if (expense.userId && expense.paidBy !== expense.userId) {
-          const paidBy = expense.paidBy || expense.userId;
-          if (
-            userBalances[paidBy] !== undefined &&
-            userBalances[expense.userId] !== undefined
-          ) {
-            userBalances[paidBy] =
-              (userBalances[paidBy] || 0) + getMonthlyAmount(expense);
-            userBalances[expense.userId] -= getMonthlyAmount(expense);
-          }
-        }
-      });
-    });
-
-    assets.forEach((asset) => {
-      asset.expenses
-        .filter((expense: any) => !expense.isBudgeted)
-        .forEach((expense: any) => {
-          if (expense.isShared) {
-            const paidBy = expense.paidBy || users[0]?.id;
-            userBalances[paidBy] =
-              (userBalances[paidBy] || 0) + getMonthlyAmount(expense);
-
-            if (expense.splitType === 'equal') {
-              const perPerson = getMonthlyAmount(expense) / users.length;
-              users.forEach((user) => {
-                userBalances[user.id] -= perPerson;
-              });
-            } else if (
-              expense.splitType === 'percentage' &&
-              expense.splitData
-            ) {
-              Object.entries(expense.splitData).forEach(
-                ([userId, percentage]) => {
-                  if (userBalances[userId] !== undefined) {
-                    // Only process if user still exists
-                    userBalances[userId] -=
-                      getMonthlyAmount(expense) * (percentage as number);
-                  }
-                }
-              );
-            }
-          }
-        });
-    });
-
-    // Handle loan settlements - separate interest and repayment
-    loans.forEach((loan) => {
-      const paidBy = loan.paidBy || users[0]?.id;
-      const monthlyInterest = (loan.currentAmount * loan.interestRate) / 12;
-      // Clamp the repayment at the remaining balance — fully paid-off loans
-      // contribute 0, and a near-final payment can't exceed what's still owed.
-      const monthlyRepayment = Math.min(
-        loan.monthlyPayment,
-        Math.max(0, loan.currentAmount)
-      );
-
-      // Fallback for old loan structure
-      const isInterestShared =
-        loan.isInterestShared !== undefined
-          ? loan.isInterestShared
-          : (loan as any).isShared;
-      const interestSplitType =
-        loan.interestSplitType || (loan as any).splitType || 'percentage';
-      const interestSplitData =
-        loan.interestSplitData || (loan as any).splitData;
-
-      const isRepaymentShared =
-        loan.isRepaymentShared !== undefined
-          ? loan.isRepaymentShared
-          : (loan as any).isShared;
-      const repaymentSplitType =
-        loan.repaymentSplitType || (loan as any).splitType || 'equal';
-      const repaymentSplitData =
-        loan.repaymentSplitData || (loan as any).splitData;
-
-      // Add interest + monthly payment to payer (treating them as separate costs)
-      userBalances[paidBy] =
-        (userBalances[paidBy] || 0) + monthlyInterest + monthlyRepayment;
-
-      // Subtract interest portion based on interest splitting
-      if (isInterestShared) {
-        if (interestSplitType === 'equal') {
-          const perPerson = monthlyInterest / users.length;
-          users.forEach((user) => {
-            userBalances[user.id] = (userBalances[user.id] || 0) - perPerson;
-          });
-        } else if (interestSplitType === 'percentage' && interestSplitData) {
-          Object.entries(interestSplitData).forEach(([userId, percentage]) => {
-            if (userBalances[userId] !== undefined) {
-              // Only process if user still exists
-              userBalances[userId] =
-                (userBalances[userId] || 0) -
-                monthlyInterest * (percentage as number);
-            }
-          });
-        }
-      } else {
-        // Interest is personal to the payer
-        userBalances[paidBy] = (userBalances[paidBy] || 0) - monthlyInterest;
-      }
-
-      // Subtract repayment portion based on repayment splitting
-      if (isRepaymentShared) {
-        if (repaymentSplitType === 'equal') {
-          const perPerson = monthlyRepayment / users.length;
-          users.forEach((user) => {
-            userBalances[user.id] = (userBalances[user.id] || 0) - perPerson;
-          });
-        } else if (repaymentSplitType === 'percentage' && repaymentSplitData) {
-          Object.entries(repaymentSplitData).forEach(([userId, percentage]) => {
-            if (userBalances[userId] !== undefined) {
-              // Only process if user still exists
-              userBalances[userId] =
-                (userBalances[userId] || 0) -
-                monthlyRepayment * (percentage as number);
-            }
-          });
-        }
-      } else {
-        // Repayment is personal to the payer
-        userBalances[paidBy] = (userBalances[paidBy] || 0) - monthlyRepayment;
-      }
-    });
-
-    const settlements: Settlement[] = [];
-    const debtors = Object.entries(userBalances).filter(
-      ([, balance]) => balance < 0
-    );
-    const creditors = Object.entries(userBalances).filter(
-      ([, balance]) => balance > 0
-    );
-
-    debtors.forEach(([debtorId, debtAmount]) => {
-      let remainingDebt = Math.abs(debtAmount);
-
-      creditors.forEach(([creditorId, creditAmount]) => {
-        if (remainingDebt > 0 && creditAmount > 0) {
-          const settlement = Math.min(remainingDebt, creditAmount);
-          settlements.push({
-            from: debtorId,
-            to: creditorId,
-            amount: settlement,
-          });
-          remainingDebt -= settlement;
-          userBalances[creditorId] -= settlement;
-        }
-      });
-    });
-
-    return settlements;
-  }, [users, categories, personalCategories, assets, loans]);
-
-  const calculateDetailedBalances = useCallback(() => {
-    const userBalances: {
-      [userId: string]: {
-        total: number;
-        sharedExpenses: number;
-        assets: { [assetName: string]: number };
-        loanInterests: number;
-        loanRepayments: number;
-      };
-    } = {};
-
-    users.forEach((user) => {
-      userBalances[user.id] = {
-        total: 0,
-        sharedExpenses: 0,
-        assets: {},
-        loanInterests: 0,
-        loanRepayments: 0,
-      };
-    });
-
-    // Calculate shared expenses from categories
-    categories.forEach((category) => {
-      category.expenses.forEach((expense) => {
-        if (expense.isShared && !expense.isBudgeted) {
-          const paidBy = expense.paidBy || users[0]?.id;
-          if (userBalances[paidBy]) {
-            // Only process if payer still exists
-            userBalances[paidBy].total += getMonthlyAmount(expense);
-            userBalances[paidBy].sharedExpenses += getMonthlyAmount(expense);
-
-            if (expense.splitType === 'equal') {
-              const perPerson = getMonthlyAmount(expense) / users.length;
-              users.forEach((user) => {
-                userBalances[user.id].total -= perPerson;
-                userBalances[user.id].sharedExpenses -= perPerson;
-              });
-            } else if (
-              expense.splitType === 'percentage' &&
-              expense.splitData
-            ) {
-              Object.entries(expense.splitData).forEach(
-                ([userId, percentage]) => {
-                  if (userBalances[userId]) {
-                    // Only process if user still exists
-                    const amount = getMonthlyAmount(expense) * percentage;
-                    userBalances[userId].total -= amount;
-                    userBalances[userId].sharedExpenses -= amount;
-                  }
-                }
-              );
-            }
-          }
-        }
-      });
-    });
-
-    // Calculate asset costs by individual asset
-    assets.forEach((asset) => {
-      asset.expenses
-        .filter((expense: any) => !expense.isBudgeted)
-        .forEach((expense: any) => {
-          if (expense.isShared) {
-            const paidBy = expense.paidBy || users[0]?.id;
-            const amount = getMonthlyAmount(expense);
-
-            if (userBalances[paidBy]) {
-              // Only process if payer still exists
-              userBalances[paidBy].total += amount;
-              userBalances[paidBy].assets[asset.name] =
-                (userBalances[paidBy].assets[asset.name] || 0) + amount;
-
-              if (expense.splitType === 'equal') {
-                const perPerson = amount / users.length;
-                users.forEach((user) => {
-                  userBalances[user.id].total -= perPerson;
-                  userBalances[user.id].assets[asset.name] =
-                    (userBalances[user.id].assets[asset.name] || 0) - perPerson;
-                });
-              } else if (
-                expense.splitType === 'percentage' &&
-                expense.splitData
-              ) {
-                Object.entries(expense.splitData).forEach(
-                  ([userId, percentage]) => {
-                    if (userBalances[userId]) {
-                      // Only process if user still exists
-                      const userAmount = amount * (percentage as number);
-                      userBalances[userId].total -= userAmount;
-                      userBalances[userId].assets[asset.name] =
-                        (userBalances[userId].assets[asset.name] || 0) -
-                        userAmount;
-                    }
-                  }
-                );
-              }
-            }
-          }
-        });
-    });
-
-    // Calculate loan costs - separate interest and repayment components
-    loans.forEach((loan) => {
-      const paidBy = loan.paidBy || users[0]?.id;
-      const monthlyInterest = (loan.currentAmount * loan.interestRate) / 12;
-      // Clamp the repayment at the remaining balance — fully paid-off loans
-      // contribute 0, and a near-final payment can't exceed what's still owed.
-      const monthlyRepayment = Math.min(
-        loan.monthlyPayment,
-        Math.max(0, loan.currentAmount)
-      );
-
-      // Fallback for old loan structure
-      const isInterestShared =
-        loan.isInterestShared !== undefined
-          ? loan.isInterestShared
-          : (loan as any).isShared;
-      const interestSplitType =
-        loan.interestSplitType || (loan as any).splitType || 'percentage';
-      const interestSplitData =
-        loan.interestSplitData || (loan as any).splitData;
-
-      const isRepaymentShared =
-        loan.isRepaymentShared !== undefined
-          ? loan.isRepaymentShared
-          : (loan as any).isShared;
-      const repaymentSplitType =
-        loan.repaymentSplitType || (loan as any).splitType || 'equal';
-      const repaymentSplitData =
-        loan.repaymentSplitData || (loan as any).splitData;
-
-      // Add interest + monthly payment to payer first
-      if (userBalances[paidBy]) {
-        // Only process if payer still exists
-        userBalances[paidBy].total += monthlyInterest + monthlyRepayment;
-
-        // Handle interest portion splitting
-        if (isInterestShared) {
-          userBalances[paidBy].loanInterests += monthlyInterest;
-
-          if (interestSplitType === 'equal') {
-            const perPerson = monthlyInterest / users.length;
-            users.forEach((user) => {
-              userBalances[user.id].total -= perPerson;
-              userBalances[user.id].loanInterests -= perPerson;
-            });
-          } else if (interestSplitType === 'percentage' && interestSplitData) {
-            Object.entries(interestSplitData).forEach(
-              ([userId, percentage]) => {
-                if (userBalances[userId]) {
-                  // Only process if user still exists
-                  const userAmount = monthlyInterest * (percentage as number);
-                  userBalances[userId].total -= userAmount;
-                  userBalances[userId].loanInterests -= userAmount;
-                }
-              }
-            );
-          }
-        }
-
-        // Handle repayment portion splitting
-        if (isRepaymentShared) {
-          userBalances[paidBy].loanRepayments += monthlyRepayment;
-
-          if (repaymentSplitType === 'equal') {
-            const perPerson = monthlyRepayment / users.length;
-            users.forEach((user) => {
-              userBalances[user.id].total -= perPerson;
-              userBalances[user.id].loanRepayments -= perPerson;
-            });
-          } else if (
-            repaymentSplitType === 'percentage' &&
-            repaymentSplitData
-          ) {
-            Object.entries(repaymentSplitData).forEach(
-              ([userId, percentage]) => {
-                if (userBalances[userId]) {
-                  // Only process if user still exists
-                  const userAmount = monthlyRepayment * (percentage as number);
-                  userBalances[userId].total -= userAmount;
-                  userBalances[userId].loanRepayments -= userAmount;
-                }
-              }
-            );
-          }
-        }
-      }
-    });
-
-    return userBalances;
-  }, [users, categories, personalCategories, assets, loans]);
+  const calculateSettlements = useCallback(
+    (): Settlement[] => getSettlements(calculateDetailedBalances()),
+    [calculateDetailedBalances]
+  );
 
   const calculateBudgetSummary = useCallback((): BudgetSummary => {
     const totalIncome = users.reduce(
@@ -916,7 +562,7 @@ export function useManualFirebaseBudgetData(householdId: string) {
     const totalAssetExpenses = assets.reduce(
       (sum, asset) =>
         sum +
-        asset.expenses
+        getAssetExpenses(asset)
           .filter((exp) => !exp.isBudgeted)
           .reduce((expSum, exp) => expSum + getMonthlyAmount(exp), 0),
       0
@@ -926,7 +572,7 @@ export function useManualFirebaseBudgetData(householdId: string) {
     const totalBudgetedAssetExpenses = assets.reduce(
       (sum, asset) =>
         sum +
-        asset.expenses
+        getAssetExpenses(asset)
           .filter((exp) => exp.isBudgeted)
           .reduce((expSum, exp) => expSum + getMonthlyAmount(exp), 0),
       0
@@ -934,8 +580,8 @@ export function useManualFirebaseBudgetData(householdId: string) {
 
     // Calculate total loan costs (interest + repayment payments)
     const totalLoanCosts = loans.reduce((sum, loan) => {
-      const monthlyInterest = (loan.currentAmount * loan.interestRate) / 12;
-      return sum + monthlyInterest + loan.monthlyPayment;
+      const monthlyInterest = getLoanInterest(loan);
+      return sum + monthlyInterest + getLoanRepayment(loan);
     }, 0);
 
     const afterTaxIncome = users.reduce((sum, user) => {
@@ -982,54 +628,12 @@ export function useManualFirebaseBudgetData(householdId: string) {
           ).monthlyAfterTax
         : 0;
 
-      const sharedExpenses = categories
-        .flatMap((cat) => cat.expenses)
-        .filter((exp) => exp.isShared && !exp.isBudgeted);
-
-      const assetExpenses = assets.flatMap((asset) =>
-        asset.expenses.filter((exp) => !exp.isBudgeted && exp.isShared)
-      );
-
-      const allSharedExpenses = [...sharedExpenses, ...assetExpenses];
-
-      let sharedExpensesOwed = 0;
-      allSharedExpenses.forEach((expense) => {
-        if (expense.splitType === 'equal') {
-          sharedExpensesOwed += getMonthlyAmount(expense) / users.length;
-        } else if (expense.splitType === 'percentage') {
-          if (expense.splitData?.[user.id] !== undefined) {
-            sharedExpensesOwed +=
-              getMonthlyAmount(expense) * expense.splitData[user.id];
-          } else {
-            // Fallback: calculate income-based percentage
-            const totalIncome = users.reduce(
-              (sum, u) => sum + u.monthlyIncome,
-              0
-            );
-            const userPercentage =
-              totalIncome > 0
-                ? user.monthlyIncome / totalIncome
-                : 1 / users.length;
-            sharedExpensesOwed += getMonthlyAmount(expense) * userPercentage;
-          }
-        }
-      });
-
-      // Add loan expenses
-      loans.forEach((loan) => {
-        const monthlyInterest = (loan.currentAmount * loan.interestRate) / 12;
-        const monthlyRepayment = loan.monthlyPayment;
-
-        // Interest allocation (shared equally for now)
-        if (loan.isInterestShared) {
-          sharedExpensesOwed += monthlyInterest / users.length;
-        }
-
-        // Repayment allocation (shared equally for now)
-        if (loan.isRepaymentShared) {
-          sharedExpensesOwed += monthlyRepayment / users.length;
-        }
-      });
+      const costs = getUserCosts({ users, categories, assets, loans }, user.id);
+      const sharedExpensesOwed =
+        costs.household +
+        costs.assets.reduce((sum, asset) => sum + asset.amount, 0) +
+        costs.loanInterest +
+        costs.loanRepayment;
 
       const personalExpenses = categories
         .flatMap((cat) => cat.expenses)
@@ -1101,6 +705,10 @@ export function useManualFirebaseBudgetData(householdId: string) {
         remainingAfterExpenses,
         personalExpenseBreakdown,
         sharedExpensePercentage,
+        householdExpenses: costs.household,
+        assetCosts: costs.assets,
+        loanInterest: costs.loanInterest,
+        loanRepayment: costs.loanRepayment,
       };
     });
   }, [users, categories, personalCategories, assets, loans]);

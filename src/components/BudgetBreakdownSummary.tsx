@@ -1,36 +1,15 @@
 import { formatMoney, getMonthlyAmount } from '../utils/expenseCalculations';
 
-// Helper function to migrate legacy asset data structure
-const migrateAssetData = (asset: Asset): Asset => {
-  if (
-    !asset.expenses &&
-    ((asset as any).fixedCosts || (asset as any).variableCosts)
-  ) {
-    return {
-      ...asset,
-      expenses: [
-        ...((asset as any).fixedCosts || []).map((exp: any) => ({
-          ...exp,
-          isBudgeted: false,
-        })),
-        ...((asset as any).variableCosts || []).map((exp: any) => ({
-          ...exp,
-          isBudgeted: true,
-        })),
-      ],
-    };
-  }
-  return {
-    ...asset,
-    expenses: asset.expenses || [],
-  };
-};
+import {
+  getAssetExpenses,
+  getExpenseCostForUser,
+} from '../utils/costAllocation';
 import type {
   User,
   UserBudgetBreakdown,
   ExpenseCategory,
   Asset,
-  Loan,
+  Expense,
 } from '../types';
 
 interface BudgetBreakdownSummaryProps {
@@ -38,7 +17,6 @@ interface BudgetBreakdownSummaryProps {
   breakdown: UserBudgetBreakdown;
   categories: ExpenseCategory[];
   assets: Asset[];
-  loans: Loan[];
   users: User[];
   blurSensitive?: boolean;
 }
@@ -48,94 +26,14 @@ export function BudgetBreakdownSummary({
   breakdown,
   categories,
   assets,
-  loans,
   users,
   blurSensitive = false,
 }: BudgetBreakdownSummaryProps) {
-  // Calculate shared expenses from the single shared category
-  const sharedCategory = categories.find((cat) => cat.id === 'shared');
-  const categorySharedExpenses = sharedCategory
-    ? sharedCategory.expenses
-        .filter((exp) => exp.isShared && !exp.isBudgeted)
-        .reduce((total, exp) => {
-          if (exp.splitType === 'equal') {
-            return total + getMonthlyAmount(exp) / users.length;
-          } else if (
-            exp.splitType === 'percentage' &&
-            exp.splitData?.[user.id]
-          ) {
-            return total + getMonthlyAmount(exp) * exp.splitData[user.id];
-          }
-          return total;
-        }, 0)
-    : 0;
-
-  // Calculate individual asset allocations
-  const assetAllocations = assets.map((asset) => {
-    const migratedAsset = migrateAssetData(asset);
-    const allocation = migratedAsset.expenses
-      .filter((exp: any) => !exp.isBudgeted && exp.isShared)
-      .reduce((total, exp) => {
-        if (exp.splitType === 'equal') {
-          return total + getMonthlyAmount(exp) / users.length;
-        } else if (exp.splitType === 'percentage' && exp.splitData?.[user.id]) {
-          return total + getMonthlyAmount(exp) * exp.splitData[user.id];
-        }
-        return total;
-      }, 0);
-    return { name: asset.name, amount: allocation };
-  });
-
-  // Calculate loan allocations - separate interest and repayment
-  let totalInterestAllocation = 0;
-  let totalRepaymentAllocation = 0;
-
-  loans.forEach((loan) => {
-    const monthlyInterest = (loan.currentAmount * loan.interestRate) / 12;
-    const monthlyRepayment = loan.monthlyPayment;
-
-    // Fallback for old loan structure - if new properties don't exist, use old properties
-    const isInterestShared =
-      loan.isInterestShared !== undefined
-        ? loan.isInterestShared
-        : (loan as any).isShared;
-    const interestSplitType =
-      loan.interestSplitType || (loan as any).splitType || 'percentage';
-    const interestSplitData = loan.interestSplitData || (loan as any).splitData;
-
-    const isRepaymentShared = loan.isRepaymentShared;
-    const repaymentSplitType = loan.repaymentSplitType || 'equal';
-    const repaymentSplitData = loan.repaymentSplitData;
-
-    // Interest allocation
-    if (isInterestShared) {
-      if (interestSplitType === 'equal') {
-        totalInterestAllocation += monthlyInterest / users.length;
-      } else if (
-        interestSplitType === 'percentage' &&
-        interestSplitData?.[user.id]
-      ) {
-        totalInterestAllocation += monthlyInterest * interestSplitData[user.id];
-      }
-    }
-
-    // Repayment allocation
-    if (isRepaymentShared) {
-      if (repaymentSplitType === 'equal') {
-        totalRepaymentAllocation += monthlyRepayment / users.length;
-      } else if (
-        repaymentSplitType === 'percentage' &&
-        repaymentSplitData?.[user.id]
-      ) {
-        totalRepaymentAllocation +=
-          monthlyRepayment * repaymentSplitData[user.id];
-      }
-    }
-  });
-
+  const categorySharedExpenses = breakdown.householdExpenses;
+  const assetAllocations = breakdown.assetCosts;
   const loanAllocations = [
-    { name: 'Loan interest', amount: totalInterestAllocation },
-    { name: 'Loan repayment', amount: totalRepaymentAllocation },
+    { name: 'Loan interest', amount: breakdown.loanInterest },
+    { name: 'Loan repayment', amount: breakdown.loanRepayment },
   ];
 
   const percentageLeft =
@@ -154,38 +52,22 @@ export function BudgetBreakdownSummary({
       ? ((user.monthlyIncome / totalHouseholdIncome) * 100).toFixed(1)
       : '0';
 
-  // Calculate budgeted expenses
-  const categoryBudgetedExpenses = sharedCategory
-    ? sharedCategory.expenses
-        .filter((exp) => exp.isShared && exp.isBudgeted)
-        .reduce((total, exp) => {
-          if (exp.splitType === 'equal') {
-            return total + getMonthlyAmount(exp) / users.length;
-          } else if (
-            exp.splitType === 'percentage' &&
-            exp.splitData?.[user.id]
-          ) {
-            return total + getMonthlyAmount(exp) * exp.splitData[user.id];
-          }
-          return total;
-        }, 0)
-    : 0;
-
-  // Calculate budgeted asset allocations
-  const assetBudgetedAllocations = assets.map((asset) => {
-    const migratedAsset = migrateAssetData(asset);
-    const allocation = migratedAsset.expenses
-      .filter((exp: any) => exp.isBudgeted && exp.isShared)
-      .reduce((total, exp) => {
-        if (exp.splitType === 'equal') {
-          return total + getMonthlyAmount(exp) / users.length;
-        } else if (exp.splitType === 'percentage' && exp.splitData?.[user.id]) {
-          return total + getMonthlyAmount(exp) * exp.splitData[user.id];
-        }
-        return total;
-      }, 0);
-    return { name: asset.name, amount: allocation };
-  });
+  const sumBudgetedForUser = (expenses: Expense[]): number =>
+    expenses
+      .filter((expense) => expense.isBudgeted)
+      .reduce(
+        (sum, expense) => sum + getExpenseCostForUser(expense, users, user.id),
+        0
+      );
+  const categoryBudgetedExpenses = sumBudgetedForUser(
+    categories
+      .flatMap((category) => category.expenses)
+      .filter((expense) => expense.isShared)
+  );
+  const assetBudgetedAllocations = assets.map((asset) => ({
+    name: asset.name,
+    amount: sumBudgetedForUser(getAssetExpenses(asset)),
+  }));
 
   // Calculate budgeted personal expenses
   const budgetedPersonalExpenses = categories

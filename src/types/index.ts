@@ -102,6 +102,10 @@ export interface UserBudgetBreakdown {
   remainingAfterExpenses: number;
   personalExpenseBreakdown: PersonalExpenseBreakdown[];
   sharedExpensePercentage: number;
+  householdExpenses: number;
+  assetCosts: { name: string; amount: number }[];
+  loanInterest: number;
+  loanRepayment: number;
 }
 
 export interface AppState {

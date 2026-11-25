@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Link, NavLink, useNavigate, useParams } from 'react-router-dom';
 import { useManualFirebaseBudgetData } from '../hooks/useManualFirebaseBudgetData';
+import { useTaxTableStatus } from '../hooks/useTaxTableStatus';
 import { encryptionService } from '../services/encryptionService';
 import { Dashboard } from './Dashboard';
 import { UserManagement } from './UserManagement';
@@ -68,6 +69,8 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
     error,
   } = useManualFirebaseBudgetData(householdId);
 
+  const taxTableStatus = useTaxTableStatus();
+
   const settlements = calculateSettlements();
   const detailedBalances = calculateDetailedBalances();
   const budgetSummary = calculateBudgetSummary();
@@ -100,7 +103,7 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
       });
     };
 
-  if (!isLoaded) {
+  if (!isLoaded || (taxTableStatus === 'loading' && !error)) {
     return (
       <div className="flex min-h-screen items-center justify-center p-6">
         {error ? (
@@ -253,7 +256,6 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
               categories={categories}
               personalCategories={personalCategories}
               assets={assets}
-              loans={loans}
               onAddExpense={track(addExpense)}
               onUpdateExpense={track(updateExpense)}
               onDeleteExpense={track(deleteExpense)}
@@ -356,6 +358,23 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
                 onClick={() => window.location.reload()}
               >
                 Reload saved data
+              </button>
+            </div>
+          )}
+          {taxTableStatus === 'failed' && (
+            <div
+              role="alert"
+              className="panel mb-6 flex flex-wrap items-center justify-between gap-3 p-4 text-sm"
+            >
+              <p>
+                The tax tables could not be loaded. Income after tax is an
+                estimate at 30% tax.
+              </p>
+              <button
+                className="btn-secondary"
+                onClick={() => window.location.reload()}
+              >
+                Try again
               </button>
             </div>
           )}

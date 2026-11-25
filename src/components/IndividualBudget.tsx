@@ -4,43 +4,18 @@ import type {
   UserBudgetBreakdown,
   ExpenseCategory,
   Asset,
-  Loan,
   PersonalExpenseCategory,
 } from '../types';
 import { useState } from 'react';
 import { Eye, EyeOff, Plus } from 'lucide-react';
 import { getMonthlyAmount, formatMoney } from '../utils/expenseCalculations';
+import { getExpenseCostForUser } from '../utils/costAllocation';
 import { Avatar } from './Avatar';
 import { CostDonut, CostLegend, type CostPart } from './CostCharts';
 import { COST_COLORS } from '../utils/costColors';
 import { BudgetBreakdownSummary } from './BudgetBreakdownSummary';
 import { ExpenseList } from './ExpenseList';
 import { InlineExpenseForm } from './InlineExpenseForm';
-
-const migrateAssetData = (asset: Asset): Asset => {
-  if (
-    !asset.expenses &&
-    ((asset as any).fixedCosts || (asset as any).variableCosts)
-  ) {
-    return {
-      ...asset,
-      expenses: [
-        ...((asset as any).fixedCosts || []).map((exp: any) => ({
-          ...exp,
-          isBudgeted: false,
-        })),
-        ...((asset as any).variableCosts || []).map((exp: any) => ({
-          ...exp,
-          isBudgeted: true,
-        })),
-      ],
-    };
-  }
-  return {
-    ...asset,
-    expenses: asset.expenses || [],
-  };
-};
 
 interface UserBudgetPageProps {
   user: User;
@@ -49,7 +24,6 @@ interface UserBudgetPageProps {
   categories: ExpenseCategory[];
   personalCategories: PersonalExpenseCategory[];
   assets: Asset[];
-  loans: Loan[];
   onAddExpense: (categoryId: string, expense: Omit<Expense, 'id'>) => void;
   onUpdateExpense: (expenseId: string, updates: Partial<Expense>) => void;
   onDeleteExpense: (expenseId: string) => void;
@@ -63,7 +37,6 @@ export function UserBudgetPage({
   categories,
   personalCategories,
   assets,
-  loans,
   onAddExpense,
   onUpdateExpense,
   onDeleteExpense,
@@ -74,80 +47,6 @@ export function UserBudgetPage({
   const personalExpenses = categories
     .flatMap((cat) => cat.expenses)
     .filter((exp) => exp.userId === user.id && !exp.isShared);
-
-  const sharedCategory = categories.find((cat) => cat.id === 'shared');
-  const categorySharedExpenses = sharedCategory
-    ? sharedCategory.expenses
-        .filter((exp) => exp.isShared && !exp.isBudgeted)
-        .reduce((total, exp) => {
-          if (exp.splitType === 'equal') {
-            return total + getMonthlyAmount(exp) / users.length;
-          } else if (
-            exp.splitType === 'percentage' &&
-            exp.splitData?.[user.id]
-          ) {
-            return total + getMonthlyAmount(exp) * exp.splitData[user.id];
-          }
-          return total;
-        }, 0)
-    : 0;
-
-  const assetAllocations = assets
-    .map((asset) => {
-      const migratedAsset = migrateAssetData(asset);
-      const allocation = migratedAsset.expenses
-        .filter((exp: any) => !exp.isBudgeted && exp.isShared)
-        .reduce((total, exp) => {
-          if (exp.splitType === 'equal') {
-            return total + getMonthlyAmount(exp) / users.length;
-          } else if (
-            exp.splitType === 'percentage' &&
-            exp.splitData?.[user.id]
-          ) {
-            return total + getMonthlyAmount(exp) * exp.splitData[user.id];
-          }
-          return total;
-        }, 0);
-      return { name: asset.name, amount: allocation, type: 'fixed' };
-    })
-    .filter((asset) => asset.amount > 0);
-
-  const totalInterestAllocation = loans.reduce((total, loan) => {
-    if (!loan.isInterestShared) return total;
-    const interestAmount = (loan.currentAmount * loan.interestRate) / 12;
-    if (loan.interestSplitType === 'equal') {
-      return total + interestAmount / users.length;
-    } else if (
-      loan.interestSplitType === 'percentage' &&
-      loan.interestSplitData?.[user.id]
-    ) {
-      return total + interestAmount * loan.interestSplitData[user.id];
-    }
-    return total;
-  }, 0);
-
-  const totalRepaymentAllocation = loans.reduce((total, loan) => {
-    if (!loan.isRepaymentShared) return total;
-    // Clamp at remaining balance — paid-off loans contribute 0.
-    const monthlyAmortering = Math.min(
-      loan.monthlyPayment,
-      Math.max(0, loan.currentAmount)
-    );
-    if (loan.repaymentSplitType === 'equal') {
-      return total + monthlyAmortering / users.length;
-    } else if (
-      loan.repaymentSplitType === 'percentage' &&
-      loan.repaymentSplitData?.[user.id]
-    ) {
-      return total + monthlyAmortering * loan.repaymentSplitData[user.id];
-    }
-    return total;
-  }, 0);
-
-  const loanAllocations = [
-    { name: 'Loan interest', amount: totalInterestAllocation },
-    { name: 'Loan repayment', amount: totalRepaymentAllocation },
-  ];
 
   return (
     <div>
@@ -177,12 +76,8 @@ export function UserBudgetPage({
         breakdown={breakdown}
         personalExpenses={personalExpenses}
         personalCategories={personalCategories}
-        categorySharedExpenses={categorySharedExpenses}
-        assetAllocations={assetAllocations}
-        loanAllocations={loanAllocations}
         categories={categories}
         assets={assets}
-        loans={loans}
         users={users}
         blurSensitive={blurSensitive}
         onAddExpense={onAddExpense}
@@ -199,12 +94,8 @@ interface UserBudgetCardProps {
   breakdown: UserBudgetBreakdown;
   personalExpenses: any[];
   personalCategories: PersonalExpenseCategory[];
-  categorySharedExpenses: number;
-  assetAllocations: { name: string; amount: number; type: string }[];
-  loanAllocations: { name: string; amount: number }[];
   categories: ExpenseCategory[];
   assets: Asset[];
-  loans: Loan[];
   users: User[];
   blurSensitive: boolean;
   onAddExpense: (categoryId: string, expense: Omit<Expense, 'id'>) => void;
@@ -218,12 +109,8 @@ function UserBudgetCard({
   breakdown,
   personalExpenses,
   personalCategories,
-  categorySharedExpenses,
-  assetAllocations,
-  loanAllocations,
   categories,
   assets,
-  loans,
   users,
   blurSensitive,
   onAddExpense,
@@ -246,18 +133,10 @@ function UserBudgetCard({
   const householdExpensesWithShare = sharedCategory
     ? sharedCategory.expenses
         .filter((exp) => exp.isShared)
-        .map((exp) => {
-          let userShare = 0;
-          if (exp.splitType === 'equal') {
-            userShare = getMonthlyAmount(exp) / users.length;
-          } else if (
-            exp.splitType === 'percentage' &&
-            exp.splitData?.[user.id]
-          ) {
-            userShare = getMonthlyAmount(exp) * exp.splitData[user.id];
-          }
-          return { ...exp, userShareAmount: userShare };
-        })
+        .map((exp) => ({
+          ...exp,
+          userShareAmount: getExpenseCostForUser(exp, users, user.id),
+        }))
         .filter((exp) => exp.userShareAmount > 0)
     : [];
 
@@ -334,22 +213,25 @@ function UserBudgetCard({
   const costParts: CostPart[] = [
     {
       label: 'Household expenses',
-      amount: categorySharedExpenses,
+      amount: breakdown.householdExpenses,
       color: COST_COLORS.household,
     },
     {
       label: 'Loan interest',
-      amount: loanAllocations[0].amount,
+      amount: breakdown.loanInterest,
       color: COST_COLORS.loanInterest,
     },
     {
       label: 'Loan repayment',
-      amount: loanAllocations[1].amount,
+      amount: breakdown.loanRepayment,
       color: COST_COLORS.loanRepayment,
     },
     {
       label: 'Assets',
-      amount: assetAllocations.reduce((sum, asset) => sum + asset.amount, 0),
+      amount: breakdown.assetCosts.reduce(
+        (sum, asset) => sum + asset.amount,
+        0
+      ),
       color: COST_COLORS.assets,
     },
     {
@@ -407,7 +289,6 @@ function UserBudgetCard({
             breakdown={breakdown}
             categories={categories}
             assets={assets}
-            loans={loans}
             users={users}
             blurSensitive={blurSensitive}
           />
