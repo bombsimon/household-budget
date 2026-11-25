@@ -13,6 +13,7 @@ import { getExpenseCostForUser } from '../utils/costAllocation';
 import { Avatar } from './Avatar';
 import { CostDonut, CostLegend, type CostPart } from './CostCharts';
 import { COST_COLORS } from '../utils/costColors';
+import { assignToColumns } from '../utils/assignToColumns';
 import { BudgetBreakdownSummary } from './BudgetBreakdownSummary';
 import { ExpenseList } from './ExpenseList';
 import { InlineExpenseForm } from './InlineExpenseForm';
@@ -244,6 +245,21 @@ function UserBudgetCard({
     (a, b) => b.amount - a.amount
   );
 
+  // A panel's heading takes about as much space as three expense rows
+  const categoryColumns = assignToColumns(
+    categoriesWithUncategorized.map(
+      (category) =>
+        3 +
+        (category.categoryId === 'uncategorized'
+          ? uncategorizedExpenses
+          : personalExpenses.filter(
+              (expense) => expense.personalCategoryId === category.categoryId
+            )
+        ).length +
+        (householdByCategory[category.categoryId] || []).length
+    )
+  );
+
   const householdExpenseIds = new Set(
     householdExpensesWithShare.map((e) => e.id)
   );
@@ -368,8 +384,9 @@ function UserBudgetCard({
             </div>
           )}
 
-          <div className="grid items-start gap-5 lg:grid-cols-2 [&>*]:min-w-0">
-            {categoriesWithUncategorized.map((category) => {
+          {/* Floats pack uneven panels while keeping them in reading order */}
+          <div className="-mb-5 flow-root">
+            {categoriesWithUncategorized.map((category, categoryIndex) => {
               const categoryPersonalExpenses =
                 category.categoryId === 'uncategorized'
                   ? uncategorizedExpenses
@@ -401,7 +418,14 @@ function UserBudgetCard({
               ];
 
               return (
-                <div key={category.categoryId} className="panel p-5">
+                <div
+                  key={category.categoryId}
+                  className={`panel mb-5 p-5 lg:w-[calc(50%-0.625rem)] ${
+                    categoryColumns[categoryIndex] === 'left'
+                      ? 'lg:float-left lg:clear-left'
+                      : 'lg:float-right lg:clear-right'
+                  }`}
+                >
                   <div className="flex justify-between items-center mb-2">
                     <h3 className="section-title">{category.categoryName}</h3>
                     <div className="text-right">
