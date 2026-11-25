@@ -16,17 +16,21 @@ https://www7.skatteverket.se/portal/apier-och-oppna-data/utvecklarportalen/oppet
 The script now supports two modes:
 
 #### Quick Update (Major Municipalities)
+
 ```bash
 npm run update-municipalities
 ```
+
 - Fetches data for 24 major municipalities
 - Faster execution (~30 seconds)
 - Good for testing or development
 
 #### Full Update (All Municipalities)
+
 ```bash
 node scripts/update-municipality-data.js --full
 ```
+
 - Fetches data for all 290 Swedish municipalities
 - Complete coverage (~5 minutes)
 - Recommended for production deployments

@@ -75,6 +75,7 @@ npm run dev
 ```
 
 The emulators provide:
+
 - Firestore Emulator on port 8080
 - Firebase UI on http://localhost:4000
 
@@ -93,11 +94,13 @@ Make sure your `.env` file has the correct configuration.
 ### Step 5: Deploy to Firebase Hosting
 
 1. **Build and deploy everything:**
+
    ```bash
    npm run firebase:deploy
    ```
 
 2. **Deploy only hosting (faster for frontend updates):**
+
    ```bash
    npm run firebase:deploy:hosting
    ```
@@ -110,11 +113,13 @@ Make sure your `.env` file has the correct configuration.
 ### Step 6: Configure Firebase Hosting
 
 Your app will be available at:
+
 ```
 https://your-project-id.web.app
 ```
 
 Or if you have a custom domain configured:
+
 ```
 https://your-custom-domain.com
 ```
@@ -142,11 +147,12 @@ Users can access households by:
 The current security rules allow anyone with the household ID to access that household's data. This provides:
 
 - ✅ Simple sharing within households
-- ✅ Data isolation between households  
+- ✅ Data isolation between households
 - ✅ No authentication required
 - ⚠️ Anyone with the URL can access the data
 
 For production use, you might want to add:
+
 - User authentication
 - Household member management
 - Rate limiting

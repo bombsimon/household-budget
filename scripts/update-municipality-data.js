@@ -55,10 +55,13 @@ async function updateMunicipalityData() {
     const args = process.argv.slice(2);
     const fetchAll = args.includes('--full');
 
-    console.log(`Fetching municipalities from Skatteverket API${fetchAll ? ' (all municipalities)' : ' (major municipalities only)'}...`);
+    console.log(
+      `Fetching municipalities from Skatteverket API${fetchAll ? ' (all municipalities)' : ' (major municipalities only)'}...`
+    );
 
     // Fetch directly from Skatteverket API
-    const SKATTEVERKET_BASE = 'https://www7.skatteverket.se/portal-wapi/open/skatteberakning/v1/api/skattesats';
+    const SKATTEVERKET_BASE =
+      'https://www7.skatteverket.se/portal-wapi/open/skatteberakning/v1/api/skattesats';
 
     const municipalitiesResponse = await fetch(
       `${SKATTEVERKET_BASE}/2025/kommuner`
@@ -173,7 +176,9 @@ export const STATIC_MUNICIPALITIES: StaticMunicipality[] = ${JSON.stringify(muni
     console.log(`Generated data for ${municipalityData.length} municipalities`);
   } catch (error) {
     console.error('❌ Failed to update municipality data:', error.message);
-    console.log('\\nMake sure you have internet connectivity to access Skatteverket API.');
+    console.log(
+      '\\nMake sure you have internet connectivity to access Skatteverket API.'
+    );
     process.exit(1);
   }
 }

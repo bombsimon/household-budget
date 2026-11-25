@@ -10,7 +10,7 @@
     "test": "node --test \"tests/*.test.ts\"",
     "lint": "eslint .",
     "preview": "vite preview",
-    "prettify": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "prettify": "prettier --write .",
     "firebase:emulators": "firebase emulators:start",
     "firebase:deploy": "npm run build && firebase deploy",
     "firebase:deploy:hosting": "npm run build && firebase deploy --only hosting",
