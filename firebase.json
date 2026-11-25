@@ -1,7 +1,6 @@
 {
   "firestore": {
-    "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
+    "rules": "firestore.rules"
   },
   "hosting": {
     "public": "dist",
@@ -25,9 +24,6 @@
     ]
   },
   "emulators": {
-    "auth": {
-      "port": 9099
-    },
     "firestore": {
       "port": 8080
     },

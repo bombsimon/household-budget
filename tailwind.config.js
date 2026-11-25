@@ -1,3 +1,5 @@
+import forms from '@tailwindcss/forms';
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
@@ -45,16 +47,7 @@ export default {
         'success-tag': 'rgb(var(--color-success-tag) / <alpha-value>)',
         'success-ink': 'rgb(var(--color-success-ink) / <alpha-value>)',
       },
-      screens: {
-        xs: '475px',
-      },
-      spacing: {
-        'safe-top': 'env(safe-area-inset-top)',
-        'safe-bottom': 'env(safe-area-inset-bottom)',
-        'safe-left': 'env(safe-area-inset-left)',
-        'safe-right': 'env(safe-area-inset-right)',
-      },
     },
   },
-  plugins: [require('@tailwindcss/forms'), require('@tailwindcss/typography')],
+  plugins: [forms],
 };

@@ -147,7 +147,7 @@ For detailed information about Swedish tax data integration, see [MUNICIPALITY_D
 
 ## Technology Stack
 
-- **React 18** - Modern React with hooks and functional components
+- **React 19** - Modern React with hooks and functional components
 - **TypeScript** - Type-safe development
 - **Tailwind CSS** - Utility-first styling
 - **Firebase Firestore** - Cloud database with real-time synchronization

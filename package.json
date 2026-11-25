@@ -18,7 +18,6 @@
     "update-municipalities": "node scripts/update-municipality-data.js"
   },
   "dependencies": {
-    "@types/uuid": "^10.0.0",
     "firebase": "^12.2.1",
     "lucide-react": "^0.542.0",
     "react": "^19.1.1",
@@ -30,7 +29,6 @@
   "devDependencies": {
     "@eslint/js": "^9.33.0",
     "@tailwindcss/forms": "^0.5.10",
-    "@tailwindcss/typography": "^0.5.16",
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^5.0.0",
