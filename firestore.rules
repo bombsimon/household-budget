@@ -4,7 +4,9 @@ service cloud.firestore {
     // All household data is client-side encrypted with password
     // Security is provided by encryption, not Firebase rules
     match /households/{householdId} {
-      allow read, write: if true;
+      // Household IDs act as a secret, so they must not be enumerable
+      allow get, write: if true;
+      allow list: if false;
     }
   }
 }
