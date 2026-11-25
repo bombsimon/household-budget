@@ -1,6 +1,7 @@
 import React from 'react';
 import { Edit2 } from 'lucide-react';
 import type { Expense, User } from '../types';
+import { getIncomeShare } from '../utils/costAllocation';
 import { getMonthlyAmount, formatMoney } from '../utils/expenseCalculations';
 import { DeleteButton } from './DeleteButton';
 
@@ -49,10 +50,9 @@ export function ExpenseItem({
   const getSplitLabel = () => {
     if (expense.splitType === 'equal') return 'split equally';
 
-    // Shares are stored when the expense is saved, so show what is applied.
     return users
       .map((user) => {
-        const share = Math.round((expense.splitData?.[user.id] ?? 0) * 100);
+        const share = Math.round(getIncomeShare(users, user.id) * 100);
 
         return `${user.name.split(' ')[0]} ${share}%`;
       })

@@ -62,20 +62,6 @@ export function ExpenseForm({
     initialData?.isBudgeted || false
   );
 
-  // Calculate income-based percentages
-  const totalIncome = users.reduce((sum, user) => sum + user.monthlyIncome, 0);
-  const incomeBasedSplit = users.reduce(
-    (acc, user) => {
-      acc[user.id] =
-        totalIncome > 0 ? user.monthlyIncome / totalIncome : 1 / users.length;
-      return acc;
-    },
-    {} as { [userId: string]: number }
-  );
-
-  const [splitData, setSplitData] = useState<{ [userId: string]: number }>(
-    initialData?.splitData || incomeBasedSplit
-  );
   const [personalCategoryId, setPersonalCategoryId] = useState(
     initialData?.personalCategoryId || ''
   );
@@ -84,26 +70,11 @@ export function ExpenseForm({
     e.preventDefault();
     if (!name.trim() || !amount.trim()) return;
 
-    let finalSplitData: { [userId: string]: number } | undefined;
-
-    if (isShared && splitType === 'percentage') {
-      const totalPercentage = Object.values(splitData).reduce(
-        (sum, val) => sum + val,
-        0
-      );
-      if (Math.abs(totalPercentage - 1) > 0.001) {
-        alert('Percentages must add up to 100%');
-        return;
-      }
-      finalSplitData = splitData;
-    }
-
     onSubmit({
       name: name.trim(),
       amount: parseFloat(amount),
       isShared: isAssetExpense ? users.length > 1 : isSharedCategory,
       splitType,
-      splitData: finalSplitData,
       paidBy,
       userId: isAssetExpense
         ? users.length === 1
@@ -253,19 +224,9 @@ export function ExpenseForm({
       {(isSharedCategory && users.length > 1) ||
       (isAssetExpense && users.length > 1) ? (
         <div className="mb-4">
-          <SplitMethodSelector
-            value={splitType as any}
-            onChange={(value) => {
-              setSplitType(value);
-              if (value === 'percentage') {
-                setSplitData(incomeBasedSplit);
-              }
-            }}
-          />
+          <SplitMethodSelector value={splitType} onChange={setSplitType} />
 
-          {splitType === 'percentage' && (
-            <SplitInfoBox users={users} splitData={splitData} />
-          )}
+          {splitType === 'percentage' && <SplitInfoBox users={users} />}
         </div>
       ) : (
         <div className="space-y-4 mb-4">

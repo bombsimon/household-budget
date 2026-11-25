@@ -38,10 +38,8 @@ const loan = (values: Partial<Loan>): Loan => ({
   paidBy: 'anna',
   isInterestShared: true,
   interestSplitType: 'percentage',
-  interestSplitData: { anna: 0.6, johan: 0.4 },
   isRepaymentShared: true,
   repaymentSplitType: 'percentage',
-  repaymentSplitData: { anna: 0.6, johan: 0.4 },
   ...values,
 });
 
@@ -56,7 +54,7 @@ const balance = (total: number): UserBalance => ({
   loanRepayments: 0,
 });
 
-test('shared loans follow their stored split', () => {
+test('shared loans split by income', () => {
   const costs = getUserCosts({ ...household, loans: [loan({})] }, 'anna');
 
   assert.equal(costs.loanInterest, 60);
@@ -81,7 +79,7 @@ test('repayment never exceeds the remaining balance', () => {
   assert.equal(getUserCosts(data, 'anna').loanRepayment, 300);
 });
 
-test('a percentage expense without stored shares splits by income', () => {
+test('a percentage expense splits by income', () => {
   const data = {
     ...household,
     categories: [
@@ -95,6 +93,37 @@ test('a percentage expense without stored shares splits by income', () => {
 
   assert.equal(getUserCosts(data, 'johan').household, 400);
   assert.equal(getUserBalances(data).johan.total, -400);
+});
+
+test('income splits follow current incomes, not shares saved earlier', () => {
+  const staleShares = { anna: 0.9, johan: 0.1 };
+  const data = {
+    ...household,
+    categories: [
+      {
+        id: 'shared',
+        name: 'Shared',
+        expenses: [
+          {
+            ...expense({ splitType: 'percentage' }),
+            splitData: staleShares,
+          },
+        ],
+      },
+    ],
+    loans: [
+      {
+        ...loan({}),
+        interestSplitData: staleShares,
+        repaymentSplitData: staleShares,
+      },
+    ],
+  };
+  const costs = getUserCosts(data, 'johan');
+
+  assert.equal(costs.household, 400);
+  assert.equal(costs.loanInterest, 40);
+  assert.equal(costs.loanRepayment, 400);
 });
 
 test('every fixed cost is assigned to someone', () => {

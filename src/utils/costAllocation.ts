@@ -8,8 +8,6 @@ import type {
 } from '../types';
 import { getMonthlyAmount } from './expenseCalculations.ts';
 
-type SplitData = { [userId: string]: number };
-
 interface LegacyAsset {
   fixedCosts?: Expense[];
   variableCosts?: Expense[];
@@ -18,7 +16,6 @@ interface LegacyAsset {
 interface LegacyLoan {
   isShared?: boolean;
   splitType?: 'percentage' | 'equal';
-  splitData?: SplitData;
 }
 
 export interface Household {
@@ -64,7 +61,7 @@ export const getAssetExpenses = (asset: Asset): Expense[] => {
   ];
 };
 
-const getIncomeShare = (users: User[], userId: string): number => {
+export const getIncomeShare = (users: User[], userId: string): number => {
   const totalIncome = users.reduce((sum, user) => sum + user.monthlyIncome, 0);
   const user = users.find((candidate) => candidate.id === userId);
 
@@ -76,13 +73,9 @@ const getIncomeShare = (users: User[], userId: string): number => {
 const getShare = (
   users: User[],
   userId: string,
-  splitType: 'percentage' | 'equal',
-  splitData?: SplitData
-): number => {
-  if (splitType === 'equal') return 1 / users.length;
-
-  return splitData ? (splitData[userId] ?? 0) : getIncomeShare(users, userId);
-};
+  splitType: 'percentage' | 'equal'
+): number =>
+  splitType === 'equal' ? 1 / users.length : getIncomeShare(users, userId);
 
 export const getLoanInterest = (loan: Loan): number =>
   (loan.currentAmount * loan.interestRate) / 12;
@@ -103,8 +96,7 @@ const getInterestShare = (loan: Loan, users: User[], userId: string) => {
   return getShare(
     users,
     userId,
-    loan.interestSplitType || legacy.splitType || 'percentage',
-    loan.interestSplitData || legacy.splitData
+    loan.interestSplitType || legacy.splitType || 'percentage'
   );
 };
 
@@ -118,8 +110,7 @@ const getRepaymentShare = (loan: Loan, users: User[], userId: string) => {
   return getShare(
     users,
     userId,
-    loan.repaymentSplitType || legacy.splitType || 'equal',
-    loan.repaymentSplitData || legacy.splitData
+    loan.repaymentSplitType || legacy.splitType || 'equal'
   );
 };
 
@@ -134,10 +125,7 @@ export const getExpenseCostForUser = (
     return ownerId === userId ? getMonthlyAmount(expense) : 0;
   }
 
-  return (
-    getMonthlyAmount(expense) *
-    getShare(users, userId, expense.splitType, expense.splitData)
-  );
+  return getMonthlyAmount(expense) * getShare(users, userId, expense.splitType);
 };
 
 export const getUserCosts = (
@@ -218,8 +206,7 @@ export const getUserBalances = ({
         settle(
           getMonthlyAmount(expense),
           getPayerId(users, expense.paidBy),
-          (userId) =>
-            getShare(users, userId, expense.splitType, expense.splitData),
+          (userId) => getShare(users, userId, expense.splitType),
           (balance, difference) => {
             balance.sharedExpenses += difference;
           }
@@ -247,8 +234,7 @@ export const getUserBalances = ({
         settle(
           getMonthlyAmount(expense),
           getPayerId(users, expense.paidBy),
-          (userId) =>
-            getShare(users, userId, expense.splitType, expense.splitData),
+          (userId) => getShare(users, userId, expense.splitType),
           (balance, difference) => {
             balance.assets[asset.name] =
               (balance.assets[asset.name] ?? 0) + difference;

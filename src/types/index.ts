@@ -31,7 +31,6 @@ export interface Expense {
   userId?: string;
   isShared: boolean;
   splitType: 'percentage' | 'equal';
-  splitData?: { [userId: string]: number };
   paidBy?: string;
   isVariable?: boolean;
   isYearly?: boolean; // True if this is a yearly expense
@@ -53,12 +52,10 @@ export interface Loan {
   // Interest splitting
   isInterestShared: boolean;
   interestSplitType: 'percentage' | 'equal';
-  interestSplitData?: { [userId: string]: number };
 
   // Repayment splitting
   isRepaymentShared: boolean;
   repaymentSplitType: 'percentage' | 'equal';
-  repaymentSplitData?: { [userId: string]: number };
 }
 
 export interface Asset {

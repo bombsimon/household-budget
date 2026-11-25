@@ -581,46 +581,6 @@ function LoanForm({
       return;
     }
 
-    // Calculate income-based split data for percentage type
-    const totalIncome = users.reduce(
-      (sum, user) => sum + user.monthlyIncome,
-      0
-    );
-
-    // Interest split data
-    const interestSplitData: { [userId: string]: number } = {};
-    if (isInterestShared) {
-      if (interestSplitType === 'percentage') {
-        users.forEach((user) => {
-          interestSplitData[user.id] =
-            totalIncome > 0
-              ? user.monthlyIncome / totalIncome
-              : 1 / users.length;
-        });
-      } else {
-        users.forEach((user) => {
-          interestSplitData[user.id] = 1 / users.length;
-        });
-      }
-    }
-
-    // Repayment split data
-    const repaymentSplitData: { [userId: string]: number } = {};
-    if (isRepaymentShared) {
-      if (repaymentSplitType === 'percentage') {
-        users.forEach((user) => {
-          repaymentSplitData[user.id] =
-            totalIncome > 0
-              ? user.monthlyIncome / totalIncome
-              : 1 / users.length;
-        });
-      } else {
-        users.forEach((user) => {
-          repaymentSplitData[user.id] = 1 / users.length;
-        });
-      }
-    }
-
     const trimmedCategory = category.trim();
 
     onSubmit({
@@ -638,12 +598,10 @@ function LoanForm({
       // Interest splitting
       isInterestShared,
       interestSplitType,
-      interestSplitData: isInterestShared ? interestSplitData : undefined,
 
       // Repayment splitting
       isRepaymentShared,
       repaymentSplitType,
-      repaymentSplitData: isRepaymentShared ? repaymentSplitData : undefined,
     });
   };
 
@@ -821,42 +779,18 @@ function LoanForm({
 
                 {isInterestShared && (
                   <SplitMethodSelector
-                    value={interestSplitType as any}
-                    onChange={(value) =>
-                      setInterestSplitType(value as 'percentage' | 'equal')
-                    }
+                    value={interestSplitType}
+                    onChange={setInterestSplitType}
                     name="interestSplitMethod"
                   />
                 )}
               </div>
 
-              {isInterestShared &&
-                interestSplitType === 'percentage' &&
-                (() => {
-                  const totalIncome = users.reduce(
-                    (sum, u) => sum + u.monthlyIncome,
-                    0
-                  );
-                  const incomeBasedSplit = users.reduce(
-                    (acc, user) => {
-                      acc[user.id] =
-                        totalIncome > 0
-                          ? user.monthlyIncome / totalIncome
-                          : 1 / users.length;
-                      return acc;
-                    },
-                    {} as { [userId: string]: number }
-                  );
-
-                  return (
-                    <div className="mt-3">
-                      <SplitInfoBox
-                        users={users}
-                        splitData={incomeBasedSplit}
-                      />
-                    </div>
-                  );
-                })()}
+              {isInterestShared && interestSplitType === 'percentage' && (
+                <div className="mt-3">
+                  <SplitInfoBox users={users} />
+                </div>
+              )}
             </div>
 
             {/* Repayment Splitting */}
@@ -884,42 +818,18 @@ function LoanForm({
 
                 {isRepaymentShared && (
                   <SplitMethodSelector
-                    value={repaymentSplitType as any}
-                    onChange={(value) =>
-                      setRepaymentSplitType(value as 'percentage' | 'equal')
-                    }
+                    value={repaymentSplitType}
+                    onChange={setRepaymentSplitType}
                     name="repaymentSplitMethod"
                   />
                 )}
               </div>
 
-              {isRepaymentShared &&
-                repaymentSplitType === 'percentage' &&
-                (() => {
-                  const totalIncome = users.reduce(
-                    (sum, u) => sum + u.monthlyIncome,
-                    0
-                  );
-                  const incomeBasedSplit = users.reduce(
-                    (acc, user) => {
-                      acc[user.id] =
-                        totalIncome > 0
-                          ? user.monthlyIncome / totalIncome
-                          : 1 / users.length;
-                      return acc;
-                    },
-                    {} as { [userId: string]: number }
-                  );
-
-                  return (
-                    <div className="mt-3">
-                      <SplitInfoBox
-                        users={users}
-                        splitData={incomeBasedSplit}
-                      />
-                    </div>
-                  );
-                })()}
+              {isRepaymentShared && repaymentSplitType === 'percentage' && (
+                <div className="mt-3">
+                  <SplitInfoBox users={users} />
+                </div>
+              )}
             </div>
           </div>
         </div>

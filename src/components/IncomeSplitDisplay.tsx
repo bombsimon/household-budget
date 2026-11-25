@@ -1,9 +1,9 @@
 import type { User } from '../types';
+import { getIncomeShare } from '../utils/costAllocation';
 import { formatMoney } from '../utils/expenseCalculations';
 
 interface IncomeSplitDisplayProps {
   users: User[];
-  splitData: { [userId: string]: number };
   title?: string;
   bgColor?: string;
   textColor?: string;
@@ -12,7 +12,6 @@ interface IncomeSplitDisplayProps {
 
 export function IncomeSplitDisplay({
   users,
-  splitData,
   title = 'Income-based split:',
   bgColor = 'bg-hover',
   textColor = 'text-ink-soft',
@@ -25,7 +24,7 @@ export function IncomeSplitDisplay({
       <p className={`text-sm ${titleColor} font-medium mb-2`}>{title}</p>
       <div className={`text-sm ${textColor} space-y-1`}>
         {users.map((user) => {
-          const percentage = ((splitData[user.id] || 0) * 100).toFixed(1);
+          const percentage = (getIncomeShare(users, user.id) * 100).toFixed(1);
           return (
             <div key={user.id} className="flex justify-between">
               <span>{user.name}:</span>

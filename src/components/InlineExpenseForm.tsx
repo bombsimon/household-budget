@@ -38,7 +38,6 @@ export function InlineExpenseForm({
       amount: parseFloat(amount),
       isShared: expense?.isShared ?? false,
       splitType: expense?.splitType ?? 'equal',
-      splitData: expense?.splitData,
       paidBy: expense?.paidBy,
       userId: expense?.userId,
       isYearly,
