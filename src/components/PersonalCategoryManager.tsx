@@ -59,7 +59,7 @@ export function PersonalCategoryManager({
 
   return (
     <div className="bg-white rounded-lg shadow-sm">
-      <div className="p-3 sm:p-4 border-b border-gray-200">
+      <div className="p-3 sm:p-4 border-b border-slate-200">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           {/* Mobile: 3-row layout, Desktop: single row */}
           <button
@@ -67,17 +67,17 @@ export function PersonalCategoryManager({
             className="flex items-center gap-2 text-left flex-1 min-w-0"
           >
             {!isCollapsed ? (
-              <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
+              <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400 flex-shrink-0" />
             ) : (
-              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
+              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400 flex-shrink-0" />
             )}
             <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 min-w-0 flex-1">
               <div className="flex items-center gap-2 min-w-0">
-                <Tag className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 flex-shrink-0" />
-                <h2 className="text-base font-semibold text-gray-900 leading-tight truncate">
+                <Tag className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600 flex-shrink-0" />
+                <h2 className="text-base font-semibold text-slate-900 leading-tight truncate">
                   Categories
                 </h2>
-                <span className="text-sm text-gray-500 flex-shrink-0">
+                <span className="text-sm text-slate-500 flex-shrink-0">
                   ({personalCategories.length})
                 </span>
               </div>
@@ -111,14 +111,14 @@ export function PersonalCategoryManager({
       {isAddingCategory && !isCollapsed && (
         <form
           onSubmit={handleAddCategory}
-          className="mb-3 p-3 border border-gray-200 rounded-lg bg-gray-50"
+          className="mb-3 p-3 border border-slate-200 rounded-lg bg-slate-50"
         >
           <div className="flex gap-2">
             <input
               type="text"
               value={newCategoryName}
               onChange={(e) => setNewCategoryName(e.target.value)}
-              className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="flex-1 px-2 py-1 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               placeholder="e.g., Streaming, Charity, Hobbies"
               required
               autoFocus
@@ -135,7 +135,7 @@ export function PersonalCategoryManager({
                 setIsAddingCategory(false);
                 setNewCategoryName('');
               }}
-              className="px-3 py-1 text-sm bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
+              className="px-3 py-1 text-sm bg-slate-300 text-slate-700 rounded-md hover:bg-slate-400 transition-colors"
             >
               Cancel
             </button>
@@ -146,9 +146,9 @@ export function PersonalCategoryManager({
       {!isCollapsed && (
         <div className="p-4 space-y-1">
           {personalCategories.length === 0 ? (
-            <div className="text-center py-4 text-gray-500">
+            <div className="text-center py-4 text-slate-500">
               <p className="text-sm">No personal categories yet</p>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-slate-400">
                 Click "Add" to create your first category
               </p>
             </div>

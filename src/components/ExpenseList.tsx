@@ -7,14 +7,12 @@ interface ExpenseListProps {
   expenses: Expense[];
   renderExpenseItem: (expense: Expense, index: number) => React.ReactNode;
   showSorting?: boolean;
-  variant?: 'list' | 'card';
 }
 
 export function ExpenseList({
   expenses,
   renderExpenseItem,
   showSorting = true,
-  variant = 'list',
 }: ExpenseListProps) {
   const [sortBy, setSortBy] = useState<'name' | 'amount' | 'type'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -78,76 +76,43 @@ export function ExpenseList({
 
   return (
     <div>
-      {/* Sorting Controls */}
-      {showSorting && expenses.length > 0 && (
-        <div className="flex justify-end gap-2 mb-4">
-          <span className="text-xs text-gray-500 self-center">Sort by:</span>
-          <button
-            onClick={() => toggleSort('name')}
-            className={`flex items-center gap-1 px-2 py-0 text-xs rounded transition-colors h-6 sm:h-7 ${
-              sortBy === 'name'
-                ? 'bg-blue-100 text-blue-800'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            Name
-            {sortBy === 'name' &&
-              (sortOrder === 'asc' ? (
-                <ArrowUp className="w-3 h-3" />
-              ) : (
-                <ArrowDown className="w-3 h-3" />
-              ))}
-          </button>
-          <button
-            onClick={() => toggleSort('amount')}
-            className={`flex items-center gap-1 px-2 py-0 text-xs rounded transition-colors h-6 sm:h-7 ${
-              sortBy === 'amount'
-                ? 'bg-blue-100 text-blue-800'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            Amount
-            {sortBy === 'amount' &&
-              (sortOrder === 'asc' ? (
-                <ArrowUp className="w-3 h-3" />
-              ) : (
-                <ArrowDown className="w-3 h-3" />
-              ))}
-          </button>
-          <button
-            onClick={() => toggleSort('type')}
-            className={`flex items-center gap-1 px-2 py-0 text-xs rounded transition-colors h-6 sm:h-7 ${
-              sortBy === 'type'
-                ? 'bg-blue-100 text-blue-800'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            Type
-            {sortBy === 'type' &&
-              (sortOrder === 'asc' ? (
-                <ArrowUp className="w-3 h-3" />
-              ) : (
-                <ArrowDown className="w-3 h-3" />
-              ))}
-          </button>
+      {showSorting && expenses.length > 1 && (
+        <div
+          role="group"
+          aria-label="Sort by"
+          className="mb-1 flex justify-end gap-1 text-sm"
+        >
+          {(['name', 'amount', 'type'] as const).map((key) => {
+            const isActive = sortBy === key;
+
+            return (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={isActive}
+                onClick={() => toggleSort(key)}
+                className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 capitalize hover:bg-slate-100 ${
+                  isActive
+                    ? 'bg-blue-100 font-semibold text-blue-900'
+                    : 'text-slate-600'
+                }`}
+              >
+                {key}
+                {isActive &&
+                  (sortOrder === 'asc' ? (
+                    <ArrowUp className="h-3 w-3" aria-label="ascending" />
+                  ) : (
+                    <ArrowDown className="h-3 w-3" aria-label="descending" />
+                  ))}
+              </button>
+            );
+          })}
         </div>
       )}
 
-      {/* Expense List */}
-      <div className={variant === 'card' ? 'space-y-1' : ''}>
+      <div className="divide-y divide-slate-200">
         {sortedExpenses.map((expense, index) => (
-          <div
-            key={expense.id}
-            className={
-              variant === 'card'
-                ? 'rounded bg-white'
-                : index % 2 === 0
-                  ? 'bg-white'
-                  : 'bg-gray-50'
-            }
-          >
-            {renderExpenseItem(expense, index)}
-          </div>
+          <div key={expense.id}>{renderExpenseItem(expense, index)}</div>
         ))}
       </div>
     </div>

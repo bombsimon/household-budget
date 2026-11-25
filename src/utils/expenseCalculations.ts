@@ -19,14 +19,14 @@ export const formatExpenseAmount = (
   includeFrequency = false
 ): string => {
   const monthlyAmount = getMonthlyAmount(expense);
-  const formattedAmount = monthlyAmount.toLocaleString();
+  const formattedAmount = formatMoney(monthlyAmount);
 
   if (!includeFrequency) {
     return `${formattedAmount} kr`;
   }
 
   if (expense.isYearly) {
-    return `${expense.amount.toLocaleString()} kr/year (${formattedAmount} kr/month)`;
+    return `${formatMoney(expense.amount)} kr/year (${formattedAmount} kr/month)`;
   }
 
   return `${formattedAmount} kr/month`;
@@ -43,5 +43,5 @@ export const getFrequencyText = (expense: Expense): string => {
  * Format money amounts consistently (rounded to whole numbers)
  */
 export const formatMoney = (amount: number): string => {
-  return Math.round(amount).toLocaleString();
+  return Math.round(amount).toLocaleString('sv-SE');
 };

@@ -14,21 +14,19 @@ export function SplitMethodSelector({
   const options = [
     {
       key: 'equal' as const,
-      label: 'Equal Split',
-      description: 'Split equally between all parties',
+      label: 'Equally',
+      description: 'Everyone pays the same',
     },
     {
       key: 'percentage' as const,
-      label: 'Split by Income %',
-      description: 'Split proportionally by income',
+      label: 'By income',
+      description: 'Higher income pays more',
     },
   ];
 
   return (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        Split Method
-      </label>
+    <fieldset>
+      <legend className="field-label">How to split it</legend>
       <div className="space-y-2">
         {options.map((option) => (
           <label key={option.key} className="flex items-start">
@@ -37,20 +35,20 @@ export function SplitMethodSelector({
               name={name}
               value={option.key}
               checked={value === option.key}
-              onChange={(e) => onChange(e.target.value as any)}
+              onChange={() => onChange(option.key)}
               className="mt-0.5 mr-3 text-blue-600 focus:ring-blue-500"
             />
             <div>
-              <span className="text-sm font-medium text-gray-700">
+              <span className="text-sm font-medium text-slate-700">
                 {option.label}
               </span>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p className="text-xs text-slate-500 mt-0.5">
                 {option.description}
               </p>
             </div>
           </label>
         ))}
       </div>
-    </div>
+    </fieldset>
   );
 }

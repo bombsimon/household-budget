@@ -1,4 +1,4 @@
-import { Loader, AlertTriangle } from 'lucide-react';
+import { Loader } from 'lucide-react';
 import { formatMoney } from '../utils/expenseCalculations';
 import { useTaxCalculation } from '../hooks/useTaxCalculation';
 import type { User } from '../types';
@@ -8,31 +8,40 @@ interface UserTaxInfoProps {
 }
 
 export function UserTaxInfo({ user }: UserTaxInfoProps) {
-  const { monthlyAfterTax, isLoading, error, tableNumber } = useTaxCalculation(
-    user.monthlyIncome * 12,
-    user.municipalityCode
-  );
+  const { monthlyAfterTax, isLoading, error, tableNumber, usedTaxTables } =
+    useTaxCalculation(user.monthlyIncome * 12, user.municipalityCode);
 
   return (
-    <div className="text-sm text-gray-500 space-y-1 text-left">
-      <p>Monthly Income: {formatMoney(user.monthlyIncome)} kr</p>
-      <p>Municipality: {user.municipalityName}</p>
-      <div className="flex items-center gap-2">
-        <span>After Tax:</span>
+    <div className="mt-1 space-y-0.5 text-sm text-slate-700">
+      <p>Before tax: {formatMoney(user.monthlyIncome)} kr</p>
+
+      <div className="flex items-center gap-1">
+        <span>After tax:</span>
         {isLoading ? (
           <div className="flex items-center gap-1">
             <Loader className="w-3 h-3 animate-spin" />
-            <span className="text-gray-400">Calculating...</span>
+            <span className="text-slate-400">Calculating...</span>
           </div>
         ) : (
           <>
-            <span>{formatMoney(monthlyAfterTax)} kr</span>
-            {error && <AlertTriangle className="w-3 h-3 text-orange-500" />}
+            <span>
+              {error
+                ? error === 'Municipality required for tax calculation'
+                  ? 'choose a municipality'
+                  : 'could not be calculated'
+                : `${formatMoney(monthlyAfterTax)} kr`}
+              {!error &&
+                !usedTaxTables &&
+                user.monthlyIncome > 0 &&
+                ' (estimate, no tax table match)'}
+            </span>
           </>
         )}
       </div>
       {tableNumber && (
-        <p className="text-xs text-gray-400">Tax table: {tableNumber}</p>
+        <p className="text-slate-600">
+          {user.municipalityName}, tax table {tableNumber}
+        </p>
       )}
     </div>
   );

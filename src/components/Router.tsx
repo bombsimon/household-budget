@@ -1,4 +1,4 @@
-import { Routes, Route, useParams, Navigate } from 'react-router-dom';
+import { Routes, Route, Link, useParams, Navigate } from 'react-router-dom';
 import { HouseholdAuth } from './HouseholdAuth';
 import { LandingPage } from './LandingPage';
 
@@ -9,7 +9,7 @@ export function AppRouter() {
       <Route path="/" element={<LandingPage />} />
 
       {/* Multi-tenant household routes */}
-      <Route path="/:householdId" element={<HouseholdWrapper />} />
+      <Route path="/:householdId/*" element={<HouseholdWrapper />} />
 
       {/* Redirect any other paths to landing */}
       <Route path="*" element={<Navigate to="/" />} />
@@ -34,13 +34,13 @@ function HouseholdWrapper() {
           <h1 className="text-2xl font-bold text-red-600 mb-4">
             Invalid Household ID
           </h1>
-          <p className="text-gray-600 mb-4">
+          <p className="text-slate-600 mb-4">
             Household IDs can only contain letters, numbers, hyphens, and
             underscores.
           </p>
-          <a href="/" className="text-blue-600 hover:text-blue-800 underline">
+          <Link to="/" className="text-blue-800 underline">
             Go to Home
-          </a>
+          </Link>
         </div>
       </div>
     );

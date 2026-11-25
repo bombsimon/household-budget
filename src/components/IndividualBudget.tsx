@@ -8,19 +8,11 @@ import type {
   PersonalExpenseCategory,
 } from '../types';
 import { useState } from 'react';
-import { PieChart, Eye, EyeOff, Plus } from 'lucide-react';
-import {
-  PieChart as RechartsPieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-} from 'recharts';
-import {
-  getMonthlyAmount,
-  formatMoney,
-  getFrequencyText,
-} from '../utils/expenseCalculations';
+import { Eye, EyeOff, Plus } from 'lucide-react';
+import { getMonthlyAmount, formatMoney } from '../utils/expenseCalculations';
+import { Avatar } from './Avatar';
+import { CostDonut, CostLegend, type CostPart } from './CostCharts';
+import { COST_COLORS } from '../utils/costColors';
 import { BudgetBreakdownSummary } from './BudgetBreakdownSummary';
 import { ExpenseList } from './ExpenseList';
 import { InlineExpenseForm } from './InlineExpenseForm';
@@ -153,19 +145,22 @@ export function UserBudgetPage({
   }, 0);
 
   const loanAllocations = [
-    { name: 'Loan interests', amount: totalInterestAllocation },
+    { name: 'Loan interest', amount: totalInterestAllocation },
     { name: 'Loan repayment', amount: totalRepaymentAllocation },
   ];
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold text-gray-900">
-          {user.name.split(' ')[0]}&apos;s Budget
-        </h2>
+    <div>
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <h1 className="page-title flex min-w-0 items-center gap-3">
+          <Avatar user={user} size="medium" />
+          <span>{user.name.split(' ')[0]}&apos;s budget</span>
+        </h1>
         <button
           onClick={() => setBlurSensitive(!blurSensitive)}
-          className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          className="btn-secondary flex-shrink-0"
+          type="button"
+          aria-label={blurSensitive ? 'Show income' : 'Hide income'}
           title={blurSensitive ? 'Show sensitive data' : 'Hide sensitive data'}
         >
           {blurSensitive ? (
@@ -336,197 +331,139 @@ function UserBudgetCard({
       return a.categoryName.localeCompare(b.categoryName);
     });
 
-  const smallCategories = breakdown.personalExpenseBreakdown.filter(
-    (category) => category.percentage <= 1 && category.amount <= 500
+  const costParts: CostPart[] = [
+    {
+      label: 'Household expenses',
+      amount: categorySharedExpenses,
+      color: COST_COLORS.household,
+    },
+    {
+      label: 'Loan interest',
+      amount: loanAllocations[0].amount,
+      color: COST_COLORS.loanInterest,
+    },
+    {
+      label: 'Loan repayment',
+      amount: loanAllocations[1].amount,
+      color: COST_COLORS.loanRepayment,
+    },
+    {
+      label: 'Assets',
+      amount: assetAllocations.reduce((sum, asset) => sum + asset.amount, 0),
+      color: COST_COLORS.assets,
+    },
+    {
+      label: 'Personal expenses',
+      amount: breakdown.personalExpenses,
+      color: COST_COLORS.personal,
+    },
+  ];
+  const personalBySize = [...breakdown.personalExpenseBreakdown].sort(
+    (a, b) => b.amount - a.amount
   );
-
-  const otherPersonalAmount = smallCategories.reduce(
-    (total, category) => total + category.amount,
-    0
-  );
-
-  const chartData = [
-    ...(categorySharedExpenses > 0
-      ? [
-          {
-            name: 'Household Expenses',
-            value: (categorySharedExpenses / breakdown.income) * 100,
-            amount: categorySharedExpenses,
-            color: '#3B82F6',
-          },
-        ]
-      : []),
-    ...assetAllocations
-      .filter((asset) => asset.amount > 0)
-      .map((asset, index) => ({
-        name: `${asset.name} (asset)`,
-        value: (asset.amount / breakdown.income) * 100,
-        amount: asset.amount,
-        color: `hsl(${(index * 45 + 120) % 360}, 70%, 50%)`,
-        type: 'asset',
-      })),
-    ...loanAllocations
-      .filter((loan) => Math.abs(loan.amount) > 0)
-      .map((loan) => ({
-        name: loan.name,
-        value: (Math.abs(loan.amount) / breakdown.income) * 100,
-        amount: Math.abs(loan.amount),
-        color: loan.name === 'Loan interests' ? '#F59E0B' : '#8B5CF6',
-        type: 'loan',
-      })),
-    ...breakdown.personalExpenseBreakdown
-      .filter((category) => category.percentage > 1 || category.amount > 500)
-      .map((category, index) => ({
-        name: category.categoryName,
-        value: category.percentage,
-        amount: category.amount,
-        color: `hsl(${(index * 30 + 200) % 360}, 65%, 55%)`,
-      })),
-    ...(otherPersonalAmount > 0
-      ? [
-          {
-            name: 'Other Personal',
-            value: (otherPersonalAmount / breakdown.income) * 100,
-            amount: otherPersonalAmount,
-            color: '#9CA3AF',
-            includedCategories: smallCategories,
-          },
-        ]
-      : []),
-  ].filter((item) => item.value > 0);
 
   const householdExpenseIds = new Set(
     householdExpensesWithShare.map((e) => e.id)
   );
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center gap-3 mb-4">
-        <div
-          className="w-4 h-4 rounded-full"
-          style={{ backgroundColor: user.color }}
-        />
-        <h3 className="text-lg font-semibold text-gray-900">{user.name}</h3>
-      </div>
-
-      <BudgetBreakdownSummary
-        user={user}
-        breakdown={breakdown}
-        categories={categories}
-        assets={assets}
-        loans={loans}
-        users={users}
-        blurSensitive={blurSensitive}
-      />
-
-      {chartData.length > 1 && (
+    <div className="space-y-5">
+      <section className="panel flex flex-wrap items-end justify-between gap-6 p-6">
         <div>
-          <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-            <PieChart className="w-4 h-4" />
-            Expense Breakdown by Category
-          </h4>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2">
-              <div className="h-64 sm:h-72 lg:h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RechartsPieChart>
-                    <Pie
-                      data={chartData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={40}
-                      outerRadius={chartData.length > 6 ? 70 : 80}
-                      dataKey="value"
-                      labelLine={false}
-                    >
-                      {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      formatter={(value, name) => {
-                        const item = chartData.find((d) => d.name === name);
-                        if (blurSensitive) {
-                          return [`${formatMoney(item?.amount || 0)} kr`, name];
-                        }
-                        return [
-                          `${formatMoney(item?.amount || 0)} kr (${typeof value === 'number' ? value.toFixed(1) : value}%)`,
-                          name,
-                        ];
-                      }}
-                    />
-                  </RechartsPieChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <h5 className="text-sm font-medium text-gray-700 mb-3">
-                Categories
-              </h5>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {chartData.map((item, index) => (
-                  <div key={index}>
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <div
-                          className="w-3 h-3 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: item.color }}
-                        />
-                        <span className="text-gray-700 truncate font-medium">
-                          {item.name}
-                        </span>
-                      </div>
-                      <div className="text-right flex-shrink-0 ml-2">
-                        <div className="text-gray-900 font-medium whitespace-nowrap">
-                          {formatMoney(item.amount)}&nbsp;kr
-                        </div>
-                        <div
-                          className={`text-gray-500 text-xs ${blurSensitive ? 'blur-md select-none' : ''}`}
-                        >
-                          {item.value.toFixed(1)}%
-                        </div>
-                      </div>
-                    </div>
-                    {item.name === 'Other Personal' &&
-                      'includedCategories' in item &&
-                      item.includedCategories &&
-                      item.includedCategories.length > 0 && (
-                        <div className="ml-5 mt-1 text-xs text-gray-500">
-                          <div className="italic">This includes:</div>
-                          <div className="ml-2">
-                            {item.includedCategories.map(
-                              (cat: any, catIndex: number) => (
-                                <div key={catIndex}>• {cat.categoryName}</div>
-                              )
-                            )}
-                          </div>
-                        </div>
-                      )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <h2 className="section-title">Left each month</h2>
+          <p
+            className={`mt-1 whitespace-nowrap text-4xl font-bold tracking-tight text-blue-800 sm:text-5xl ${blurSensitive ? 'select-none blur-lg' : ''}`}
+            aria-hidden={blurSensitive}
+          >
+            {formatMoney(breakdown.remainingAfterExpenses)} kr
+          </p>
         </div>
-      )}
+        <dl className="flex gap-8">
+          <div>
+            <dt className="text-sm text-slate-600">After tax</dt>
+            <dd
+              className={`money font-semibold ${blurSensitive ? 'select-none blur-md' : ''}`}
+            >
+              {formatMoney(breakdown.income)} kr
+            </dd>
+          </div>
+          <div>
+            <dt className="text-sm text-slate-600">Costs</dt>
+            <dd className="money font-semibold">
+              {formatMoney(
+                breakdown.sharedExpensesOwed + breakdown.personalExpenses
+              )}{' '}
+              kr
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <div className="grid items-start gap-5 lg:grid-cols-2 [&>*]:min-w-0">
+        <section className="panel p-6">
+          <h2 className="section-title mb-4">Monthly statement</h2>
+          <BudgetBreakdownSummary
+            user={user}
+            breakdown={breakdown}
+            categories={categories}
+            assets={assets}
+            loans={loans}
+            users={users}
+            blurSensitive={blurSensitive}
+          />
+        </section>
+
+        {costParts.some((part) => part.amount > 0) && (
+          <section className="panel p-6">
+            <h2 className="section-title mb-4">Where the costs go</h2>
+            <CostDonut parts={costParts} />
+            <div className="mt-5">
+              <CostLegend parts={costParts} />
+            </div>
+            {breakdown.personalExpenseBreakdown.length > 0 && (
+              <div className="mt-6 border-t border-slate-200 pt-5">
+                <h3 className="mb-3 font-semibold">Personal, by category</h3>
+                <ul className="space-y-3 text-sm">
+                  {personalBySize.map((category) => (
+                    <li key={category.categoryId}>
+                      <span className="flex justify-between gap-4">
+                        <span>{category.categoryName}</span>
+                        <span className="money font-semibold">
+                          {formatMoney(category.amount)} kr
+                        </span>
+                      </span>
+                      <span
+                        aria-hidden="true"
+                        className="mt-1 block h-2 rounded-r"
+                        style={{
+                          width: `${(category.amount / personalBySize[0].amount) * 100}%`,
+                          backgroundColor: COST_COLORS.personal,
+                        }}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
+        )}
+      </div>
 
       {/* Personal Expense Categories Detail */}
       {categoriesWithUncategorized.length > 0 && (
         <div>
           <div className="flex justify-between items-center mb-3">
-            <h4 className="text-sm font-medium text-gray-700">
-              Expense Details
-            </h4>
+            <h2 className="section-title">Expenses</h2>
             <button
               onClick={() => {
                 setIsAddingExpense(true);
                 setEditingExpenseId(null);
               }}
-              className="flex items-center gap-1 px-2.5 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              type="button"
+              className="btn-primary"
             >
               <Plus className="w-3.5 h-3.5" />
-              Add
+              Add expense
             </button>
           </div>
 
@@ -550,7 +487,7 @@ function UserBudgetCard({
             </div>
           )}
 
-          <div className="space-y-3">
+          <div className="grid items-start gap-5 lg:grid-cols-2 [&>*]:min-w-0">
             {categoriesWithUncategorized.map((category) => {
               const categoryPersonalExpenses =
                 category.categoryId === 'uncategorized'
@@ -583,27 +520,22 @@ function UserBudgetCard({
               ];
 
               return (
-                <div
-                  key={category.categoryId}
-                  className="border border-gray-200 rounded-lg p-3"
-                >
+                <div key={category.categoryId} className="panel p-5">
                   <div className="flex justify-between items-center mb-2">
-                    <h5 className="font-medium text-gray-800">
-                      {category.categoryName}
-                    </h5>
+                    <h3 className="section-title">{category.categoryName}</h3>
                     <div className="text-right">
                       <div className="text-sm font-medium">
                         {fixedTotal > 0 && (
-                          <span className="text-gray-700">
+                          <span className="text-slate-700">
                             {formatMoney(fixedTotal)} kr/month
                           </span>
                         )}
                         {budgetedTotal > 0 && (
                           <>
                             {fixedTotal > 0 && (
-                              <span className="text-gray-400"> + </span>
+                              <span className="text-slate-600"> + </span>
                             )}
-                            <span className="text-orange-600">
+                            <span className="text-slate-600">
                               {formatMoney(budgetedTotal)} kr budgeted
                             </span>
                           </>
@@ -611,9 +543,9 @@ function UserBudgetCard({
                         {householdTotal > 0 && (
                           <>
                             {(fixedTotal > 0 || budgetedTotal > 0) && (
-                              <span className="text-gray-400"> + </span>
+                              <span className="text-slate-600"> + </span>
                             )}
-                            <span className="text-green-600">
+                            <span className="text-slate-600">
                               {formatMoney(householdTotal)} kr household
                             </span>
                           </>
@@ -621,13 +553,13 @@ function UserBudgetCard({
                         {fixedTotal === 0 &&
                           budgetedTotal === 0 &&
                           householdTotal === 0 && (
-                            <span className="text-lg font-semibold text-gray-900 whitespace-nowrap">
+                            <span className="text-lg font-semibold text-slate-900 whitespace-nowrap">
                               {formatMoney(category.amount)}&nbsp;kr
                             </span>
                           )}
                       </div>
                       <div
-                        className={`text-sm text-gray-500 ${blurSensitive ? 'blur-md select-none' : ''}`}
+                        className={`text-sm text-slate-600 ${blurSensitive ? 'blur-md select-none' : ''}`}
                       >
                         {category.percentage > 0
                           ? `${category.percentage.toFixed(1)}% of income`
@@ -637,11 +569,10 @@ function UserBudgetCard({
                   </div>
 
                   {combinedExpenses.length > 0 && (
-                    <div className="border-t border-gray-200 pt-3 mt-3">
+                    <div className="border-t border-slate-200 pt-2">
                       <ExpenseList
                         expenses={combinedExpenses}
                         showSorting={combinedExpenses.length > 1}
-                        variant="list"
                         renderExpenseItem={(expense, _index) => {
                           const isHousehold = householdExpenseIds.has(
                             expense.id
@@ -666,47 +597,46 @@ function UserBudgetCard({
                             );
                           }
 
+                          const content = (
+                            <span className="flex w-full flex-wrap items-baseline justify-between gap-x-4 px-2 py-2 text-left">
+                              <span className="min-w-0 break-words">
+                                {expense.name}
+                                {isHousehold && (
+                                  <span className="tag ml-2 bg-emerald-100 text-emerald-900">
+                                    your share
+                                  </span>
+                                )}
+                                {expense.isBudgeted && (
+                                  <span className="tag ml-2 bg-amber-100 text-amber-900">
+                                    budgeted
+                                  </span>
+                                )}
+                                {!isHousehold && expense.isYearly && (
+                                  <span className="tag ml-2 bg-blue-100 text-blue-900">
+                                    paid yearly
+                                  </span>
+                                )}
+                              </span>
+                              <span className="money ml-auto">
+                                {formatMoney(getMonthlyAmount(expense))} kr
+                              </span>
+                            </span>
+                          );
+
+                          if (isHousehold) return content;
+
                           return (
-                            <div
-                              className={`text-sm px-2 py-1 ${!isHousehold ? 'cursor-pointer hover:bg-blue-50 rounded' : ''}`}
-                              onClick={
-                                !isHousehold
-                                  ? () => {
-                                      setEditingExpenseId(expense.id);
-                                      setIsAddingExpense(false);
-                                    }
-                                  : undefined
-                              }
+                            <button
+                              type="button"
+                              aria-label={`Edit ${expense.name}, ${formatMoney(getMonthlyAmount(expense))} kr`}
+                              className="block w-full rounded-lg hover:bg-blue-50"
+                              onClick={() => {
+                                setEditingExpenseId(expense.id);
+                                setIsAddingExpense(false);
+                              }}
                             >
-                              <div className="flex justify-between items-start sm:items-center">
-                                <div className="flex items-center gap-2 text-left flex-1 min-w-0">
-                                  <span className="font-medium truncate text-gray-700">
-                                    {expense.name}
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-end gap-2 w-48 flex-shrink-0">
-                                  {isHousehold && (
-                                    <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full whitespace-nowrap">
-                                      household
-                                    </span>
-                                  )}
-                                  {expense.isBudgeted && (
-                                    <span className="px-2 py-0.5 text-xs bg-orange-100 text-orange-700 rounded-full whitespace-nowrap">
-                                      budgeted
-                                    </span>
-                                  )}
-                                  {!isHousehold && expense.isYearly && (
-                                    <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full whitespace-nowrap">
-                                      {getFrequencyText(expense)}
-                                    </span>
-                                  )}
-                                  <span className="text-gray-500 whitespace-nowrap text-right w-20 flex-shrink-0">
-                                    {formatMoney(getMonthlyAmount(expense))}
-                                    &nbsp;kr
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
+                              {content}
+                            </button>
                           );
                         }}
                       />
@@ -714,7 +644,7 @@ function UserBudgetCard({
                   )}
 
                   {combinedExpenses.length === 0 && (
-                    <div className="text-sm text-gray-400 italic pt-2">
+                    <div className="text-sm text-slate-600 italic pt-2">
                       No expenses in this category.
                     </div>
                   )}
@@ -729,15 +659,14 @@ function UserBudgetCard({
       {categoriesWithUncategorized.length === 0 && (
         <div>
           <div className="flex justify-between items-center mb-3">
-            <h4 className="text-sm font-medium text-gray-700">
-              Expense Details
-            </h4>
+            <h2 className="section-title">Expenses</h2>
             <button
               onClick={() => setIsAddingExpense(true)}
-              className="flex items-center gap-1 px-2.5 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              type="button"
+              className="btn-primary"
             >
               <Plus className="w-3.5 h-3.5" />
-              Add
+              Add expense
             </button>
           </div>
           {isAddingExpense && (
@@ -759,9 +688,7 @@ function UserBudgetCard({
               />
             </div>
           )}
-          <div className="text-center py-6 text-gray-400 text-sm">
-            No expenses yet. Click "Add" to create your first expense.
-          </div>
+          <div className="text-slate-700">No expenses yet.</div>
         </div>
       )}
     </div>

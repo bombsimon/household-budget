@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
-import {
-  Edit2,
-  User as UserIcon,
-  DollarSign,
-  Trash2,
-  Palette,
-} from 'lucide-react';
+import React, { useId, useState } from 'react';
+import { Edit2, Plus } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import type { ExpenseCategory, Loan, User } from '../types';
+import { MunicipalitySelector } from './MunicipalitySelector';
+import { UserTaxInfo } from './UserTaxInfo';
+import { formatMoney } from '../utils/expenseCalculations';
+import { Avatar } from './Avatar';
+import { SegmentedBar, CostLegend } from './CostCharts';
+import { DeleteButton } from './DeleteButton';
 
 const USER_COLORS = [
   '#EF4444',
@@ -16,7 +18,15 @@ const USER_COLORS = [
   '#EC4899',
 ];
 
-// Color picker component
+const USER_COLOR_NAMES: Record<string, string> = {
+  '#EF4444': 'Red',
+  '#F59E0B': 'Amber',
+  '#10B981': 'Green',
+  '#3B82F6': 'Blue',
+  '#8B5CF6': 'Purple',
+  '#EC4899': 'Pink',
+};
+
 function ColorPicker({
   selectedColor,
   onColorChange,
@@ -36,13 +46,14 @@ function ColorPicker({
             key={color}
             type="button"
             onClick={() => onColorChange(color)}
-            className={`w-8 h-8 rounded-full border-2 transition-all ${
+            className={`w-8 h-8 rounded-full border-2  ${
               isSelected
-                ? 'border-gray-900 scale-110'
-                : 'border-gray-300 hover:border-gray-400'
+                ? 'border-slate-900 scale-110'
+                : 'border-slate-300 hover:border-slate-400'
             } ${isUsed && !isSelected ? 'opacity-50' : ''}`}
             style={{ backgroundColor: color }}
-            title={isUsed ? 'Color already in use' : `Select ${color}`}
+            aria-pressed={isSelected}
+            aria-label={`${USER_COLOR_NAMES[color]}${isUsed && !isSelected ? ', already in use' : ''}`}
           >
             {isSelected && (
               <div className="w-full h-full rounded-full flex items-center justify-center">
@@ -55,21 +66,13 @@ function ColorPicker({
     </div>
   );
 }
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  Legend,
-} from 'recharts';
-import type { User } from '../types';
-import { formatMoney } from '../utils/expenseCalculations';
-import { calculateAfterTaxIncomeWithTablesSync } from '../services/taxService';
-import { MunicipalitySelector } from './MunicipalitySelector';
-import { UserTaxInfo } from './UserTaxInfo';
+const countOf = (count: number, noun: string): string =>
+  `${count} ${noun}${count === 1 ? '' : 's'}`;
 
 interface UserManagementProps {
+  householdPath: string;
+  categories: ExpenseCategory[];
+  loans: Loan[];
   users: User[];
   onAddUser?: (userData: Omit<User, 'id'>) => Promise<void>;
   onUpdateUser: (userId: string, updates: Partial<User>) => void;
@@ -77,11 +80,15 @@ interface UserManagementProps {
 }
 
 export function UserManagement({
+  householdPath,
+  categories,
+  loans,
   users,
   onAddUser,
   onUpdateUser,
   onDeleteUser,
 }: UserManagementProps) {
+  const fieldId = useId();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isAddingUser, setIsAddingUser] = useState(false);
@@ -89,6 +96,7 @@ export function UserManagement({
   const [newUserIncome, setNewUserIncome] = useState('');
   const [newUserMunicipalityCode, setNewUserMunicipalityCode] = useState('');
   const [newUserMunicipalityName, setNewUserMunicipalityName] = useState('');
+
   const [newUserColor, setNewUserColor] = useState(USER_COLORS[0]);
 
   const handleUpdateUser = (
@@ -105,32 +113,44 @@ export function UserManagement({
         monthlyIncome: parseFloat(income),
         municipalityCode: municipalityCode || undefined,
         municipalityName: municipalityName || undefined,
-        color: color,
+        color,
       });
       setEditingId(null);
     }
   };
 
-  const handleDeleteUser = async (userId: string, userName: string) => {
+  const handleDeleteUser = async (userId: string) => {
     if (!onDeleteUser) return;
-
-    if (
-      !confirm(
-        `Are you sure you want to remove ${userName} from the household? This action cannot be undone.`
-      )
-    ) {
-      return;
-    }
 
     setDeletingId(userId);
     try {
       await onDeleteUser(userId);
     } catch (error) {
       console.error('Failed to delete user:', error);
-      alert('Failed to remove user. Please try again.');
     } finally {
       setDeletingId(null);
     }
+  };
+
+  const totalIncome = users.reduce((sum, user) => sum + user.monthlyIncome, 0);
+
+  const incomeParts = users.map((user) => ({
+    label: user.name,
+    amount: user.monthlyIncome,
+    color: user.color,
+  }));
+
+  const describeRemoval = (userId: string): string => {
+    const sharedCount =
+      categories
+        .find((category) => category.id === 'shared')
+        ?.expenses.filter((expense) => expense.paidBy === userId).length ?? 0;
+    const personalCount =
+      categories.find((category) => category.id === `personal-${userId}`)
+        ?.expenses.length ?? 0;
+    const loanCount = loans.filter((loan) => loan.paidBy === userId).length;
+
+    return `This also deletes ${countOf(personalCount, 'personal expense')}, ${countOf(sharedCount, 'household expense')} and ${countOf(loanCount, 'loan')} they pay. This cannot be undone.`;
   };
 
   const handleAddUser = async () => {
@@ -156,202 +176,63 @@ export function UserManagement({
       setIsAddingUser(false);
     } catch (error) {
       console.error('Failed to add user:', error);
-      alert('Failed to add user. Please try again.');
     }
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
-      <div className="mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-              <UserIcon className="w-5 h-5" />
-              Household Members & Income
-            </h2>
-          </div>
-          {onAddUser && (
-            <button
-              onClick={() => setIsAddingUser(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 w-full sm:w-auto justify-center sm:justify-start"
-            >
-              <UserIcon className="w-4 h-4" />
-              Add User
-            </button>
-          )}
-        </div>
+    <div>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="page-title">People</h1>
+        {onAddUser && (
+          <button
+            type="button"
+            onClick={() => setIsAddingUser(true)}
+            className="btn-primary"
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Add person
+          </button>
+        )}
       </div>
-
-      {/* Household Income Summary */}
-      {users.length > 0 &&
-        (() => {
-          const totalIncome = users.reduce(
-            (sum, user) => sum + user.monthlyIncome,
-            0
-          );
-          const totalAfterTax = users.reduce((sum, user) => {
-            if (user.municipalityCode) {
-              const result = calculateAfterTaxIncomeWithTablesSync(
-                user.monthlyIncome * 12,
-                user.municipalityCode
-              );
-              return sum + result.monthlyAfterTax;
-            }
-            return sum;
-          }, 0);
-
-          const chartData = users.map((user) => ({
-            name: user.name,
-            value: user.monthlyIncome,
-            percentage:
-              totalIncome > 0
-                ? ((user.monthlyIncome / totalIncome) * 100).toFixed(1)
-                : '0',
-            color: user.color,
-          }));
-
-          return (
-            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6 mb-6">
-              <div className="flex items-center gap-2 mb-4">
-                <DollarSign className="w-5 h-5 text-blue-600" />
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Household Income Overview
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Summary Stats */}
-                <div className="space-y-4">
-                  <div className="bg-white rounded-lg p-4 shadow-sm">
-                    <div className="text-sm text-gray-600 mb-1">
-                      Total Monthly Income
-                    </div>
-                    <div className="text-2xl font-bold text-gray-900">
-                      {formatMoney(totalIncome)} kr
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-lg p-4 shadow-sm">
-                    <div className="text-sm text-gray-600 mb-1">
-                      After Tax (Swedish Calculation)
-                    </div>
-                    <div className="text-2xl font-bold text-blue-600">
-                      {formatMoney(totalAfterTax)} kr
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-lg p-4 shadow-sm">
-                    <div className="text-sm text-gray-600 mb-2">
-                      Income Distribution
-                    </div>
-                    <div className="space-y-2">
-                      {users.map((user) => {
-                        const percentage =
-                          totalIncome > 0
-                            ? (
-                                (user.monthlyIncome / totalIncome) *
-                                100
-                              ).toFixed(1)
-                            : '0';
-                        return (
-                          <div
-                            key={user.id}
-                            className="flex items-center justify-between"
-                          >
-                            <div className="flex items-center gap-2">
-                              <div
-                                className="w-3 h-3 rounded-full"
-                                style={{ backgroundColor: user.color }}
-                              />
-                              <span className="text-sm font-medium">
-                                {user.name}
-                              </span>
-                            </div>
-                            <span className="text-sm text-gray-600">
-                              {percentage}%
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Pie Chart */}
-                <div className="bg-white rounded-lg p-4 shadow-sm">
-                  <div className="text-sm font-medium text-gray-700 mb-4 text-center">
-                    Income Distribution
-                  </div>
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={chartData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={40}
-                          outerRadius={80}
-                          dataKey="value"
-                          label={({ percentage }) => `${percentage}%`}
-                          labelLine={false}
-                        >
-                          {chartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          formatter={(value: number, name: string) => [
-                            `${formatMoney(value)} kr`,
-                            name,
-                          ]}
-                        />
-                        <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
 
       {/* Add User Form */}
       {isAddingUser && (
-        <div className="mb-6 p-4 border border-blue-200 bg-blue-50 rounded-lg">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
-            Add New User
-          </h3>
+        <div className="form-panel mb-6">
+          <h3 className="section-title mb-4">Add a person</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor={`${fieldId}-1`} className="field-label">
                 Name
               </label>
               <input
+                id={`${fieldId}-1`}
                 type="text"
                 value={newUserName}
                 onChange={(e) => setNewUserName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="field"
                 placeholder="Enter name"
                 autoFocus
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Monthly Income (kr)
+              <label htmlFor={`${fieldId}-2`} className="field-label">
+                Monthly income (kr)
               </label>
               <input
+                id={`${fieldId}-2`}
                 type="number"
                 value={newUserIncome}
                 onChange={(e) => setNewUserIncome(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="field"
                 placeholder="0"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor={`${fieldId}-3`} className="field-label">
                 Municipality
               </label>
               <MunicipalitySelector
+                id={`${fieldId}-3`}
                 selectedMunicipalityCode={newUserMunicipalityCode}
                 selectedMunicipalityName={newUserMunicipalityName}
                 onMunicipalityChange={(code, name) => {
@@ -362,19 +243,14 @@ export function UserManagement({
             </div>
           </div>
 
-          {/* Color picker */}
-          <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <Palette className="w-4 h-4 inline mr-1" />
-              Choose Color
-            </label>
+          <div role="group" aria-label="Color" className="mt-4">
+            <p className="field-label">Color</p>
             <ColorPicker
               selectedColor={newUserColor}
               onColorChange={setNewUserColor}
-              usedColors={users.map((u) => u.color)}
+              usedColors={users.map((user) => user.color)}
             />
           </div>
-
           <div className="flex justify-end gap-2 mt-4">
             <button
               onClick={() => {
@@ -385,24 +261,36 @@ export function UserManagement({
                 setNewUserMunicipalityName('');
                 setNewUserColor(USER_COLORS[0]);
               }}
-              className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+              className="btn-secondary"
             >
               Cancel
             </button>
             <button
               onClick={handleAddUser}
               disabled={!newUserName.trim() || !newUserIncome.trim()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              className="btn-primary"
             >
-              Add User
+              Add person
             </button>
           </div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+      {users.length > 1 && totalIncome > 0 && (
+        <section className="panel mb-5 p-6">
+          <h2 className="section-title mb-4">
+            {formatMoney(totalIncome)} kr before tax
+          </h2>
+          <SegmentedBar parts={incomeParts} />
+          <div className="mt-3">
+            <CostLegend parts={incomeParts} />
+          </div>
+        </section>
+      )}
+
+      <ul className="panel divide-y divide-slate-200">
         {users.map((user) => (
-          <div key={user.id} className="p-4 border border-gray-200 rounded-lg">
+          <li key={user.id} className="p-6">
             {editingId === user.id ? (
               <EditUserForm
                 user={user}
@@ -410,69 +298,50 @@ export function UserManagement({
                 onCancel={() => setEditingId(null)}
               />
             ) : (
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0">
-                    {user.photoURL ? (
-                      <img
-                        src={user.photoURL}
-                        alt={user.name}
-                        className="w-12 h-12 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div
-                        className="w-12 h-12 rounded-full flex items-center justify-center text-white text-sm font-medium"
-                        style={{ backgroundColor: user.color }}
-                      >
-                        {user.name.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-medium text-gray-900 truncate text-left">
-                        {user.name}
-                      </h3>
-                      {user.role === 'owner' && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 flex-shrink-0">
-                          Owner
-                        </span>
-                      )}
-                    </div>
-                    {user.email && (
-                      <p className="text-xs text-gray-400 truncate mb-1 text-left">
-                        {user.email}
-                      </p>
-                    )}
-                  </div>
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-0 flex-1 basis-56">
+                  <h2 className="section-title mb-3 flex items-center gap-3 break-words">
+                    <Avatar user={user} size="medium" />
+                    {user.name}
+                  </h2>
+                  <UserTaxInfo user={user} />
+                  {totalIncome > 0 && users.length > 1 && (
+                    <p className="text-sm text-slate-600">
+                      {((user.monthlyIncome / totalIncome) * 100).toFixed(1)}%
+                      of household income
+                    </p>
+                  )}
                 </div>
-
-                <UserTaxInfo user={user} />
-
-                <div className="flex gap-2 justify-start pt-2">
-                  <button
-                    onClick={() => setEditingId(user.id)}
-                    className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                    title="Edit income and tax rate"
+                <div className="flex items-center">
+                  <Link
+                    to={`${householdPath}/users/${user.id}`}
+                    className="btn-secondary mr-2"
                   >
-                    <Edit2 className="w-4 h-4" />
+                    Open budget
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setEditingId(user.id)}
+                    className="icon-btn"
+                    aria-label={`Edit ${user.name}`}
+                    title={`Edit ${user.name}`}
+                  >
+                    <Edit2 className="h-4 w-4" aria-hidden="true" />
                   </button>
                   {user.role !== 'owner' && onDeleteUser && (
-                    <button
-                      onClick={() => handleDeleteUser(user.id, user.name)}
+                    <DeleteButton
+                      name={user.name}
+                      description={describeRemoval(user.id)}
                       disabled={deletingId === user.id}
-                      className="p-2 text-gray-400 hover:text-red-600 transition-colors disabled:opacity-50"
-                      title="Remove from household"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                      onDelete={() => handleDeleteUser(user.id)}
+                    />
                   )}
                 </div>
               </div>
             )}
-          </div>
+          </li>
         ))}
-      </div>
+      </ul>
     </div>
   );
 }
@@ -491,6 +360,7 @@ interface EditUserFormProps {
 }
 
 function EditUserForm({ user, onSave, onCancel }: EditUserFormProps) {
+  const fieldId = useId();
   const [name, setName] = useState(user.name);
   const [income, setIncome] = useState(user.monthlyIncome.toString());
   const [municipalityCode, setMunicipalityCode] = useState(
@@ -499,6 +369,7 @@ function EditUserForm({ user, onSave, onCancel }: EditUserFormProps) {
   const [municipalityName, setMunicipalityName] = useState(
     user.municipalityName || ''
   );
+
   const [color, setColor] = useState(user.color);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -510,21 +381,29 @@ function EditUserForm({ user, onSave, onCancel }: EditUserFormProps) {
     <form onSubmit={handleSubmit} className="flex-1">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
+          <label htmlFor={`${fieldId}-4`} className="field-label">
+            Name
+          </label>
           <input
+            id={`${fieldId}-4`}
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="field"
             placeholder="User name"
             required
           />
         </div>
         <div>
+          <label htmlFor={`${fieldId}-5`} className="field-label">
+            Monthly income (kr)
+          </label>
           <input
+            id={`${fieldId}-5`}
             type="number"
             value={income}
             onChange={(e) => setIncome(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="field"
             placeholder="Monthly income"
             required
             min="0"
@@ -532,7 +411,11 @@ function EditUserForm({ user, onSave, onCancel }: EditUserFormProps) {
           />
         </div>
         <div>
+          <label htmlFor={`${fieldId}-6`} className="field-label">
+            Municipality
+          </label>
           <MunicipalitySelector
+            id={`${fieldId}-6`}
             selectedMunicipalityCode={municipalityCode}
             selectedMunicipalityName={municipalityName}
             onMunicipalityChange={(code, name) => {
@@ -543,27 +426,15 @@ function EditUserForm({ user, onSave, onCancel }: EditUserFormProps) {
         </div>
       </div>
 
-      {/* Color picker for editing */}
-      <div className="mt-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          <Palette className="w-4 h-4 inline mr-1" />
-          Choose Color
-        </label>
+      <div role="group" aria-label="Color" className="mt-4">
+        <p className="field-label">Color</p>
         <ColorPicker selectedColor={color} onColorChange={setColor} />
       </div>
-
       <div className="flex gap-2 mt-4">
-        <button
-          type="submit"
-          className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-        >
+        <button type="submit" className="btn-primary">
           Save
         </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
-        >
+        <button type="button" onClick={onCancel} className="btn-secondary">
           Cancel
         </button>
       </div>

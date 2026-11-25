@@ -3,13 +3,13 @@ import {
   Home,
   Users,
   Receipt,
-  Calculator,
+  Landmark,
   Car,
   ArrowRightLeft,
-  Menu,
-  X,
+  MoreHorizontal,
   LogOut,
 } from 'lucide-react';
+import { Link, NavLink, useNavigate, useParams } from 'react-router-dom';
 import { useManualFirebaseBudgetData } from '../hooks/useManualFirebaseBudgetData';
 import { encryptionService } from '../services/encryptionService';
 import { Dashboard } from './Dashboard';
@@ -17,31 +17,27 @@ import { UserManagement } from './UserManagement';
 import { ExpenseManager } from './ExpenseManager';
 import { UserBudgetPage } from './IndividualBudget';
 import { LoanTracker } from './LoanTracker';
+import { formatMoney } from '../utils/expenseCalculations';
+import { Avatar } from './Avatar';
 import { AssetManager } from './AssetManager';
 import { SettlementVisualizer } from './SettlementVisualizer';
-import { formatMoney } from '../utils/expenseCalculations';
-
-type TabType =
-  | 'dashboard'
-  | 'users'
-  | 'expenses'
-  | `individual-${string}`
-  | 'loans'
-  | 'assets'
-  | 'settlements';
 
 interface HouseholdAppProps {
   householdId: string;
 }
 
 export function HouseholdApp({ householdId }: HouseholdAppProps) {
-  const [activeTab, setActiveTab] = useState<TabType>('dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { '*': view = '' } = useParams();
+  const activeTab = view.replace(/\/$/, '');
+  const householdPath = `/${householdId}`;
+  const navigate = useNavigate();
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const [pendingSaves, setPendingSaves] = useState(0);
+  const [saveFailed, setSaveFailed] = useState(false);
 
   const handleLeaveHousehold = () => {
-    // Clear the password and redirect to home
     encryptionService.clearHouseholdPassword(householdId);
-    window.location.href = '/';
+    navigate('/');
   };
 
   const {
@@ -69,7 +65,6 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
     calculateBudgetSummary,
     calculateUserBreakdowns,
     isLoaded,
-    isSaving, // Now represents auto-sync status
     error,
   } = useManualFirebaseBudgetData(householdId);
 
@@ -78,42 +73,79 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
   const budgetSummary = calculateBudgetSummary();
   const userBreakdowns = calculateUserBreakdowns();
 
-  // Show loading state while data is being loaded
+  const trackOrThrow =
+    <Args extends unknown[], Result>(
+      save: (...args: Args) => Promise<Result>
+    ) =>
+    async (...args: Args): Promise<Result> => {
+      setPendingSaves((count) => count + 1);
+
+      try {
+        return await save(...args);
+      } catch (saveError) {
+        setSaveFailed(true);
+        throw saveError;
+      } finally {
+        setPendingSaves((count) => count - 1);
+      }
+    };
+
+  const track =
+    <Args extends unknown[], Result>(
+      save: (...args: Args) => Promise<Result>
+    ) =>
+    (...args: Args): void => {
+      trackOrThrow(save)(...args).catch((saveError) => {
+        console.error('Failed to save:', saveError);
+      });
+    };
+
   if (!isLoaded) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your budget data...</p>
-        </div>
+      <div className="flex min-h-screen items-center justify-center p-6">
+        {error ? (
+          <div role="alert" className="max-w-md">
+            <h1 className="page-title">Could not load this household</h1>
+            <p className="my-3 text-slate-700">
+              Check your connection and try again. ({error})
+            </p>
+            <button
+              className="btn-primary"
+              onClick={() => window.location.reload()}
+            >
+              Try again
+            </button>
+          </div>
+        ) : (
+          <p role="status" className="text-slate-700">
+            Loading your budget…
+          </p>
+        )}
       </div>
     );
   }
 
   const allTabs = [
-    { id: 'dashboard', name: 'Dashboard', icon: Home },
-    { id: 'expenses', name: 'Household Expenses', icon: Receipt },
-    { id: 'users', name: 'Users', icon: Users },
-    { id: 'loans', name: 'Loans', icon: Calculator },
-    { id: 'assets', name: 'Assets', icon: Car },
-    { id: 'settlements', name: 'Settlements', icon: ArrowRightLeft },
-  ] as const;
-
-  // Hide settlements tab if there's only one user
+    { path: '', name: 'Overview', icon: Home },
+    { path: 'expenses', name: 'Expenses', icon: Receipt },
+    { path: 'users', name: 'People', icon: Users },
+    { path: 'settlements', name: 'Settlements', icon: ArrowRightLeft },
+    { path: 'loans', name: 'Loans', icon: Landmark },
+    { path: 'assets', name: 'Assets', icon: Car },
+  ];
   const tabs = allTabs.filter(
-    (tab) => tab.id !== 'settlements' || users.length > 1
+    (tab) => tab.path !== 'settlements' || users.length > 1
   );
-
-  // Switch away from settlements if we're on it and there's only one user
-  if (activeTab === 'settlements' && users.length <= 1) {
-    setActiveTab('dashboard');
-  }
+  const phoneTabs = tabs.slice(0, 4);
+  const moreTabs = tabs.slice(4);
+  const isMoreActive = moreTabs.some((tab) => tab.path === activeTab);
 
   const renderContent = () => {
-    switch (activeTab) {
-      case 'dashboard':
+    switch (activeTab.startsWith('users/') ? 'person' : activeTab) {
+      case '':
         return (
           <Dashboard
+            householdPath={householdPath}
             users={users}
             budgetSummary={budgetSummary}
             userBreakdowns={userBreakdowns}
@@ -125,43 +157,42 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
         );
       case 'users':
         return (
-          <div className="space-y-6">
+          <div className="space-y-5">
             <UserManagement
+              householdPath={householdPath}
+              categories={categories}
+              loans={loans}
               users={users}
-              onAddUser={addUser}
-              onUpdateUser={updateUser}
-              onDeleteUser={deleteUser}
+              onAddUser={trackOrThrow(addUser)}
+              onUpdateUser={track(updateUser)}
+              onDeleteUser={trackOrThrow(deleteUser)}
             />
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Share Household
-              </h3>
+            <div className="panel p-6">
+              <h3 className="section-title mb-3">Invite someone</h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="share-household-id" className="field-label">
                     Household ID
                   </label>
                   <div className="flex items-center space-x-2">
                     <input
+                      id="share-household-id"
                       type="text"
                       value={householdId}
                       readOnly
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 font-mono text-sm"
+                      className="field min-w-0 flex-1 font-mono text-sm"
                     />
-                    <button
-                      onClick={() => navigator.clipboard.writeText(householdId)}
-                      className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                    >
-                      Copy
-                    </button>
+                    <CopyButton value={householdId} />
                   </div>
                 </div>
-                <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-                  <p className="text-sm text-blue-800">
-                    <strong>To share access:</strong> Give family members the
-                    Household ID above and the household password. They can join
-                    by entering both at{' '}
-                    <span className="font-mono">{window.location.origin}</span>
+                <div>
+                  <p className="text-sm text-slate-700">
+                    Give them the Household ID and the household password. They
+                    enter both at{' '}
+                    <span className="font-mono">
+                      {window.location.origin}
+                      {import.meta.env.BASE_URL}
+                    </span>
                   </p>
                 </div>
               </div>
@@ -174,10 +205,10 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
             users={users}
             categories={categories}
             personalCategories={personalCategories}
-            onAddExpense={addExpense}
-            onUpdateExpense={updateExpense}
-            onDeleteExpense={deleteExpense}
-            onAddPersonalCategory={addPersonalCategory}
+            onAddExpense={track(addExpense)}
+            onUpdateExpense={track(updateExpense)}
+            onDeleteExpense={track(deleteExpense)}
+            onAddPersonalCategory={trackOrThrow(addPersonalCategory)}
           />
         );
       case 'loans':
@@ -185,10 +216,10 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
           <LoanTracker
             users={users}
             loans={loans}
-            onAddLoan={addLoan}
-            onUpdateLoan={updateLoan}
-            onUpdateLoans={updateLoans}
-            onDeleteLoan={deleteLoan}
+            onAddLoan={track(addLoan)}
+            onUpdateLoan={track(updateLoan)}
+            onUpdateLoans={track(updateLoans)}
+            onDeleteLoan={track(deleteLoan)}
           />
         );
       case 'assets':
@@ -196,9 +227,9 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
           <AssetManager
             users={users}
             assets={assets}
-            onAddAsset={addAsset}
-            onUpdateAsset={updateAsset}
-            onDeleteAsset={deleteAsset}
+            onAddAsset={track(addAsset)}
+            onUpdateAsset={track(updateAsset)}
+            onDeleteAsset={track(deleteAsset)}
           />
         );
       case 'settlements':
@@ -209,213 +240,235 @@ export function HouseholdApp({ householdId }: HouseholdAppProps) {
             detailedBalances={detailedBalances}
           />
         );
-      default: {
-        if (activeTab.startsWith('individual-')) {
-          const userId = activeTab.replace('individual-', '');
-          const user = users.find((u) => u.id === userId);
-          const breakdown = userBreakdowns.find((b) => b.userId === userId);
-          if (user && breakdown) {
-            return (
-              <UserBudgetPage
-                user={user}
-                breakdown={breakdown}
-                users={users}
-                categories={categories}
-                personalCategories={personalCategories}
-                assets={assets}
-                loans={loans}
-                onAddExpense={addExpense}
-                onUpdateExpense={updateExpense}
-                onDeleteExpense={deleteExpense}
-                onAddPersonalCategory={addPersonalCategory}
-              />
-            );
-          }
+      case 'person': {
+        const userId = activeTab.replace('users/', '');
+        const user = users.find((u) => u.id === userId);
+        const breakdown = userBreakdowns.find((b) => b.userId === userId);
+        if (user && breakdown) {
+          return (
+            <UserBudgetPage
+              user={user}
+              breakdown={breakdown}
+              users={users}
+              categories={categories}
+              personalCategories={personalCategories}
+              assets={assets}
+              loans={loans}
+              onAddExpense={track(addExpense)}
+              onUpdateExpense={track(updateExpense)}
+              onDeleteExpense={track(deleteExpense)}
+              onAddPersonalCategory={trackOrThrow(addPersonalCategory)}
+            />
+          );
         }
-        return <div>Page not found</div>;
+        return <NotFound householdPath={householdPath} />;
       }
+      default:
+        return <NotFound householdPath={householdPath} />;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex overflow-x-hidden">
-      {/* Mobile sidebar backdrop */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-gray-600 bg-opacity-75 lg:hidden z-20"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <div
-        className={`
-        fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:fixed lg:inset-y-0
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}
-      >
-        <div className="flex flex-col h-full">
-          {/* Header - Fixed at top */}
-          <div className="flex items-center justify-between min-h-16 px-4 border-b border-gray-200 flex-shrink-0 py-3">
-            <div className="min-w-0 flex-1 pr-2">
-              <h1 className="text-lg font-bold text-gray-900 leading-tight">
-                Household Budget
-              </h1>
-              <p className="text-xs text-gray-500 mt-1 truncate">
-                {householdId}
-              </p>
-            </div>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="lg:hidden p-2 text-gray-400 hover:text-gray-600"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Navigation - Scrollable */}
-          <nav className="flex-1 mt-6 overflow-y-auto">
-            <div className="px-3">
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <div key={tab.id}>
-                    <button
-                      onClick={() => {
-                        setActiveTab(tab.id as TabType);
-                        setSidebarOpen(false);
-                      }}
-                      className={`
-                        w-full flex items-center px-3 py-2 mt-1 text-sm font-medium rounded-md transition-colors duration-150
-                        ${
-                          activeTab === tab.id
-                            ? 'bg-blue-100 text-blue-900'
-                            : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                        }
-                      `}
-                    >
-                      <Icon className="w-5 h-5 mr-3" />
-                      {tab.name}
-                    </button>
-                    {tab.id === 'users' &&
-                      users.map((user) => {
-                        const userTab = `individual-${user.id}`;
-                        const isUserActive = activeTab === userTab;
-                        return (
-                          <button
-                            key={user.id}
-                            onClick={() => {
-                              setActiveTab(userTab as TabType);
-                              setSidebarOpen(false);
-                            }}
-                            className={`
-                              w-full flex items-center pl-9 pr-3 py-1.5 mt-0.5 text-sm rounded-md transition-colors duration-150
-                              ${
-                                isUserActive
-                                  ? 'bg-blue-100 text-blue-900 font-medium'
-                                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                              }
-                            `}
-                          >
-                            <div
-                              className="w-3 h-3 rounded-full mr-3 flex-shrink-0"
-                              style={{ backgroundColor: user.color }}
-                            />
-                            {user.name.split(' ')[0]}
-                          </button>
-                        );
-                      })}
-                  </div>
-                );
-              })}
-
-              {/* Auto-sync Status */}
-              {isSaving && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-50 text-blue-700">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
-                    Syncing to Firebase...
-                  </div>
-                </div>
-              )}
-              {error && (
-                <div className="mt-2">
-                  <p className="text-xs text-red-500 px-3">
-                    Sync error: {error}
-                  </p>
-                </div>
-              )}
-            </div>
-          </nav>
-
-          {/* Quick stats in sidebar - Fixed at bottom */}
-          <div className="p-4 border-t border-gray-200 flex-shrink-0">
-            <div className="text-xs text-gray-500 space-y-1 mb-4">
-              <div className="flex justify-between">
-                <span>Users:</span>
-                <span className="font-medium">{users.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Total Income:</span>
-                <span className="font-medium">
-                  {formatMoney(budgetSummary.totalIncome)} kr
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Remaining:</span>
-                <span
-                  className={`font-medium ${budgetSummary.remainingIncome > 0 ? 'text-green-600' : 'text-red-600'}`}
-                >
-                  {formatMoney(budgetSummary.remainingIncome)} kr
-                </span>
-              </div>
-            </div>
-
-            {/* Household info and leave option */}
-            <div className="text-xs text-gray-600 space-y-2">
-              <div className="flex items-center gap-2">
-                <Home className="w-4 h-4" />
-                <span className="truncate font-medium">{householdId}</span>
-              </div>
-              <button
-                onClick={handleLeaveHousehold}
-                className="flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors"
+    <div className="min-h-screen lg:flex">
+      <aside className="sticky top-0 hidden h-screen w-56 flex-shrink-0 flex-col overflow-y-auto border-r border-slate-200 bg-white px-3 py-6 lg:flex">
+        <p className="px-3 text-lg font-bold tracking-tight">
+          Household Budget
+        </p>
+        <p className="truncate px-3 text-sm text-slate-600">{householdId}</p>
+        <nav aria-label="Main" className="mt-6 flex-1">
+          {tabs.map(({ path, name, icon: Icon }) => (
+            <div key={path}>
+              <NavLink
+                to={path ? `${householdPath}/${path}` : householdPath}
+                end
+                className={({ isActive }) =>
+                  `flex items-center gap-3 mt-1 rounded-lg px-3 py-2.5 text-sm ${
+                    isActive
+                      ? 'bg-blue-50 font-semibold text-blue-800'
+                      : 'text-slate-700 hover:bg-slate-100'
+                  }`
+                }
               >
-                <LogOut className="w-4 h-4" />
-                Log out
+                <Icon className="h-4 w-4" aria-hidden="true" />
+                {name}
+              </NavLink>
+              {path === 'users' &&
+                users.map((user) => (
+                  <NavLink
+                    key={user.id}
+                    to={`${householdPath}/users/${user.id}`}
+                    className={({ isActive }) =>
+                      `ml-4 mt-0.5 flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm ${
+                        isActive
+                          ? 'bg-blue-50 font-semibold text-blue-800'
+                          : 'text-slate-700 hover:bg-slate-100'
+                      }`
+                    }
+                  >
+                    <Avatar user={user} size="small" />
+                    <span className="truncate">{user.name.split(' ')[0]}</span>
+                  </NavLink>
+                ))}
+            </div>
+          ))}
+        </nav>
+        {users.length > 0 && (
+          <dl className="mb-3 border-t border-slate-200 px-3 pt-4 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-slate-600">Income</dt>
+              <dd className="money">
+                {formatMoney(budgetSummary.totalIncome)} kr
+              </dd>
+            </div>
+            <div className="mt-1 flex justify-between">
+              <dt className="text-slate-600">Left</dt>
+              <dd className="money font-semibold">
+                {users.every((user) => user.municipalityCode)
+                  ? `${formatMoney(budgetSummary.remainingIncome)} kr`
+                  : '–'}
+              </dd>
+            </div>
+          </dl>
+        )}
+        <button
+          onClick={handleLeaveHousehold}
+          className="btn justify-start px-3 text-slate-700 hover:bg-slate-100"
+        >
+          <LogOut className="h-4 w-4" aria-hidden="true" />
+          Log out
+        </button>
+      </aside>
+
+      <main className="min-w-0 flex-1 px-4 pb-28 pt-5 sm:px-6 lg:px-10 lg:py-8">
+        <div className="mx-auto max-w-6xl">
+          {(saveFailed || error) && (
+            <div
+              role="alert"
+              className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-red-50 p-4 ring-1 ring-red-300 text-sm"
+            >
+              <p>
+                {saveFailed
+                  ? 'Your last change was not saved and will disappear on reload. Check your connection, then make it again.'
+                  : `Updates have stopped arriving. ${error}`}
+              </p>
+              <button
+                className="btn-secondary"
+                onClick={() => window.location.reload()}
+              >
+                Reload saved data
               </button>
             </div>
-          </div>
+          )}
+          {pendingSaves > 0 && (
+            <p
+              role="status"
+              className="fixed right-4 top-4 z-20 rounded-lg bg-slate-900 px-3 py-1.5 text-sm text-white"
+            >
+              Saving…
+            </p>
+          )}
+          {renderContent()}
         </div>
-      </div>
+      </main>
 
-      {/* Main content */}
-      <div className="flex-1 lg:ml-64 flex flex-col min-w-0 overflow-x-hidden h-screen">
-        {/* Mobile header - only show on mobile */}
-        <div className="lg:hidden flex items-center justify-between h-16 px-3 bg-white border-b border-gray-200 flex-shrink-0">
+      {isMoreOpen && (
+        <div
+          id="more-menu"
+          className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-10 border-t border-slate-300 bg-white p-3 lg:hidden"
+        >
+          {moreTabs.map(({ path, name, icon: Icon }) => (
+            <NavLink
+              key={path}
+              to={path ? `${householdPath}/${path}` : householdPath}
+              onClick={() => setIsMoreOpen(false)}
+              className="flex min-h-12 items-center gap-3 px-3"
+            >
+              <Icon className="h-5 w-5" aria-hidden="true" />
+              {name}
+            </NavLink>
+          ))}
+          <p className="truncate border-t border-slate-200 px-3 pt-3 text-sm text-slate-600">
+            {householdId}
+          </p>
           <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 text-gray-400 hover:text-gray-600 flex-shrink-0"
+            onClick={handleLeaveHousehold}
+            className="flex min-h-12 w-full items-center gap-3 px-3"
           >
-            <Menu className="w-5 h-5" />
+            <LogOut className="h-5 w-5" aria-hidden="true" />
+            Log out
           </button>
-          <h1 className="text-base font-semibold text-gray-900 truncate px-2">
-            {activeTab.startsWith('individual-')
-              ? (users
-                  .find((u) => u.id === activeTab.replace('individual-', ''))
-                  ?.name.split(' ')[0] ?? 'User')
-              : tabs.find((tab) => tab.id === activeTab)?.name}
-          </h1>
-          <div className="w-9" />
         </div>
+      )}
 
-        {/* Page content */}
-        <main className="p-3 sm:p-4 lg:p-6 flex-1 overflow-y-auto">
-          <div className="max-w-full pb-6">{renderContent()}</div>
-        </main>
-      </div>
+      <nav
+        aria-label="Main"
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') setIsMoreOpen(false);
+        }}
+        className="fixed inset-x-0 bottom-0 z-10 flex border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden"
+      >
+        {phoneTabs.map(({ path, name, icon: Icon }) => (
+          <NavLink
+            key={path}
+            to={path ? `${householdPath}/${path}` : householdPath}
+            end={path === ''}
+            onClick={() => setIsMoreOpen(false)}
+            className={({ isActive }) =>
+              `flex min-h-16 min-w-0 flex-1 flex-col items-center justify-center gap-1 border-t-4 text-xs ${
+                isActive
+                  ? 'border-blue-700 font-semibold text-blue-800'
+                  : 'border-transparent text-slate-700'
+              }`
+            }
+          >
+            <Icon className="h-5 w-5" aria-hidden="true" />
+            <span className="max-w-full truncate">{name}</span>
+          </NavLink>
+        ))}
+        <button
+          aria-expanded={isMoreOpen}
+          aria-controls="more-menu"
+          onClick={() => setIsMoreOpen(!isMoreOpen)}
+          className={`flex min-h-16 min-w-0 flex-1 flex-col items-center justify-center gap-1 border-t-4 text-xs ${
+            isMoreActive
+              ? 'border-blue-700 font-semibold text-blue-800'
+              : 'border-transparent text-slate-700'
+          }`}
+        >
+          <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
+          More
+        </button>
+      </nav>
     </div>
   );
 }
 
-// No default export - using named export HouseholdApp
+function NotFound({ householdPath }: { householdPath: string }) {
+  return (
+    <div>
+      <h1 className="page-title">This page does not exist</h1>
+      <Link to={householdPath} className="text-blue-800 underline">
+        Go to the overview
+      </Link>
+    </div>
+  );
+}
+
+function CopyButton({ value }: { value: string }) {
+  const [status, setStatus] = useState('Copy');
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setStatus('Copied');
+    } catch {
+      setStatus('Copy failed');
+    }
+  };
+
+  return (
+    <button type="button" className="btn-secondary" onClick={handleCopy}>
+      {status}
+    </button>
+  );
+}

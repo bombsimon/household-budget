@@ -1,4 +1,3 @@
-import { TrendingUp, TrendingDown } from 'lucide-react';
 import { formatMoney, getMonthlyAmount } from '../utils/expenseCalculations';
 
 // Helper function to migrate legacy asset data structure
@@ -41,7 +40,6 @@ interface BudgetBreakdownSummaryProps {
   assets: Asset[];
   loans: Loan[];
   users: User[];
-  compact?: boolean;
   blurSensitive?: boolean;
 }
 
@@ -52,7 +50,6 @@ export function BudgetBreakdownSummary({
   assets,
   loans,
   users,
-  compact = false,
   blurSensitive = false,
 }: BudgetBreakdownSummaryProps) {
   // Calculate shared expenses from the single shared category
@@ -137,7 +134,7 @@ export function BudgetBreakdownSummary({
   });
 
   const loanAllocations = [
-    { name: 'Loan interests', amount: totalInterestAllocation },
+    { name: 'Loan interest', amount: totalInterestAllocation },
     { name: 'Loan repayment', amount: totalRepaymentAllocation },
   ];
 
@@ -206,101 +203,26 @@ export function BudgetBreakdownSummary({
   const budgetedPercentage =
     breakdown.income > 0 ? (totalBudgetedExpenses / breakdown.income) * 100 : 0;
 
-  if (compact) {
-    return (
-      <div className="space-y-2 text-sm">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <div className="text-xs text-gray-500 mb-1">Income & Expenses</div>
-            <div className="space-y-1">
-              <div className="flex justify-between">
-                <span>After Tax Income:</span>
-                <span className="font-medium">
-                  {formatMoney(breakdown.income)} kr
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Household Expenses:</span>
-                <span className="text-red-600">
-                  -{formatMoney(breakdown.sharedExpensesOwed)} kr
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Personal Expenses:</span>
-                <span className="text-orange-600">
-                  -{formatMoney(breakdown.personalExpenses)} kr
-                </span>
-              </div>
-              <div className="flex justify-between border-t pt-1">
-                <span>Remaining:</span>
-                <span
-                  className={
-                    isPositive
-                      ? 'text-green-600 font-medium'
-                      : 'text-red-600 font-medium'
-                  }
-                >
-                  {formatMoney(breakdown.remainingAfterExpenses)} kr
-                </span>
-              </div>
-            </div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-500 mb-1">Breakdown</div>
-            <div className="space-y-1">
-              {categorySharedExpenses > 0 && (
-                <div className="flex justify-between text-xs">
-                  <span>Household Categories:</span>
-                  <span>-{formatMoney(categorySharedExpenses)} kr</span>
-                </div>
-              )}
-              {assetAllocations
-                .filter((asset) => asset.amount > 0)
-                .map((asset) => (
-                  <div
-                    key={asset.name}
-                    className="flex justify-between text-xs"
-                  >
-                    <span>{asset.name} (asset):</span>
-                    <span>-{formatMoney(asset.amount)} kr</span>
-                  </div>
-                ))}
-              {loanAllocations
-                .filter((loan) => loan.amount > 0)
-                .map((loan) => (
-                  <div key={loan.name} className="flex justify-between text-xs">
-                    <span>{loan.name}:</span>
-                    <span>-{formatMoney(loan.amount)} kr</span>
-                  </div>
-                ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // Full breakdown (same as IndividualBudget component)
   return (
     <div className="space-y-4">
       <BudgetLine
-        label={`Gross Income (${householdIncomePercentage}% of household)`}
+        label={`Income before tax (${householdIncomePercentage}% of household)`}
         amount={user.monthlyIncome}
         isSubtotal={false}
         blurSensitive={blurSensitive}
       />
 
       <BudgetLine
-        label="After Tax"
+        label="Income after tax"
         amount={breakdown.income}
         isSubtotal={true}
-        color="text-blue-600"
         blurSensitive={blurSensitive}
       />
 
-      <div className="pl-4 border-l-2 border-gray-200 space-y-2">
+      <div className="space-y-2">
         <BudgetLine
-          label="Household Expenses"
+          label="Household expenses"
           amount={-categorySharedExpenses}
           isSubtotal={false}
         />
@@ -330,33 +252,32 @@ export function BudgetBreakdownSummary({
           ))}
 
         <BudgetLine
-          label="Personal Expenses"
+          label="Personal expenses"
           amount={-breakdown.personalExpenses}
           isSubtotal={false}
         />
       </div>
 
-      <div className="pt-2 border-t border-gray-200">
+      <div className="pt-2 border-t border-slate-200">
         <BudgetLine
-          label="Total Expenses"
+          label="Total costs"
           amount={-(breakdown.sharedExpensesOwed + breakdown.personalExpenses)}
           isSubtotal={true}
         />
       </div>
 
-      <div className="pt-2 border-t border-gray-300">
+      <div className="pt-2 border-t border-slate-300">
         <BudgetLine
-          label="Remaining"
+          label="Left"
+          isFinal
           amount={breakdown.remainingAfterExpenses}
           isSubtotal={true}
-          color={isPositive ? 'text-green-600' : 'text-red-600'}
-          showTrend={true}
-          trendUp={isPositive}
+          color={isPositive ? 'text-blue-800' : 'text-red-700'}
           blurSensitive={blurSensitive}
         />
 
         <div
-          className={`text-sm text-gray-500 mt-1 ${blurSensitive ? 'blur-md select-none' : ''}`}
+          className={`text-sm text-slate-600 mt-1 ${blurSensitive ? 'blur-md select-none' : ''}`}
         >
           {percentageLeft.toFixed(1)}% of after-tax income
         </div>
@@ -365,16 +286,16 @@ export function BudgetBreakdownSummary({
       {/* Budgeted Expenses Section */}
       {totalBudgetedExpenses > 0 && (
         <>
-          <div className="pt-2 border-t border-gray-300">
-            <div className="text-sm font-medium text-orange-600 mb-2">
-              Budgeted Expenses
+          <div className="pt-2 border-t border-slate-300">
+            <div className="text-sm font-medium text-slate-800 mb-2">
+              Budgeted
             </div>
 
-            <div className="pl-4 border-l-2 border-orange-200 space-y-2">
+            <div className="space-y-2">
               {/* Household Categories */}
               {categoryBudgetedExpenses > 0 && (
                 <BudgetLine
-                  label="Household Categories"
+                  label="Household"
                   amount={-categoryBudgetedExpenses}
                   isSubtotal={false}
                 />
@@ -395,7 +316,7 @@ export function BudgetBreakdownSummary({
               {/* Personal Expenses (grouped) */}
               {budgetedPersonalExpenses > 0 && (
                 <BudgetLine
-                  label="Personal Expenses"
+                  label="Personal expenses"
                   amount={-budgetedPersonalExpenses}
                   isSubtotal={false}
                 />
@@ -403,36 +324,34 @@ export function BudgetBreakdownSummary({
             </div>
           </div>
 
-          <div className="pt-2 border-t border-gray-200">
+          <div className="pt-2 border-t border-slate-200">
             <BudgetLine
-              label="Total Budgeted"
+              label="Total budgeted"
               amount={-totalBudgetedExpenses}
               isSubtotal={true}
-              color="text-orange-600"
             />
 
             <div
-              className={`text-sm text-gray-500 mt-1 ${blurSensitive ? 'blur-md select-none' : ''}`}
+              className={`text-sm text-slate-600 mt-1 ${blurSensitive ? 'blur-md select-none' : ''}`}
             >
               {budgetedPercentage.toFixed(1)}% of after-tax income
             </div>
           </div>
 
-          <div className="pt-2 border-t border-gray-300">
+          <div className="pt-2 border-t border-slate-300">
             <BudgetLine
-              label="Remaining After Budgeted"
+              label="Left after budgeted"
+              isFinal
               amount={remainingAfterBudgeted}
               isSubtotal={true}
               color={
-                remainingAfterBudgeted > 0 ? 'text-green-600' : 'text-red-600'
+                remainingAfterBudgeted > 0 ? 'text-blue-800' : 'text-red-700'
               }
-              showTrend={true}
-              trendUp={remainingAfterBudgeted > 0}
               blurSensitive={blurSensitive}
             />
 
             <div
-              className={`text-sm text-gray-500 mt-1 ${blurSensitive ? 'blur-md select-none' : ''}`}
+              className={`text-sm text-slate-600 mt-1 ${blurSensitive ? 'blur-md select-none' : ''}`}
             >
               {breakdown.income > 0
                 ? ((remainingAfterBudgeted / breakdown.income) * 100).toFixed(1)
@@ -450,9 +369,8 @@ interface BudgetLineProps {
   label: string;
   amount: number;
   isSubtotal: boolean;
+  isFinal?: boolean;
   color?: string;
-  showTrend?: boolean;
-  trendUp?: boolean;
   blurSensitive?: boolean;
 }
 
@@ -460,9 +378,8 @@ function BudgetLine({
   label,
   amount,
   isSubtotal,
-  color = 'text-gray-900',
-  showTrend = false,
-  trendUp = true,
+  isFinal = false,
+  color = 'text-slate-900',
   blurSensitive = false,
 }: BudgetLineProps) {
   return (
@@ -476,16 +393,10 @@ function BudgetLine({
       </span>
       <div className="flex items-center gap-2 flex-shrink-0">
         <span
-          className={`${color} ${isSubtotal ? 'text-base' : 'text-sm'} whitespace-nowrap ${blurSensitive ? 'blur-md select-none' : ''}`}
+          className={`${color} ${isSubtotal ? 'text-base' : 'text-sm'} money ${isFinal ? 'ledger-total text-xl' : ''} ${blurSensitive ? 'blur-md select-none' : ''}`}
         >
-          {formatMoney(Math.abs(amount))}&nbsp;kr
+          {formatMoney(isFinal ? amount : Math.abs(amount))}&nbsp;kr
         </span>
-        {showTrend &&
-          (trendUp ? (
-            <TrendingUp className="w-4 h-4 text-green-500" />
-          ) : (
-            <TrendingDown className="w-4 h-4 text-red-500" />
-          ))}
       </div>
     </div>
   );

@@ -8,17 +8,15 @@ interface IncomeSplitDisplayProps {
   bgColor?: string;
   textColor?: string;
   titleColor?: string;
-  showExplanation?: boolean;
 }
 
 export function IncomeSplitDisplay({
   users,
   splitData,
   title = 'Income-based split:',
-  bgColor = 'bg-blue-50',
-  textColor = 'text-blue-700',
-  titleColor = 'text-blue-800',
-  showExplanation = true,
+  bgColor = 'bg-slate-100',
+  textColor = 'text-slate-700',
+  titleColor = 'text-slate-900',
 }: IncomeSplitDisplayProps) {
   const totalIncome = users.reduce((sum, user) => sum + user.monthlyIncome, 0);
 
@@ -38,23 +36,14 @@ export function IncomeSplitDisplay({
           );
         })}
       </div>
-      <div className={`mt-2 pt-2 border-t border-blue-200`}>
+      <div className={`mt-2 pt-2 border-t border-slate-300`}>
         <div
           className={`flex justify-between text-sm font-semibold ${titleColor}`}
         >
-          <span>Total Household Income:</span>
+          <span>Total household income:</span>
           <span>{formatMoney(totalIncome)} kr</span>
         </div>
       </div>
-      {showExplanation && (
-        <div className="mt-2 pt-2 border-t border-blue-200">
-          <p className={`text-xs ${textColor}`}>
-            The percentages above are automatically calculated based on each
-            person's share of the total household income. This ensures fair cost
-            sharing proportional to earnings.
-          </p>
-        </div>
-      )}
     </div>
   );
 }

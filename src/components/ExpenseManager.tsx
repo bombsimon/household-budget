@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, ChevronDown, ChevronRight, Receipt } from 'lucide-react';
+import { Plus, ChevronDown, ChevronRight } from 'lucide-react';
 import type {
   User,
   Expense,
@@ -41,64 +41,40 @@ export function ExpenseManager({
   const budgetedExpenses = expenses
     .filter((expense) => expense.isBudgeted)
     .reduce((sum, expense) => sum + getMonthlyAmount(expense), 0);
-  const totalExpenses = fixedExpenses + budgetedExpenses;
 
   return (
-    <div className="bg-white rounded-lg shadow-sm">
-      <div className="p-3 sm:p-4 border-b border-gray-200">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div className="flex items-center gap-2 text-left flex-1 min-w-0">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 min-w-0 flex-1">
-              <div className="flex items-center gap-2 min-w-0">
-                <Receipt className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 flex-shrink-0" />
-                <h2 className="text-base font-semibold text-gray-900 leading-tight truncate">
-                  Household Expenses
-                </h2>
-                <span className="text-sm text-gray-500 flex-shrink-0">
-                  ({expenses.length})
+    <div>
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="page-title">Household expenses</h1>
+          {expenses.length > 0 && (
+            <p className="money mt-1 text-slate-700">
+              <span className="text-3xl font-bold tracking-tight text-slate-900">
+                {formatMoney(fixedExpenses)} kr
+              </span>{' '}
+              a month
+              {budgetedExpenses > 0 && (
+                <span className="block sm:inline">
+                  {' '}
+                  + {formatMoney(budgetedExpenses)} kr budgeted
                 </span>
-              </div>
-              {totalExpenses > 0 && (
-                <div className="text-sm font-medium mt-1 sm:mt-0">
-                  <span className="text-gray-700">
-                    {formatMoney(fixedExpenses)} kr/month
-                  </span>
-                  {budgetedExpenses > 0 && (
-                    <>
-                      <span className="text-gray-400"> + </span>
-                      <span className="text-orange-600">
-                        {formatMoney(budgetedExpenses)} kr budgeted
-                      </span>
-                    </>
-                  )}
-                </div>
               )}
-            </div>
-          </div>
-
-          <button
-            onClick={() => setIsAdding(true)}
-            className="hidden sm:flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex-shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            Add
-          </button>
+            </p>
+          )}
         </div>
-
-        <div className="sm:hidden mt-2">
-          <button
-            onClick={() => setIsAdding(true)}
-            className="w-full flex items-center justify-center gap-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm"
-          >
-            <Plus className="w-4 h-4" />
-            Add Expense
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setIsAdding(true)}
+          className="btn-primary"
+        >
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          Add expense
+        </button>
       </div>
 
-      <div className="p-4">
+      <div>
         {isAdding && (
-          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="mb-6">
             <ExpenseForm
               users={users}
               personalCategories={personalCategories}
@@ -115,13 +91,10 @@ export function ExpenseManager({
         )}
 
         {expenses.length === 0 && !isAdding ? (
-          <div className="text-center py-8 text-gray-500">
-            <Receipt className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-            <p className="text-sm">No household expenses yet</p>
-            <p className="text-xs text-gray-400">
-              Click "Add" to create your first expense
-            </p>
-          </div>
+          <p className="panel p-8 text-slate-700">
+            No household expenses yet. Add rent, electricity, or anything else
+            you share.
+          </p>
         ) : expenses.length > 0 ? (
           <GroupedExpenses
             expenses={expenses}
@@ -223,45 +196,44 @@ function GroupedExpenses({
     });
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-3">
+    <div>
+      <div className="space-y-5">
         {categorySummaries.map((categoryInfo) => (
-          <div
-            key={categoryInfo.id}
-            className="border border-gray-200 rounded-lg"
-          >
-            <div className="p-3 bg-gray-50 border-b border-gray-200">
+          <section key={categoryInfo.id} className="panel overflow-hidden">
+            <div className="bg-slate-50 px-5 py-3">
               <button
+                type="button"
+                aria-expanded={!categoryInfo.isCollapsed}
                 onClick={() => toggleCategoryCollapse(categoryInfo.id)}
                 className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full text-left gap-2"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between min-w-0 flex-1 gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     {categoryInfo.isCollapsed ? (
-                      <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <ChevronRight className="w-4 h-4 text-slate-600 flex-shrink-0" />
                     ) : (
-                      <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <ChevronDown className="w-4 h-4 text-slate-600 flex-shrink-0" />
                     )}
-                    <h3 className="font-medium text-gray-900 leading-tight truncate">
+                    <h2 className="section-title truncate">
                       {categoryInfo.name}
-                    </h3>
-                    <span className="text-sm text-gray-500 flex-shrink-0">
+                    </h2>
+                    <span className="text-sm text-slate-600 flex-shrink-0">
                       ({categoryInfo.count})
                     </span>
                   </div>
 
                   <div className="font-medium ml-6 sm:ml-0 sm:text-right sm:flex-shrink-0 text-sm">
                     {categoryInfo.fixedAmount > 0 && (
-                      <span className="text-gray-700">
+                      <span className="text-slate-700">
                         {formatMoney(categoryInfo.fixedAmount)} kr/month
                       </span>
                     )}
                     {categoryInfo.budgetedAmount > 0 && (
                       <>
                         {categoryInfo.fixedAmount > 0 && (
-                          <span className="text-gray-400"> + </span>
+                          <span className="text-slate-600"> + </span>
                         )}
-                        <span className="text-orange-600">
+                        <span className="text-slate-600">
                           {formatMoney(categoryInfo.budgetedAmount)} kr budgeted
                         </span>
                       </>
@@ -272,11 +244,10 @@ function GroupedExpenses({
             </div>
 
             {!categoryInfo.isCollapsed && (
-              <div className="p-3">
+              <div className="border-t border-slate-200 px-5 py-3">
                 <ExpenseList
                   expenses={categoryInfo.expenses}
                   showSorting={true}
-                  variant="card"
                   renderExpenseItem={(expense, _index) =>
                     editingExpense === expense.id ? (
                       <ExpenseForm
@@ -296,9 +267,7 @@ function GroupedExpenses({
                       <ExpenseItem
                         expense={expense}
                         users={users}
-                        personalCategories={personalCategories}
                         isEditing={false}
-                        isSharedCategory={isSharedCategory}
                         onUpdate={(updates) =>
                           onUpdateExpense(expense.id, updates)
                         }
@@ -311,7 +280,7 @@ function GroupedExpenses({
                 />
               </div>
             )}
-          </div>
+          </section>
         ))}
       </div>
     </div>

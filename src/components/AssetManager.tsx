@@ -1,14 +1,8 @@
-import React, { useState } from 'react';
-import {
-  Plus,
-  Edit2,
-  Trash2,
-  Car,
-  ChevronDown,
-  ChevronRight,
-} from 'lucide-react';
+import React, { useId, useState } from 'react';
+import { Plus, Edit2, ChevronDown, ChevronRight } from 'lucide-react';
 import type { Asset, Expense, User } from '../types';
 import { formatMoney, getMonthlyAmount } from '../utils/expenseCalculations';
+import { DeleteButton } from './DeleteButton';
 import { FormActionButtons } from './FormActionButtons';
 import { ExpenseForm } from './ExpenseForm';
 import { ExpenseItem } from './ExpenseItem';
@@ -122,9 +116,23 @@ export function AssetManager({
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="page-title">Assets</h1>
+        {!isAdding && (
+          <button
+            type="button"
+            onClick={() => setIsAdding(true)}
+            className="btn-primary"
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Add asset
+          </button>
+        )}
+      </div>
+
       {/* Add Asset Form */}
       {isAdding && (
-        <div className="bg-white rounded-lg shadow-sm p-4">
+        <div>
           <AssetForm
             onSubmit={(assetData) => {
               onAddAsset(assetData);
@@ -132,19 +140,6 @@ export function AssetManager({
             }}
             onCancel={() => setIsAdding(false)}
           />
-        </div>
-      )}
-
-      {/* Add Asset Button */}
-      {!isAdding && (
-        <div className="flex justify-end">
-          <button
-            onClick={() => setIsAdding(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add Asset
-          </button>
         </div>
       )}
 
@@ -162,38 +157,37 @@ export function AssetManager({
           const isExpanded = expandedAssets.has(asset.id);
 
           return (
-            <div key={asset.id} className="bg-white rounded-lg shadow-sm">
-              <div className="p-3 sm:p-4 border-b border-gray-200">
+            <div key={asset.id} className="panel overflow-hidden">
+              <div className="bg-slate-50 px-5 py-3">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   {/* Asset Header - same pattern as category header */}
                   <button
+                    type="button"
+                    aria-expanded={isExpanded}
                     onClick={() => toggleAssetExpansion(asset.id)}
                     className="flex items-center gap-2 text-left flex-1 min-w-0"
                   >
                     {!isExpanded ? (
-                      <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
+                      <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600 flex-shrink-0" />
                     ) : (
-                      <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
+                      <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600 flex-shrink-0" />
                     )}
                     <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 min-w-0 flex-1">
                       <div className="flex items-center gap-2 min-w-0">
-                        <Car className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 flex-shrink-0" />
-                        <h2 className="text-base font-semibold text-gray-900 leading-tight truncate">
-                          {asset.name}
-                        </h2>
-                        <span className="text-sm text-gray-500 flex-shrink-0">
+                        <h2 className="section-title truncate">{asset.name}</h2>
+                        <span className="text-sm text-slate-600 flex-shrink-0">
                           ({migratedAsset.expenses.length})
                         </span>
                       </div>
                       {totalExpenses > 0 && (
                         <div className="text-sm font-medium mt-1 sm:mt-0">
-                          <span className="text-gray-700">
+                          <span className="text-slate-700">
                             {formatMoney(fixedExpenses)} kr/month
                           </span>
                           {budgetedExpenses > 0 && (
                             <>
-                              <span className="text-gray-400"> + </span>
-                              <span className="text-orange-600">
+                              <span className="text-slate-600"> + </span>
+                              <span className="text-slate-600">
                                 {formatMoney(budgetedExpenses)} kr budgeted
                               </span>
                             </>
@@ -203,64 +197,49 @@ export function AssetManager({
                     </div>
                   </button>
 
-                  {/* Desktop: Action buttons */}
-                  <div className="hidden sm:flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <button
-                      onClick={() => setAddingExpenseToAsset(asset.id)}
-                      className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex-shrink-0"
+                      type="button"
+                      onClick={() => {
+                        setAddingExpenseToAsset(asset.id);
+                        setExpandedAssets((prev) =>
+                          new Set(prev).add(asset.id)
+                        );
+                      }}
+                      className="btn-secondary"
                     >
-                      <Plus className="w-4 h-4" />
-                      Add
+                      <Plus className="h-4 w-4" aria-hidden="true" />
+                      Add cost
                     </button>
                     <button
-                      onClick={() => setEditingAsset(asset.id)}
-                      className="flex items-center gap-1 px-3 py-1 text-gray-600 hover:text-gray-800 hover:bg-gray-100 transition-colors flex-shrink-0"
-                      title="Edit asset"
+                      type="button"
+                      onClick={() => {
+                        setEditingAsset(asset.id);
+                        setExpandedAssets((prev) =>
+                          new Set(prev).add(asset.id)
+                        );
+                      }}
+                      className="icon-btn"
+                      aria-label={`Edit ${asset.name}`}
+                      title={`Edit ${asset.name}`}
                     >
-                      <Edit2 className="w-4 h-4" />
+                      <Edit2 className="h-4 w-4" aria-hidden="true" />
                     </button>
-                    <button
-                      onClick={() => onDeleteAsset(asset.id)}
-                      className="flex items-center gap-1 px-3 py-1 text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors flex-shrink-0"
-                      title="Delete asset"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <DeleteButton
+                      name={asset.name}
+                      description={`Its ${migratedAsset.expenses.length} costs are deleted too. This cannot be undone.`}
+                      onDelete={() => onDeleteAsset(asset.id)}
+                    />
                   </div>
                 </div>
-
-                {/* Mobile: Action buttons */}
-                {!isExpanded && (
-                  <div className="sm:hidden mt-2 flex gap-2">
-                    <button
-                      onClick={() => setAddingExpenseToAsset(asset.id)}
-                      className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Add Expense
-                    </button>
-                    <button
-                      onClick={() => setEditingAsset(asset.id)}
-                      className="flex items-center justify-center gap-1 px-3 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors text-sm"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => onDeleteAsset(asset.id)}
-                      className="flex items-center justify-center gap-1 px-3 py-2 text-red-500 bg-red-50 hover:bg-red-100 transition-colors text-sm"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
               </div>
 
               {/* Asset Content */}
               {isExpanded && (
-                <div className="p-4">
+                <div className="border-t border-slate-200 px-5 py-3">
                   {/* Edit Asset Form */}
                   {editingAsset === asset.id && (
-                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="mb-4">
                       <AssetForm
                         initialData={asset}
                         onSubmit={(updates) => {
@@ -274,7 +253,7 @@ export function AssetManager({
 
                   {/* Add Expense Form */}
                   {addingExpenseToAsset === asset.id && (
-                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="mb-4">
                       <ExpenseForm
                         users={users}
                         personalCategories={[]}
@@ -292,15 +271,13 @@ export function AssetManager({
 
                   {/* Expenses List - using ExpenseItem component */}
                   {migratedAsset.expenses.length > 0 && (
-                    <div className="space-y-2">
+                    <div className="divide-y divide-slate-200">
                       {migratedAsset.expenses.map((expense) => (
                         <ExpenseItem
                           key={expense.id}
                           expense={expense}
                           users={users}
-                          personalCategories={[]}
                           isEditing={editingExpense === expense.id}
-                          isSharedCategory={false}
                           onUpdate={(updates) =>
                             handleUpdateExpense(asset.id, expense.id, updates)
                           }
@@ -329,8 +306,7 @@ export function AssetManager({
 
                   {/* Empty State */}
                   {migratedAsset.expenses.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      <Car className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <div className="py-4 text-slate-700">
                       <p>No expenses added for this asset yet.</p>
                       <button
                         onClick={() => setAddingExpenseToAsset(asset.id)}
@@ -347,22 +323,10 @@ export function AssetManager({
         })}
       </div>
 
-      {/* Empty State */}
-      {assets.length === 0 && (
-        <div className="text-center py-12 text-gray-500">
-          <Car className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            No assets yet
-          </h3>
-          <p className="mb-4">Add your first asset to start tracking costs.</p>
-          <button
-            onClick={() => setIsAdding(true)}
-            className="flex items-center gap-2 mx-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add Asset
-          </button>
-        </div>
+      {assets.length === 0 && !isAdding && (
+        <p className="panel p-8 text-slate-700">
+          No assets yet. Add a car, boat or house to track what it costs.
+        </p>
       )}
     </div>
   );
@@ -376,6 +340,7 @@ interface AssetFormProps {
 }
 
 function AssetForm({ initialData, onSubmit, onCancel }: AssetFormProps) {
+  const fieldId = useId();
   const [name, setName] = useState(initialData?.name || '');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -391,20 +356,21 @@ function AssetForm({ initialData, onSubmit, onCancel }: AssetFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-900">
+    <form onSubmit={handleSubmit} className="form-panel space-y-4">
+      <h3 className="text-lg font-semibold text-slate-900">
         {initialData ? 'Edit Asset' : 'Add Asset'}
       </h3>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Asset Name *
+        <label htmlFor={`${fieldId}-1`} className="field-label">
+          Asset name
         </label>
         <input
+          id={`${fieldId}-1`}
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="field"
           placeholder="e.g., My Car, House, etc."
           required
         />
@@ -413,7 +379,7 @@ function AssetForm({ initialData, onSubmit, onCancel }: AssetFormProps) {
       <FormActionButtons
         onCancel={onCancel}
         submitType="submit"
-        submitLabel={initialData ? 'Update Asset' : 'Add Asset'}
+        submitLabel={initialData ? 'Save asset' : 'Add asset'}
       />
     </form>
   );

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, Plus, ArrowRight } from 'lucide-react';
 
 export function LandingPage() {
   const [householdId, setHouseholdId] = useState('');
@@ -62,77 +61,59 @@ export function LandingPage() {
   };
 
   return (
-    <div className="h-screen bg-white overflow-y-auto">
-      <div className="container mx-auto px-4 py-16 max-w-none">
-        <div className="max-w-2xl mx-auto text-center">
-          <div className="flex justify-center mb-8">
-            <div className="bg-white p-4 rounded-full shadow-lg">
-              <Home className="w-12 h-12 text-blue-600" />
-            </div>
-          </div>
+    <main className="flex min-h-screen items-center justify-center p-4">
+      <div className="flex w-full max-w-md flex-col panel p-8">
+        <h1 className="text-3xl font-bold tracking-tight">Household Budget</h1>
+        <p className="mt-2 text-slate-700">
+          See what is left each month and who owes whom.
+        </p>
 
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Household Budget Manager
-          </h1>
-
-          <p className="text-xl text-gray-600 mb-8">
-            Manage your household finances with smart expense splitting, asset
-            tracking, and financial insights.
-          </p>
-
-          <div className="bg-white p-8 rounded-lg shadow-lg">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-6">
-              Access Your Household Budget
-            </h2>
-
-            <form onSubmit={handleSubmit} className="space-y-4 mb-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
-                  Enter or Create Household ID
-                </label>
-                <input
-                  type="text"
-                  value={householdId}
-                  onChange={(e) => {
-                    setHouseholdId(e.target.value);
-                    setError('');
-                  }}
-                  placeholder="e.g., smith-family-2025"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
-              </div>
-
-              <button
-                type="submit"
-                disabled={!householdId.trim()}
-                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-              >
-                <ArrowRight className="w-5 h-5" />
-                Go to Budget
-              </button>
-            </form>
-
-            <div className="text-center">
-              <div className="text-gray-500 mb-4">or</div>
-              <button
-                onClick={handleCreateRandom}
-                className="flex items-center justify-center gap-2 mx-auto px-6 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
-              >
-                <Plus className="w-5 h-5" />
-                Create New Household
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-8 text-sm text-gray-600">
-            <p>
-              <strong>Tip:</strong> Share your household ID with family members
-              to access the same budget from different devices.
+        <form onSubmit={handleSubmit} className="mt-8">
+          <label htmlFor="household-id" className="field-label">
+            Household ID
+          </label>
+          <input
+            id="household-id"
+            type="text"
+            autoComplete="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            value={householdId}
+            onChange={(event) => {
+              setHouseholdId(event.target.value);
+              setError('');
+            }}
+            placeholder="smith-family"
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? 'household-id-error' : undefined}
+            className="field"
+          />
+          {error && (
+            <p
+              id="household-id-error"
+              role="alert"
+              className="mt-2 text-sm text-red-700"
+            >
+              {error}
             </p>
-          </div>
-        </div>
+          )}
+          <button
+            type="submit"
+            disabled={!householdId.trim()}
+            className="btn-primary mt-4 w-full"
+          >
+            Open budget
+          </button>
+        </form>
+
+        <button
+          type="button"
+          onClick={handleCreateRandom}
+          className="btn-secondary mt-3"
+        >
+          Create a household
+        </button>
       </div>
-    </div>
+    </main>
   );
 }

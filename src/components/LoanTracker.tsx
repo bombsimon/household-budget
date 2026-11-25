@@ -1,15 +1,12 @@
-import React, { useState } from 'react';
-import {
-  Plus,
-  Edit2,
-  Trash2,
-  Calculator,
-  TrendingUp,
-  TrendingDown,
-  CheckCircle2,
-} from 'lucide-react';
+import React, { useId, useState } from 'react';
+import { Plus, Edit2, CheckCircle2 } from 'lucide-react';
 import type { Loan, User } from '../types';
 import { formatMoney } from '../utils/expenseCalculations';
+import { COST_COLORS } from '../utils/costColors';
+import { Avatar } from './Avatar';
+import { CostLegend, ProgressRing, SegmentedBar } from './CostCharts';
+import { ConfirmDialog } from './ConfirmDialog';
+import { DeleteButton } from './DeleteButton';
 import { FormActionButtons } from './FormActionButtons';
 import { SplitMethodSelector } from './SplitMethodSelector';
 import { SplitInfoBox } from './SplitInfoBox';
@@ -33,6 +30,7 @@ export function LoanTracker({
 }: LoanTrackerProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [repaymentGroup, setRepaymentGroup] = useState<string | null>(null);
 
   const {
     totalOriginalAmount,
@@ -70,133 +68,56 @@ export function LoanTracker({
   const hasCategorizedLoans = existingCategories.length > 0;
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-3 sm:p-6">
-      <div className="mb-4 sm:mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center gap-2">
-            <Calculator className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span className="hidden xs:inline">Loans & Debt</span>
-            <span className="xs:hidden">Loans</span>
-          </h2>
-
-          {/* Desktop: inline button */}
-          <button
-            onClick={() => setIsAdding(true)}
-            className="hidden sm:flex items-center justify-center gap-2 px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors min-w-[100px]"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Loan</span>
-          </button>
-        </div>
-
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-2">
-          <p className="text-sm text-gray-600">
-            Track loans and other debt obligations with payment schedules.
-          </p>
-
-          {/* Mobile: separate row button */}
-          <button
-            onClick={() => setIsAdding(true)}
-            className="sm:hidden flex items-center justify-center gap-2 px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Loan</span>
-          </button>
-        </div>
+    <div>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="page-title">Loans</h1>
+        <button
+          type="button"
+          onClick={() => setIsAdding(true)}
+          className="btn-primary"
+        >
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          Add loan
+        </button>
       </div>
 
       {loans.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-          <SummaryCard
-            title="Total Debt"
-            amount={totalCurrentAmount}
-            color="text-red-600"
-            trend="down"
-          />
-          <SummaryCard
-            title="Paid Off"
-            amount={totalPaidOff}
-            color="text-green-600"
-            trend="up"
-            subtitle={`${((totalPaidOff / totalOriginalAmount) * 100).toFixed(1)}% paid`}
-          />
-          <SummaryCard
-            title="Monthly Payment"
-            amount={totalMonthlyPayment}
-            color="text-blue-600"
-          />
-          <SummaryCard
-            title="Monthly Interest"
-            amount={totalMonthlyInterest}
-            color="text-orange-600"
-          />
-          <SummaryCard
-            title="Total Monthly Cost"
+        <dl className="panel mb-5 grid divide-y divide-slate-200 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          <LoanFigure
+            isHero
+            label="Cost each month"
             amount={totalMonthlyCost}
-            color="text-purple-600"
-            subtitle="Payment + interest"
+            note={`${formatMoney(totalMonthlyPayment)} kr repayment + ${formatMoney(totalMonthlyInterest)} kr interest`}
           />
-        </div>
+          <LoanFigure label="Left to pay" amount={totalCurrentAmount} />
+          <LoanFigure
+            label="Paid off"
+            amount={totalPaidOff}
+            note={
+              totalOriginalAmount > 0
+                ? `${((totalPaidOff / totalOriginalAmount) * 100).toFixed(1)}%`
+                : undefined
+            }
+          />
+        </dl>
       )}
 
       {/* Test Interest Rate Comparison Summary */}
       {hasTestRates && (
-        <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Calculator className="w-5 h-5 text-blue-600" />
-              Interest Rate Comparison Summary
-            </h3>
-            <span className="text-sm text-gray-600">
-              {loansWithTestRates.length} loan
-              {loansWithTestRates.length !== 1 ? 's' : ''} with test rates
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="text-center p-3 bg-white rounded-lg border">
-              <div className="text-sm text-gray-600 mb-1">
-                Current Monthly Interest
-              </div>
-              <div className="text-lg font-semibold text-red-600">
-                {formatMoney(totalCurrentInterestForTestLoans)} kr
-              </div>
-            </div>
-
-            <div className="text-center p-3 bg-white rounded-lg border">
-              <div className="text-sm text-gray-600 mb-1">
-                Test Rate Monthly Interest
-              </div>
-              <div className="text-lg font-semibold text-blue-600">
-                {formatMoney(totalTestMonthlyInterest)} kr
-              </div>
-            </div>
-
-            <div className="text-center p-3 bg-white rounded-lg border">
-              <div className="text-sm text-gray-600 mb-1">
-                Monthly Difference
-              </div>
-              <div
-                className={`text-lg font-semibold ${totalTestDifference > 0 ? 'text-red-600' : 'text-green-600'}`}
-              >
-                {totalTestDifference > 0 ? '+' : ''}
-                {formatMoney(totalTestDifference)} kr
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                {totalTestDifference > 0 ? 'More expensive' : 'Savings'} of{' '}
-                {formatMoney(Math.abs(totalTestDifference * 12))} kr/year
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-3 text-center">
-            <p className="text-sm text-gray-600">
-              {totalTestDifference > 0
-                ? `Switching to the test rates would cost an additional ${formatMoney(Math.abs(totalTestDifference * 12))} kr per year.`
-                : `Switching to the test rates would save ${formatMoney(Math.abs(totalTestDifference * 12))} kr per year.`}
-            </p>
-          </div>
-        </div>
+        <section className="panel mb-5 p-6">
+          <h2 className="section-title">With the test rates</h2>
+          <p className="mt-1">
+            {formatMoney(Math.abs(totalTestDifference))} kr{' '}
+            {totalTestDifference > 0 ? 'more' : 'less'} interest each month, or{' '}
+            {formatMoney(Math.abs(totalTestDifference * 12))} kr a year.
+          </p>
+          <p className="mt-1 text-sm text-slate-600">
+            {formatMoney(totalTestMonthlyInterest)} kr compared with{' '}
+            {formatMoney(totalCurrentInterestForTestLoans)} kr today, on{' '}
+            {loansWithTestRates.length}{' '}
+            {loansWithTestRates.length === 1 ? 'loan' : 'loans'}.
+          </p>
+        </section>
       )}
 
       {isAdding && (
@@ -212,7 +133,7 @@ export function LoanTracker({
       )}
 
       {hasCategorizedLoans ? (
-        <div className="space-y-6">
+        <div className="space-y-10">
           {groupedLoans.map(({ key, label, loans: groupLoans }) => {
             const groupTotals = computeLoanTotals(groupLoans);
             const applicableLoans = groupLoans.filter(
@@ -240,14 +161,12 @@ export function LoanTracker({
 
             return (
               <div key={key}>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-md font-semibold text-gray-900">
-                      {label}
-                    </h3>
+                <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h3 className="section-title">{label}</h3>
                     <button
                       type="button"
-                      onClick={handleApplyGroupRepayments}
+                      onClick={() => setRepaymentGroup(key)}
                       disabled={!canApplyGroup}
                       title={
                         canApplyGroup
@@ -255,41 +174,35 @@ export function LoanTracker({
                           : 'No loans in this category have a remaining balance'
                       }
                       aria-label={`Apply this month's repayment to all loans in ${label}`}
-                      className="text-gray-400 hover:text-green-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-gray-400"
+                      className="btn-secondary px-3 py-1"
                     >
-                      <CheckCircle2 className="w-4 h-4" />
+                      <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                      Record repayments
                     </button>
                   </div>
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-slate-600">
                     {groupLoans.length} loan
                     {groupLoans.length !== 1 ? 's' : ''}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-                  <CategorySummaryStat
-                    title="Total Debt"
-                    amount={groupTotals.totalCurrentAmount}
-                    color="text-red-600"
+                {repaymentGroup === key && (
+                  <ConfirmDialog
+                    title={`Record repayments for ${label}?`}
+                    description={`This lowers ${applicableLoans.length} loan balances by ${formatMoney(groupRepaymentSum)} kr in total.`}
+                    confirmLabel="Record repayments"
+                    tone="primary"
+                    onConfirm={handleApplyGroupRepayments}
+                    onClose={() => setRepaymentGroup(null)}
                   />
-                  <CategorySummaryStat
-                    title="Monthly Payment"
-                    amount={groupTotals.totalMonthlyPayment}
-                    color="text-blue-600"
-                  />
-                  <CategorySummaryStat
-                    title="Monthly Interest"
-                    amount={groupTotals.totalMonthlyInterest}
-                    color="text-orange-600"
-                  />
-                  <CategorySummaryStat
-                    title="Total Monthly Cost"
-                    amount={groupTotals.totalMonthlyCost}
-                    color="text-purple-600"
-                  />
-                </div>
+                )}
 
-                <div className="space-y-4">
+                <p className="mb-3 text-sm text-slate-700">
+                  {formatMoney(groupTotals.totalCurrentAmount)} kr left,{' '}
+                  {formatMoney(groupTotals.totalMonthlyCost)} kr a month
+                </p>
+
+                <div className="panel divide-y divide-slate-200">
                   {groupLoans.map((loan) => (
                     <LoanCard
                       key={loan.id}
@@ -312,7 +225,7 @@ export function LoanTracker({
           })}
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="panel divide-y divide-slate-200">
           {loans.map((loan) => (
             <LoanCard
               key={loan.id}
@@ -333,10 +246,9 @@ export function LoanTracker({
       )}
 
       {loans.length === 0 && !isAdding && (
-        <div className="text-center py-12 text-gray-500">
-          <Calculator className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>No loans added yet. Click "Add Loan" to get started.</p>
-        </div>
+        <p className="panel p-8 text-slate-700">
+          No loans yet. Add one to see its monthly cost and interest.
+        </p>
       )}
     </div>
   );
@@ -412,61 +324,26 @@ function groupLoansByCategory(loans: Loan[]): LoanGroup[] {
   });
 }
 
-interface CategorySummaryStatProps {
-  title: string;
-  amount: number;
-  color: string;
-}
-
-function CategorySummaryStat({
-  title,
+function LoanFigure({
+  label,
   amount,
-  color,
-}: CategorySummaryStatProps) {
+  note,
+  isHero = false,
+}: {
+  label: string;
+  amount: number;
+  note?: string;
+  isHero?: boolean;
+}) {
   return (
-    <div className="bg-gray-50 rounded-md p-3">
-      <div className="text-xs font-medium text-gray-500 mb-1">{title}</div>
-      <div className={`text-lg font-semibold ${color}`}>
+    <div className="p-6">
+      <dt className="text-sm text-slate-600">{label}</dt>
+      <dd
+        className={`mt-1 text-2xl font-bold tracking-tight ${isHero ? 'text-blue-800' : ''}`}
+      >
         {formatMoney(amount)} kr
-      </div>
-    </div>
-  );
-}
-
-interface SummaryCardProps {
-  title: string;
-  amount: number;
-  color: string;
-  trend?: 'up' | 'down';
-  subtitle?: string;
-  isPercentage?: boolean;
-}
-
-function SummaryCard({
-  title,
-  amount,
-  color,
-  trend,
-  subtitle,
-  isPercentage = false,
-}: SummaryCardProps) {
-  return (
-    <div className="bg-gray-50 rounded-lg p-4">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-medium text-gray-500">{title}</h3>
-        {trend &&
-          (trend === 'up' ? (
-            <TrendingUp className={`w-4 h-4 ${color}`} />
-          ) : (
-            <TrendingDown className={`w-4 h-4 ${color}`} />
-          ))}
-      </div>
-      <div className={`text-2xl font-bold ${color}`}>
-        {isPercentage
-          ? `${(amount * 100).toFixed(2)}%`
-          : `${formatMoney(amount)} kr`}
-      </div>
-      {subtitle && <div className="text-sm text-gray-500 mt-1">{subtitle}</div>}
+      </dd>
+      {note && <dd className="mt-1 text-sm text-slate-600">{note}</dd>}
     </div>
   );
 }
@@ -492,8 +369,10 @@ function LoanCard({
   onStartEdit,
   onStopEdit,
 }: LoanCardProps) {
+  const [isConfirmingRepayment, setIsConfirmingRepayment] = useState(false);
   const paidOffAmount = loan.originalAmount - loan.currentAmount;
-  const paidOffPercentage = (paidOffAmount / loan.originalAmount) * 100;
+  const paidOffPercentage =
+    loan.originalAmount > 0 ? (paidOffAmount / loan.originalAmount) * 100 : 0;
   const monthlyInterest = (loan.currentAmount * loan.interestRate) / 12;
   const monthlyRepayment = loan.monthlyPayment; // Fixed repayment amount (amortering)
   const monthsToPayOff = loan.currentAmount / monthlyRepayment;
@@ -515,6 +394,20 @@ function LoanCard({
     ? testMonthlyInterest - monthlyInterest
     : 0;
 
+  const payer = users.find((user) => user.id === loan.paidBy);
+  const monthlyParts = [
+    {
+      label: 'Interest',
+      amount: monthlyInterest,
+      color: COST_COLORS.loanInterest,
+    },
+    {
+      label: 'Repayment',
+      amount: monthlyRepayment,
+      color: COST_COLORS.loanRepayment,
+    },
+  ];
+
   if (isEditing) {
     return (
       <LoanForm
@@ -528,165 +421,94 @@ function LoanCard({
   }
 
   return (
-    <div className="border border-gray-200 rounded-lg p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex flex-col">
-          <h3 className="text-lg font-semibold text-gray-900">{loan.name}</h3>
-          {loan.paidBy &&
-            (() => {
-              const payer = users.find((u) => u.id === loan.paidBy);
-              return (
-                <div className="text-sm text-gray-600 mt-1">
-                  Paid by:{' '}
-                  <span className="font-medium" style={{ color: payer?.color }}>
-                    {payer?.name || 'Unknown'}
-                  </span>
-                </div>
-              );
-            })()}
+    <article className="p-6">
+      <div className="flex items-start gap-3">
+        <Avatar user={payer} />
+        <div className="min-w-0 flex-1">
+          <h3 className="section-title break-words">{loan.name}</h3>
+          <p className="text-sm text-slate-600">
+            {payer ? `Paid by ${payer.name}, ` : ''}
+            {(loan.interestRate * 100).toFixed(2)}% interest
+          </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-shrink-0">
           <button
+            type="button"
             onClick={onStartEdit}
-            className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+            className="icon-btn"
+            aria-label={`Edit ${loan.name}`}
+            title={`Edit ${loan.name}`}
           >
-            <Edit2 className="w-4 h-4" />
+            <Edit2 className="h-4 w-4" aria-hidden="true" />
           </button>
-          <button
-            onClick={onDelete}
-            className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          <DeleteButton name={loan.name} onDelete={onDelete} />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="mt-6 grid items-center gap-x-10 gap-y-6 lg:grid-cols-2">
+        <div className="flex items-center gap-6">
+          <ProgressRing percentage={paidOffPercentage} />
+          <div className="min-w-0">
+            <p className="text-sm text-slate-600">Left to pay</p>
+            <p className="whitespace-nowrap text-2xl font-bold tracking-tight">
+              {formatMoney(loan.currentAmount)} kr
+            </p>
+            <p className="mt-1 text-sm text-slate-600">
+              {formatMoney(paidOffAmount)} of {formatMoney(loan.originalAmount)}{' '}
+              kr paid off
+            </p>
+            <p className="text-sm text-slate-600">
+              {monthlyRepayment > 0
+                ? `${Math.ceil(monthsToPayOff)} months to go`
+                : 'No repayment set'}
+            </p>
+          </div>
+        </div>
         <div>
-          <h4 className="text-sm font-medium text-gray-500 mb-3">
-            Loan Overview
-          </h4>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span>Original Amount:</span>
-              <span>{formatMoney(loan.originalAmount)} kr</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Current Balance:</span>
-              <span className="text-red-600">
-                {formatMoney(loan.currentAmount)} kr
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>Paid Off:</span>
-              <span className="text-green-600 font-medium">
-                {formatMoney(paidOffAmount)} kr ({paidOffPercentage.toFixed(1)}
-                %)
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>Interest Rate:</span>
-              <span>{(loan.interestRate * 100).toFixed(2)}%</span>
-            </div>
+          <p className="text-sm text-slate-600">Cost each month</p>
+          <p className="mb-3 text-2xl font-bold tracking-tight">
+            {formatMoney(monthlyInterest + monthlyRepayment)} kr
+          </p>
+          <SegmentedBar isThin parts={monthlyParts} />
+          <div className="mt-1">
+            <CostLegend parts={monthlyParts} />
           </div>
         </div>
-
-        <div>
-          <h4 className="text-sm font-medium text-gray-500 mb-3">
-            Monthly Payment
-          </h4>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span>Total Payment:</span>
-              <span className="font-medium">
-                {formatMoney(monthlyInterest + monthlyRepayment)} kr
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>Interest:</span>
-              <span className="text-red-600">
-                {formatMoney(monthlyInterest)} kr
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-1.5">
-                <span>Repayment:</span>
-                <button
-                  type="button"
-                  onClick={handleApplyRepayment}
-                  disabled={!canApplyRepayment}
-                  title={`Apply this month's repayment (-${formatMoney(monthlyRepayment)} kr) to the current balance`}
-                  aria-label="Apply this month's repayment"
-                  className="text-gray-400 hover:text-green-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-gray-400"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              <span className="text-green-600">
-                {formatMoney(monthlyRepayment)} kr
-              </span>
-            </div>
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>Months to pay off:</span>
-              <span>{Math.ceil(monthsToPayOff)} months</span>
-            </div>
-          </div>
-        </div>
-
-        {loan.testInterestRate && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <h4 className="text-sm font-medium text-blue-700 mb-3 flex items-center gap-1">
-              <Calculator className="w-3 h-3" />
-              Test Rate ({(loan.testInterestRate * 100).toFixed(2)}%)
-            </h4>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span>Test Payment:</span>
-                <span className="font-medium">
-                  {formatMoney(testMonthlyPayment!)} kr
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Interest:</span>
-                <span className="text-red-600">
-                  {formatMoney(testMonthlyInterest!)} kr
-                </span>
-              </div>
-              <div className="flex justify-between font-medium">
-                <span>Monthly Difference:</span>
-                <span
-                  className={
-                    testDifference > 0 ? 'text-red-600' : 'text-green-600'
-                  }
-                >
-                  {testDifference > 0 ? '+' : ''}
-                  {formatMoney(testDifference)} kr
-                </span>
-              </div>
-              <div
-                className={`text-xs p-2 rounded ${testDifference > 0 ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}
-              >
-                {testDifference > 0 ? '🔺' : '🔻'}{' '}
-                {testDifference > 0 ? 'More expensive' : 'Savings'} of{' '}
-                {formatMoney(Math.abs(testDifference * 12))} kr/year
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
-      <div className="mt-4 bg-gray-50 rounded-md p-3">
-        <div className="w-full bg-gray-200 rounded-full h-3">
-          <div
-            className="bg-green-500 h-3 rounded-full transition-all duration-300"
-            style={{ width: `${paidOffPercentage}%` }}
-          />
-        </div>
-        <div className="text-xs text-gray-500 mt-1 text-center">
-          {paidOffPercentage.toFixed(1)}% paid off
-        </div>
+      {loan.testInterestRate && (
+        <p className="mt-5 border-l-2 border-blue-700 pl-3 text-sm">
+          At {(loan.testInterestRate * 100).toFixed(2)}% it would cost{' '}
+          <strong className="money">
+            {formatMoney(testMonthlyPayment!)} kr
+          </strong>{' '}
+          a month ({testDifference > 0 ? '+' : ''}
+          {formatMoney(testDifference)} kr).
+        </p>
+      )}
+
+      <div className="mt-4 flex justify-end">
+        <button
+          type="button"
+          onClick={() => setIsConfirmingRepayment(true)}
+          disabled={!canApplyRepayment}
+          className="btn-secondary"
+        >
+          Record repayment
+        </button>
       </div>
-    </div>
+
+      {isConfirmingRepayment && (
+        <ConfirmDialog
+          title={`Record repayment on ${loan.name}?`}
+          description={`This lowers the balance by ${formatMoney(Math.min(monthlyRepayment, loan.currentAmount))} kr.`}
+          confirmLabel="Record repayment"
+          tone="primary"
+          onConfirm={handleApplyRepayment}
+          onClose={() => setIsConfirmingRepayment(false)}
+        />
+      )}
+    </article>
   );
 }
 
@@ -705,6 +527,7 @@ function LoanForm({
   onSubmit,
   onCancel,
 }: LoanFormProps) {
+  const fieldId = useId();
   const [name, setName] = useState(initialData?.name || '');
   const [category, setCategory] = useState(initialData?.category || '');
   const [originalAmount, setOriginalAmount] = useState(
@@ -825,34 +648,33 @@ function LoanForm({
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="border border-gray-300 rounded-lg p-6 bg-gray-50 mb-4"
-    >
+    <form onSubmit={handleSubmit} className="form-panel mb-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Loan Name
+          <label htmlFor={`${fieldId}-1`} className="field-label">
+            Loan name
           </label>
           <input
+            id={`${fieldId}-1`}
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="field"
             placeholder="e.g., Home Loan Part 1"
             required
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor={`${fieldId}-2`} className="field-label">
             Category (optional)
           </label>
           <input
+            id={`${fieldId}-2`}
             type="text"
             list="loan-category-suggestions"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="field"
             placeholder="e.g., Housing, Car, SMS loans"
           />
           <datalist id="loan-category-suggestions">
@@ -865,28 +687,30 @@ function LoanForm({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Original Amount (kr)
+          <label htmlFor={`${fieldId}-3`} className="field-label">
+            Original amount (kr)
           </label>
           <input
+            id={`${fieldId}-3`}
             type="number"
             value={originalAmount}
             onChange={(e) => setOriginalAmount(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="field"
             placeholder="1500000"
             required
             min="0"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Current Balance (kr)
+          <label htmlFor={`${fieldId}-4`} className="field-label">
+            Current balance (kr)
           </label>
           <input
+            id={`${fieldId}-4`}
             type="number"
             value={currentAmount}
             onChange={(e) => setCurrentAmount(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="field"
             placeholder="1300000"
             required
             min="0"
@@ -896,14 +720,15 @@ function LoanForm({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Interest Rate (%)
+          <label htmlFor={`${fieldId}-5`} className="field-label">
+            Interest rate (%)
           </label>
           <input
+            id={`${fieldId}-5`}
             type="number"
             value={interestRate}
             onChange={(e) => setInterestRate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="field"
             placeholder="3.5"
             required
             min="0"
@@ -911,14 +736,15 @@ function LoanForm({
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Test Interest Rate (%) - Optional
+          <label htmlFor={`${fieldId}-6`} className="field-label">
+            Test interest rate (%) - Optional
           </label>
           <input
+            id={`${fieldId}-6`}
             type="number"
             value={testInterestRate}
             onChange={(e) => setTestInterestRate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="field"
             placeholder="2.8"
             min="0"
             step="0.01"
@@ -928,14 +754,15 @@ function LoanForm({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Monthly Payment (kr)
+          <label htmlFor={`${fieldId}-7`} className="field-label">
+            Monthly repayment (kr)
           </label>
           <input
+            id={`${fieldId}-7`}
             type="number"
             value={monthlyPayment}
             onChange={(e) => setMonthlyPayment(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="field"
             placeholder="8500"
             required
             min="0"
@@ -945,19 +772,20 @@ function LoanForm({
 
       {/* Payment & Splitting Controls */}
       {users.length > 1 && (
-        <div className="border-t border-gray-200 pt-4 mt-4">
-          <h4 className="font-medium text-gray-900 mb-3">
-            Payment & Splitting
+        <div className="border-t border-slate-200 pt-4 mt-4">
+          <h4 className="font-medium text-slate-900 mb-3">
+            Payment & splitting
           </h4>
 
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Paid By
+            <label htmlFor={`${fieldId}-8`} className="field-label">
+              Paid by
             </label>
             <select
+              id={`${fieldId}-8`}
               value={paidBy}
               onChange={(e) => setPaidBy(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="field"
               required
             >
               {users.map((user) => (
@@ -971,24 +799,25 @@ function LoanForm({
           {/* Interest and Repayment Splitting - Side by Side */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Interest Splitting */}
-            <div className="border border-gray-200 rounded-md p-4">
-              <h5 className="font-medium text-gray-800 mb-3">
-                Interest Splitting
+            <div className="border-t border-slate-300 pt-4">
+              <h5 className="font-medium text-slate-800 mb-3">
+                Interest splitting
               </h5>
               <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Interest Sharing
+                  <label htmlFor={`${fieldId}-9`} className="field-label">
+                    Interest sharing
                   </label>
                   <select
+                    id={`${fieldId}-9`}
                     value={isInterestShared ? 'shared' : 'personal'}
                     onChange={(e) =>
                       setIsInterestShared(e.target.value === 'shared')
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="field"
                   >
-                    <option value="shared">Household Cost</option>
-                    <option value="personal">Personal Cost</option>
+                    <option value="shared">Household cost</option>
+                    <option value="personal">Personal cost</option>
                   </select>
                 </div>
 
@@ -1033,24 +862,25 @@ function LoanForm({
             </div>
 
             {/* Repayment Splitting */}
-            <div className="border border-gray-200 rounded-md p-4">
-              <h5 className="font-medium text-gray-800 mb-3">
-                Repayment Splitting
+            <div className="border-t border-slate-300 pt-4">
+              <h5 className="font-medium text-slate-800 mb-3">
+                Repayment splitting
               </h5>
               <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Repayment Sharing
+                  <label htmlFor={`${fieldId}-10`} className="field-label">
+                    Repayment sharing
                   </label>
                   <select
+                    id={`${fieldId}-10`}
                     value={isRepaymentShared ? 'shared' : 'personal'}
                     onChange={(e) =>
                       setIsRepaymentShared(e.target.value === 'shared')
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="field"
                   >
-                    <option value="shared">Household Cost</option>
-                    <option value="personal">Personal Cost</option>
+                    <option value="shared">Household cost</option>
+                    <option value="personal">Personal cost</option>
                   </select>
                 </div>
 
@@ -1099,7 +929,7 @@ function LoanForm({
 
       <FormActionButtons
         submitType="submit"
-        submitLabel={`${initialData ? 'Update' : 'Add'} Loan`}
+        submitLabel={`${initialData ? 'Save' : 'Add'} loan`}
         onCancel={onCancel}
       />
     </form>

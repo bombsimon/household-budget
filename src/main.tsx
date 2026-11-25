@@ -11,9 +11,7 @@ initializeTaxService();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter
-      basename={import.meta.env.PROD ? '/household-budget' : undefined}
-    >
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <App />
     </BrowserRouter>
   </StrictMode>

@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useId, useState, useRef, useEffect } from 'react';
 import type { PersonalExpenseCategory } from '../types';
 
 interface CategoryAutocompleteProps {
+  id?: string;
   personalCategories: PersonalExpenseCategory[];
   value: string;
   onChange: (categoryId: string) => void;
@@ -9,11 +10,13 @@ interface CategoryAutocompleteProps {
 }
 
 export function CategoryAutocomplete({
+  id,
   personalCategories,
   value,
   onChange,
   onCreateCategory,
 }: CategoryAutocompleteProps) {
+  const listId = useId();
   const selectedCategory = personalCategories.find((c) => c.id === value);
   const [inputValue, setInputValue] = useState(selectedCategory?.name || '');
   const [isOpen, setIsOpen] = useState(false);
@@ -130,7 +133,15 @@ export function CategoryAutocomplete({
     <div ref={wrapperRef} className="relative">
       <input
         ref={inputRef}
+        id={id}
         type="text"
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={isOpen}
+        aria-controls={listId}
+        aria-activedescendant={
+          highlightedIndex >= 0 ? `${listId}-${highlightedIndex}` : undefined
+        }
         value={inputValue}
         onChange={(e) => {
           setInputValue(e.target.value);
@@ -142,12 +153,19 @@ export function CategoryAutocomplete({
         onKeyDown={handleKeyDown}
         placeholder="Uncategorized"
         disabled={isCreating}
-        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+        className="field"
       />
       {isOpen && (
-        <ul className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+        <ul
+          id={listId}
+          role="listbox"
+          className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded shadow-lg max-h-48 overflow-y-auto"
+        >
           {options.map((option, index) => (
             <li
+              id={`${listId}-${index}`}
+              role="option"
+              aria-selected={option.id === value}
               key={option.id || '__uncategorized__'}
               onMouseDown={(e) => {
                 e.preventDefault();
@@ -157,9 +175,9 @@ export function CategoryAutocomplete({
               className={`px-3 py-2 text-sm cursor-pointer ${
                 index === highlightedIndex
                   ? 'bg-blue-50 text-blue-900'
-                  : 'text-gray-700'
-              } ${option.type === 'create' ? 'border-t border-gray-100 text-blue-600 font-medium' : ''} ${
-                option.type === 'uncategorized' ? 'text-gray-400 italic' : ''
+                  : 'text-slate-700'
+              } ${option.type === 'create' ? 'border-t border-slate-100 text-blue-600 font-medium' : ''} ${
+                option.type === 'uncategorized' ? 'text-slate-600 italic' : ''
               }`}
             >
               {option.label}

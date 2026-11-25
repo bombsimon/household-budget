@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import type {
   Expense,
   User,
@@ -35,6 +35,7 @@ export function ExpenseForm({
   isAssetExpense = false,
   onCreateCategory,
 }: ExpenseFormProps) {
+  const fieldId = useId();
   const [name, setName] = useState(initialData?.name || '');
   const [amount, setAmount] = useState(initialData?.amount?.toString() || '');
 
@@ -120,33 +121,32 @@ export function ExpenseForm({
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="p-4 border border-gray-300 rounded-lg bg-gray-50"
-    >
+    <form onSubmit={handleSubmit} className="form-panel">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Expense Name
+          <label htmlFor={`${fieldId}-1`} className="field-label">
+            Expense name
           </label>
           <input
+            id={`${fieldId}-1`}
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="field"
             placeholder="Enter expense name"
             required
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor={`${fieldId}-2`} className="field-label">
             Amount (kr)
           </label>
           <input
+            id={`${fieldId}-2`}
             type="number"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="field"
             placeholder="Enter amount"
             required
             min="0"
@@ -158,13 +158,14 @@ export function ExpenseForm({
       {!isPersonalCategory && !initialData?.userId && users.length > 1 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Paid By
+            <label htmlFor={`${fieldId}-3`} className="field-label">
+              Paid by
             </label>
             <select
+              id={`${fieldId}-3`}
               value={paidBy}
               onChange={(e) => setPaidBy(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="field"
             >
               {users.map((user) => (
                 <option key={user.id} value={user.id}>
@@ -176,7 +177,7 @@ export function ExpenseForm({
         </div>
       )}
 
-      <div className="flex items-center gap-4 mb-4">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mb-4">
         {!isSharedCategory &&
           !isPersonalCategory &&
           !initialData?.userId &&
@@ -189,7 +190,7 @@ export function ExpenseForm({
                 onChange={(e) => setIsShared(e.target.checked)}
                 className="mr-2"
               />
-              Household Expense
+              Household expense
             </label>
           )}
         <label className="flex items-center">
@@ -199,7 +200,7 @@ export function ExpenseForm({
             onChange={(e) => setIsYearly(e.target.checked)}
             className="mr-2"
           />
-          Yearly Expense
+          Paid yearly
         </label>
         <label className="flex items-center">
           <input
@@ -208,10 +209,10 @@ export function ExpenseForm({
             onChange={(e) => setIsBudgeted(e.target.checked)}
             className="mr-2"
           />
-          Budgeted Expense
+          Budgeted, amount varies
         </label>
         {isPersonalCategory && (
-          <span className="text-sm text-green-600 font-medium">
+          <span className="text-sm text-slate-700 font-medium">
             Personal expense for{' '}
             {users.find((u) => u.id === personalUserId)?.name}
           </span>
@@ -220,11 +221,12 @@ export function ExpenseForm({
 
       {showCategorySelector && (
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor={`${fieldId}-4`} className="field-label">
             Category (optional)
           </label>
           {onCreateCategory ? (
             <CategoryAutocomplete
+              id={`${fieldId}-4`}
               personalCategories={personalCategories}
               value={personalCategoryId}
               onChange={setPersonalCategoryId}
@@ -232,9 +234,10 @@ export function ExpenseForm({
             />
           ) : (
             <select
+              id={`${fieldId}-4`}
               value={personalCategoryId}
               onChange={(e) => setPersonalCategoryId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="field"
             >
               <option value="">Uncategorized</option>
               {personalCategories.map((category) => (
@@ -271,13 +274,14 @@ export function ExpenseForm({
             !isAssetExpense &&
             users.length > 1 && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Assigned To
+                <label htmlFor={`${fieldId}-5`} className="field-label">
+                  Assigned to
                 </label>
                 <select
+                  id={`${fieldId}-5`}
                   value={userId}
                   onChange={(e) => setUserId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="field"
                   required
                 >
                   <option value="">Select user...</option>
@@ -294,7 +298,7 @@ export function ExpenseForm({
 
       <FormActionButtons
         submitType="submit"
-        submitLabel={`${initialData ? 'Update' : 'Add'} Expense`}
+        submitLabel={`${initialData ? 'Save' : 'Add'} expense`}
         onCancel={onCancel}
       />
     </form>

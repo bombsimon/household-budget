@@ -11,10 +11,10 @@ export function SplitInfoBox({ users, splitData }: SplitInfoBoxProps) {
     <IncomeSplitDisplay
       users={users}
       splitData={splitData}
-      title="Income-Based Split Calculation:"
-      bgColor="bg-blue-50"
-      textColor="text-blue-700"
-      titleColor="text-blue-800"
+      title="Shares by current income"
+      bgColor="bg-slate-100"
+      textColor="text-slate-700"
+      titleColor="text-slate-900"
     />
   );
 }

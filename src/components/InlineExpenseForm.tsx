@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Save, X, Trash2 } from 'lucide-react';
+import React, { useId, useState } from 'react';
+import { DeleteButton } from './DeleteButton';
 import type { Expense, PersonalExpenseCategory } from '../types';
 import { CategoryAutocomplete } from './CategoryAutocomplete';
 
@@ -20,6 +20,7 @@ export function InlineExpenseForm({
   onDelete,
   onCreateCategory,
 }: InlineExpenseFormProps) {
+  const fieldId = useId();
   const [name, setName] = useState(expense?.name || '');
   const [amount, setAmount] = useState(expense?.amount?.toString() || '');
   const [isYearly, setIsYearly] = useState(expense?.isYearly || false);
@@ -47,38 +48,48 @@ export function InlineExpenseForm({
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="p-3 bg-blue-50 border border-blue-200 rounded-lg"
-    >
+    <form onSubmit={handleSubmit} className="form-panel">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Expense name"
-          required
-          autoFocus
-          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-        />
-        <input
-          type="number"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder="Amount (kr)"
-          required
-          min="0"
-          step="0.01"
-          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-        />
+        <div>
+          <label htmlFor={`${fieldId}-1`} className="field-label">
+            Name
+          </label>
+          <input
+            id={`${fieldId}-1`}
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Expense name"
+            required
+            autoFocus
+            className="field"
+          />
+        </div>
+        <div>
+          <label htmlFor={`${fieldId}-2`} className="field-label">
+            Amount (kr)
+          </label>
+          <input
+            id={`${fieldId}-2`}
+            type="number"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="Amount (kr)"
+            required
+            min="0"
+            step="0.01"
+            className="field"
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">
+          <label htmlFor={`${fieldId}-3`} className="field-label">
             Category
           </label>
           <CategoryAutocomplete
+            id={`${fieldId}-3`}
             personalCategories={personalCategories}
             value={personalCategoryId}
             onChange={setPersonalCategoryId}
@@ -108,30 +119,20 @@ export function InlineExpenseForm({
       </div>
 
       <div className="flex items-center gap-2">
-        <button
-          type="submit"
-          className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-        >
-          <Save className="w-3.5 h-3.5" />
-          {expense ? 'Update' : 'Add'}
+        <button type="submit" className="btn-primary">
+          {expense ? 'Save expense' : 'Add expense'}
         </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
-        >
-          <X className="w-3.5 h-3.5" />
+        <button type="button" onClick={onCancel} className="btn-secondary">
           Cancel
         </button>
         {onDelete && (
-          <button
-            type="button"
-            onClick={onDelete}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors ml-auto"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            Delete
-          </button>
+          <div className="ml-auto">
+            <DeleteButton
+              name={expense?.name ?? 'expense'}
+              showLabel
+              onDelete={onDelete}
+            />
+          </div>
         )}
       </div>
     </form>
