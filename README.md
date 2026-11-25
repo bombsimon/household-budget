@@ -1,163 +1,100 @@
-# Household Budget Manager
+# 💸 Household Budget
 
-A comprehensive household budget management application built with React,
-TypeScript, and Tailwind CSS. Designed to help individuals and couples manage
-shared finances, track expenses, and plan for financial goals.
+A monthly budget for your home, whether you live alone or share it. See where
+your money goes and what's left each month. If you share costs, it also works
+out who owes whom.
 
-## About
+**[Open the app](https://bombsimon.github.io/household-budget/)**
 
-For the longest time, I've been keeping track of my personal and household
-budget in a Google Spreadsheet. Nothing wrong with that, it's just... not
-pretty.
+<p>
+  <img src="docs/desktop.png" alt="Personal budget on a computer" width="74%">
+  <img src="docs/phone.png" alt="Personal budget on a phone" width="23%">
+</p>
 
-I got the idea to do yet another test with some AI coding and thought, _"Maybe I
-can just feed the spreadsheet to Claude?"_ Well, I could. And it did something
-at first, but not really what I wanted. From there, I spent days prompting,
-hitting my 5 hour limit several days in a row. Getting so close, and then ending
-up right back where I started.
+---
 
-Finally, after about a week, I have something that feels good enough to share.
-Just to clarify, I've written 0 lines of this code. I only removed maybe 5
-lines, and I wrote the About section in this README. The rest is just me
-prompting and directing Claude to do what I meant. I think it turned out OK!
+<table>
+  <tr>
+    <th width="50%">On your own</th>
+    <th width="50%">Together</th>
+  </tr>
+  <tr>
+    <td><img src="docs/single.png" alt="Overview for one person" width="100%"></td>
+    <td><img src="docs/together.png" alt="Overview for two people" width="100%"></td>
+  </tr>
+</table>
 
-This text was cleaned up a little with ChatGPT...
+## What it does
 
-## Features
+- Shows what's left after tax and fixed costs
+- Tracks expenses, loans with interest and repayment, and the running costs of
+  things like a car
+- Calculates income after tax with Swedish municipality rates and tax tables
+- Syncs between devices, on desktop and phone, in light or dark mode
 
-### 💰 Expense Management
+When you're two or more, it also:
 
-- **Household Expenses**: Track shared expenses like rent, utilities, and groceries
-- **Personal Expenses**: Manage individual expenses with custom categories
-- **Smart Splitting**: Automatically split expenses by income percentage or equally
-- **Flexible Categories**: Create custom expense categories for better organization
+- Splits shared costs equally or by income
+- Tells you who should transfer how much
+- Gives each person their own budget, including their part of the shared costs
 
-### 🏠 Asset & Loan Tracking
+Living alone, you won't see splits or transfers. Add another person later and
+they appear.
 
-- **Asset Management**: Track cars, boats, and other household assets with associated costs
-- **Loan Management**: Monitor loans and debt with interest rate calculations and repayment tracking
-- **Swedish Banking Terms**: Uses accurate terminology (amortering for repayment) aligned with Swedish banking
-- **Payment Tracking**: See monthly payment breakdowns and remaining balances
-- **Progress Visualization**: Visual progress bars for loan payoff
+It's made for Sweden, so amounts are in kronor.
 
-### 📊 Financial Dashboard
+## Privacy
 
-- **Budget Overview**: Complete household financial picture with income vs. expenses
-- **Surplus Calculation**: Accurate household surplus after all expenses and loan payments
-- **Financial Health**: Insights on savings potential and emergency fund coverage
-- **Visual Charts**: Interactive charts showing expense breakdowns and trends
+There are no accounts. A household has an ID and a password. If you share it,
+everyone uses the same ones. The budget is encrypted in your browser before it's saved,
+and the password is never sent to the server.
 
-### 👥 Multi-User Support
+- **Choose a long password.** There's no way to reset it.
+- **Choose an ID that's hard to guess.** Anyone who knows it can overwrite or
+  delete the data, even though they can't read it.
+- **Log out on shared computers.** The browser remembers the password until you
+  do.
 
-- **1-2 User Support**: Optimized for individuals or couples
-- **Settlement Tracking**: Automatic calculation of who owes whom
-- **Income-Based Splitting**: Fair expense allocation based on income ratios
-- **Clean Single-User Mode**: Simplified UI when managing personal finances
+## Run it locally
 
-### 💡 Smart Features
-
-- **Swedish Tax Integration**: Accurate after-tax income calculations using official Skatteverket data
-  - Current tax rates for all 290 Swedish municipalities
-  - Municipal tax, regional tax, and state tax calculations
-  - Automatic tax table lookup based on income and municipality
-- **Cloud Persistence**: Automatic syncing across devices with Firebase Firestore
-- **Multi-Tenant Support**: Share household budgets with family members via unique URLs
-- **Export/Import**: Backup and restore your financial data
-- **Responsive Design**: Works seamlessly on desktop and mobile
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js (version 20.19+ recommended)
-- npm or yarn
-- Firebase project (for cloud persistence)
-
-### Quick Start
+You need Node.js 24. The Firestore emulator also needs Java.
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd household-budget
-
-# Install dependencies
 npm install
 
-# Start development server (uses local storage)
-npm run dev
+# In one terminal
+npm run emulator
+
+# In another
+npm run seed
+npm run dev:local
 ```
 
-### Firebase Setup (Optional but Recommended)
+This uses a local database that is emptied when the emulator stops. Seeding
+creates the households `local-demo` and `local-demo-shared`, both with the
+password `local-demo-password`. Skip it to start empty.
 
-For cloud persistence and multi-device syncing:
+To use your own Firebase project, copy `.env.example` to `.env` and fill in the
+values, then follow the [Firebase guide](FIREBASE_SETUP.md).
 
-1. Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
-2. Copy `.env.example` to `.env` and fill in your Firebase configuration
-3. Enable Firestore Database in your Firebase project
-4. Deploy security rules: `npm run firebase:deploy:rules`
+| Command               | What it does                  |
+| --------------------- | ----------------------------- |
+| `npm test`            | Run the tests                 |
+| `npm run lint`        | Check the code                |
+| `npm run prettify`    | Format everything             |
+| `npm run build`       | Build for production          |
+| `npm run screenshots` | Retake the README screenshots |
 
-See [FIREBASE_SETUP.md](FIREBASE_SETUP.md) for detailed instructions.
+The screenshots use the same example data and need Google Chrome. Edit
+`scripts/example-data.js` to change the data and `scripts/take-screenshots.js` to
+change which pages are captured.
 
-### Build and Deploy
+Pushing to `main` deploys to GitHub Pages. Firestore rules are deployed
+separately with `npm run firebase:deploy:rules`.
 
-```bash
-# Build for production
-npm run build
-
-# Deploy to Firebase Hosting
-npm run firebase:deploy
-
-# Or deploy only hosting (faster updates)
-npm run firebase:deploy:hosting
-```
-
-### Development Commands
-
-```bash
-npm run dev                       # Start development server
-npm run build                     # Build for production
-npm run build:github              # Build for GitHub Pages deployment
-npm run preview                   # Preview production build
-npm run lint                      # Run ESLint
-npm run prettify                  # Format code with Prettier
-npm run firebase:emulators        # Start Firebase emulators
-npm run firebase:deploy           # Build and deploy to Firebase
-npm run firebase:deploy:hosting   # Deploy only frontend
-npm run firebase:deploy:rules     # Deploy only Firestore rules
-npm run update-municipalities     # Update Swedish municipality tax data
-```
-
-### Maintenance Commands
-
-#### Updating Swedish Tax Data
-
-The application includes current Swedish municipality tax rates for accurate after-tax income calculations. To update this data:
-
-```bash
-# Update major municipalities only (faster, for testing)
-npm run update-municipalities
-
-# Update all 290 municipalities (comprehensive, for production)
-node scripts/update-municipality-data.js --full
-```
-
-This script fetches current tax rates directly from Skatteverket's official API and updates the static fallback data used when the API is unavailable.
-
-For detailed information about Swedish tax data integration, see [MUNICIPALITY_DATA.md](MUNICIPALITY_DATA.md).
-
-## Technology Stack
-
-- **React 19** - Modern React with hooks and functional components
-- **TypeScript** - Type-safe development
-- **Tailwind CSS** - Utility-first styling
-- **Firebase Firestore** - Cloud database with real-time synchronization
-- **Firebase Hosting** - Fast, secure web hosting
-- **Recharts** - Interactive data visualization
-- **Lucide React** - Beautiful icons
-- **Vite** - Fast development and building
-- **React Router** - Client-side routing for multi-tenant support
+Tax data has to be updated once a year, see
+[municipality tax data](MUNICIPALITY_DATA.md).
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
-for details.
+[MIT](LICENSE)
